@@ -34,7 +34,7 @@ wss.on('connection', (ws, req) => {
                     broadcast({
                         Method: "OnClientConnected",
                         From: "Server",
-                        To: "All"
+                        To: "All",
                         Data: { Client: msg.From }
                     });
                 }
