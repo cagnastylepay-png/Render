@@ -80,7 +80,7 @@ wss.on('connection', (ws, req) => {
             broadcast({
                 Method: "OnClientDisconnected",
                 From: "Server",
-                To: "All"
+                To: "All",
                 Data: { Client: name }
             });
         }
