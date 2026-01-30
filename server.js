@@ -24,17 +24,39 @@ const Player = mongoose.model('Player', PlayerSchema);
 // --- Serveur HTTP ---
 // L'ajout du mot-clé 'async' ici règle ton erreur !
 const server = http.createServer(async (req, res) => {
-    if (req.url === "/view-db") {
+    if (path === "/brainrots") {
         try {
-            const players = await Player.find().sort({ lastUpdate: -1 });
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify(players, null, 2));
+
+            if (query.user === "all") {
+                // Récupère tous les joueurs
+                const allPlayers = await Player.find({}, 'brainrots');
+                
+                // Fusionne tous les tableaux de brainrots en un seul
+                // .flatMap permet de transformer [[1,2], [3,4]] en [1,2,3,4]
+                const allBrainrots = allPlayers.flatMap(p => p.brainrots || []);
+                
+                return res.end(JSON.stringify(allBrainrots, null, 2));
+            } 
+            
+            else if (query.user) {
+                const player = await Player.findOne({ 
+                    displayName: new RegExp('^' + query.user + '$', 'i') 
+                }, 'brainrots');
+                
+                // Retourne soit le tableau du joueur, soit un tableau vide si non trouvé
+                const list = player ? player.brainrots : [];
+                return res.end(JSON.stringify(list, null, 2));
+            } else {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: "Paramètre ?user manquant (all ou username)" }));
+            }
         } catch (err) {
             res.writeHead(500);
-            return res.end("Erreur lors de la lecture de la base de données");
+            return res.end(JSON.stringify([]));
         }
     }
-    res.end("Serveur Persistant OK. Allez sur /view-db");
+    res.end("Serveur Persistant OK. Allez sur /brainrots");
 });
 
 // --- WebSocket ---
