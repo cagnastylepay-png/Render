@@ -106,7 +106,6 @@ const server = http.createServer(async (req, res) => {
         res.end("Erreur de chargement");
     }
 }
-    res.end("Serveur Persistant OK. Allez sur /brainrots");
 });
 
 // --- WebSocket ---
