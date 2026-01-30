@@ -32,37 +32,80 @@ const server = http.createServer(async (req, res) => {
     const query = parsedUrl.query;
     
     if (path === "/brainrots") {
-        try {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+        const isAll = query.user === "all";
+        let brainrotsList = [];
 
-            if (query.user === "all") {
-                // Récupère tous les joueurs
-                const allPlayers = await Player.find({}, 'brainrots');
-                
-                // Fusionne tous les tableaux de brainrots en un seul
-                // .flatMap permet de transformer [[1,2], [3,4]] en [1,2,3,4]
-                const allBrainrots = allPlayers.flatMap(p => p.brainrots || []);
-                
-                return res.end(JSON.stringify(allBrainrots, null, 2));
-            } 
-            
-            else if (query.user) {
-                const player = await Player.findOne({ 
-                    displayName: new RegExp('^' + query.user + '$', 'i') 
-                }, 'brainrots');
-                
-                // Retourne soit le tableau du joueur, soit un tableau vide si non trouvé
-                const list = player ? player.brainrots : [];
-                return res.end(JSON.stringify(list, null, 2));
-            } else {
-                res.writeHead(400);
-                return res.end(JSON.stringify({ error: "Paramètre ?user manquant (all ou username)" }));
-            }
-        } catch (err) {
-            res.writeHead(500);
-            return res.end(JSON.stringify([]));
+        if (isAll) {
+            const players = await Player.find({ isOnline: true }, 'displayName brainrots');
+            brainrotsList = players.flatMap(p => p.brainrots.map(b => ({ ...b, Owner: p.displayName })));
+        } else if (query.user) {
+            const player = await Player.findOne({ displayName: new RegExp('^' + query.user + '$', 'i') });
+            brainrotsList = player ? player.brainrots : [];
         }
+
+        // Si l'utilisateur demande du JSON (pour un script)
+        if (query.format === "json") {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify(brainrotsList));
+        }
+
+        // Sinon, on envoie la page HTML avec le Grid
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`
+            <!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+                <style>
+                    body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+                    .container { max-width: 1200px; margin: auto; background: #2d2d2d; padding: 20px; border-radius: 10px; }
+                    h1 { color: #00e5ff; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🧠 Inventaire Brainrots - ${query.user}</h1>
+                    <div id="wrapper"></div>
+                </div>
+
+                <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+                <script>
+                    const data = ${JSON.stringify(brainrotsList)};
+                    
+                    new gridjs.Grid({
+                        columns: [
+                            { name: "Owner", hidden: ${!isAll} },
+                            "Name", 
+                            "Rarity", 
+                            { name: "Generation", formatter: (cell) => "$" + cell.toLocaleString() + "/s" },
+                            "Mutation", 
+                            "Traits"
+                        ],
+                        data: data.map(item => [
+                            item.Owner || "",
+                            item.Name,
+                            item.Rarity,
+                            item.Generation,
+                            item.Mutation,
+                            item.Traits.join(", ")
+                        ]),
+                        sort: true,
+                        search: true,
+                        pagination: { limit: 10 },
+                        style: { 
+                            table: { background: '#333', color: '#ccc' },
+                            th: { background: '#444', color: '#fff' }
+                        }
+                    }).render(document.getElementById("wrapper"));
+                </script>
+            </body>
+            </html>
+        `);
+    } catch (err) {
+        res.end("Erreur de chargement");
     }
+}
     res.end("Serveur Persistant OK. Allez sur /brainrots");
 });
 
