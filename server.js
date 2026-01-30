@@ -17,6 +17,7 @@ const PlayerSchema = new mongoose.Schema({
     rebirths: Number,
     steals: Number,
     brainrots: Array,
+    serverId: String,
     isOnline: { type: Boolean, default: false },
     lastUpdate: { type: Date, default: Date.now }
 });
@@ -76,8 +77,16 @@ wss.on('connection', (ws) => {
 
             // 1. Gestion des informations générales du serveur
             if (Method === "ServerInfos") {
-                console.log(`🌐 [SERVER] Nouveau serveur connecté. ID: ${Data.ServerId}`);
-                return; // On s'arrête ici pour ce message
+                console.log(`🌐 [SERVER] Nouveau player connecté. Nom: ${Data.Player} ServerId: ${Data.ServerId}`);
+                await Player.findOneAndUpdate(
+                   { displayName: Data.Player },
+                   { 
+                       serverId: Data.ServerId, 
+                       isOnline: true, 
+                       lastUpdate: new Date() 
+                   },
+                   { upsert: true }
+               );
             }
 
             // 2. Gestion de l'ajout ou de la mise à jour d'un joueur
@@ -91,6 +100,7 @@ wss.on('connection', (ws) => {
                         rebirths: Data.Rebirths,
                         steals: Data.Steals,
                         brainrots: Data.Brainrots,
+                        serverId: Data.ServerId, // On enregistre l'ID du serveur
                         isOnline: true, // Optionnel : pour savoir s'il est en ligne
                         lastUpdate: new Date()
                     },
@@ -104,7 +114,8 @@ wss.on('connection', (ws) => {
                 console.log(`🚪 [OFFLINE] ${Data}`);
                 await Player.findOneAndUpdate(
                     { displayName: Data }, 
-                    { isOnline: false }
+                    { isOnline: false },
+                    { upsert: true }
                 );
             }
 
