@@ -17,6 +17,7 @@ const PlayerSchema = new mongoose.Schema({
     rebirths: Number,
     steals: Number,
     brainrots: Array,
+    isOnline: { type: Boolean, default: false },
     lastUpdate: { type: Date, default: Date.now }
 });
 
