@@ -36,74 +36,121 @@ const server = http.createServer(async (req, res) => {
         const isAll = query.user === "all";
         let brainrotsList = [];
 
+        // 1. Récupération des données
         if (isAll) {
-            const players = await Player.find({ isOnline: true }, 'displayName brainrots');
-            brainrotsList = players.flatMap(p => p.brainrots.map(b => ({ ...b, Owner: p.displayName })));
+            const players = await Player.find({}, 'displayName brainrots');
+            brainrotsList = players.flatMap(p => 
+                (p.brainrots || []).map(b => ({ ...b, Player: p.displayName }))
+            );
         } else if (query.user) {
-            const player = await Player.findOne({ displayName: new RegExp('^' + query.user + '$', 'i') });
-            brainrotsList = player ? player.brainrots : [];
+            const player = await Player.findOne({ 
+                displayName: new RegExp('^' + query.user + '$', 'i') 
+            });
+            brainrotsList = player ? (player.brainrots || []).map(b => ({ ...b, Player: player.displayName })) : [];
         }
 
-        // Si l'utilisateur demande du JSON (pour un script)
-        if (query.format === "json") {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify(brainrotsList));
-        }
-
-        // Sinon, on envoie la page HTML avec le Grid
+        // 2. Rendu de la page HTML
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(`
+        return res.end(`
             <!DOCTYPE html>
             <html lang="fr">
             <head>
                 <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
                 <style>
-                    body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
-                    .container { max-width: 1200px; margin: auto; background: #2d2d2d; padding: 20px; border-radius: 10px; }
-                    h1 { color: #00e5ff; }
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
+                    .dashboard-header { 
+                        background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+                        display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
+                    }
+                    .title-section h1 { margin: 0; color: #00e5ff; font-size: 1.5rem; }
+                    .controls { display: flex; gap: 15px; align-items: center; }
+                    select { 
+                        background: #2d2d2d; color: white; border: 1px solid #444; 
+                        padding: 10px; border-radius: 8px; cursor: pointer; outline: none;
+                    }
+                    select:hover { border-color: #00e5ff; }
+                    .gridjs-container { background: #1e1e1e; border-radius: 12px; padding: 10px; }
                 </style>
             </head>
             <body>
-                <div class="container">
-                    <h1>🧠 Inventaire Brainrots - ${query.user}</h1>
-                    <div id="wrapper"></div>
+                <div class="dashboard-header">
+                    <div class="title-section">
+                        <h1>🧠 Brainrots Inventory</h1>
+                        <span id="stats">${brainrotsList.length} items détectés</span>
+                    </div>
+                    <div class="controls">
+                        <label>Grouper par :</label>
+                        <select id="group-select" onchange="applyGrouping()">
+                            <option value="none">Aucun groupage</option>
+                            <option value="Player">Player</option>
+                            <option value="Mutation">Mutation</option>
+                            <option value="Rarity">Rareté</option>
+                            <option value="Name">Nom</option>
+                        </select>
+                    </div>
                 </div>
+
+                <div id="table-container"></div>
 
                 <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
                 <script>
-                    const data = ${JSON.stringify(brainrotsList)};
-                    
-                    new gridjs.Grid({
-                        columns: [
-                            { name: "Owner", hidden: ${!isAll} },
-                            "Name", 
-                            "Rarity", 
-                            { name: "Generation", formatter: (cell) => "$" + cell.toLocaleString() + "/s" },
-                            "Mutation", 
-                            "Traits"
-                        ],
-                        data: data.map(item => [
-                            item.Owner || "",
-                            item.Name,
-                            item.Rarity,
-                            item.Generation,
-                            item.Mutation,
-                            item.Traits.join(", ")
-                        ]),
-                        sort: true,
-                        search: true,
-                        pagination: { limit: 10 },
-                        style: { 
-                            table: { background: '#333', color: '#ccc' },
-                            th: { background: '#444', color: '#fff' }
+                    const rawData = ${JSON.stringify(brainrotsList)};
+                    let grid;
+
+                    function renderGrid(data) {
+                        const container = document.getElementById("table-container");
+                        container.innerHTML = ""; // On nettoie
+                        
+                        grid = new gridjs.Grid({
+                            columns: ["Player", "Name", "Rarity", "Gen", "Mutation", "Traits"],
+                            data: data.map(item => [
+                                item.Player || "Unknown",
+                                item.Name,
+                                item.Rarity,
+                                item.GenString, // Utilisation de GenString comme demandé
+                                item.Mutation,
+                                (item.Traits || []).join(", ")
+                            ]),
+                            sort: true,
+                            search: true,
+                            pagination: { limit: 25 },
+                            style: { 
+                                table: { background: '#1e1e1e', color: '#ccc' },
+                                th: { background: '#2d2d2d', color: '#fff', border: '1px solid #444' },
+                                td: { border: '1px solid #333' }
+                            }
+                        }).render(container);
+                    }
+
+                    function applyGrouping() {
+                        const groupBy = document.getElementById("group-select").value;
+                        if (groupBy === "none") {
+                            renderGrid(rawData);
+                            return;
                         }
-                    }).render(document.getElementById("wrapper"));
+
+                        // Logique de tri pour grouper les éléments identiques ensemble
+                        const grouped = [...rawData].sort((a, b) => {
+                            const valA = String(a[groupBy] || "").toLowerCase();
+                            const valB = String(b[groupBy] || "").toLowerCase();
+                            if (valA < valB) return -1;
+                            if (valA > valB) return 1;
+                            return 0;
+                        });
+
+                        renderGrid(grouped);
+                    }
+
+                    // Premier rendu
+                    renderGrid(rawData);
                 </script>
             </body>
             </html>
         `);
     } catch (err) {
-        res.end("Erreur de chargement");
+        console.error(err);
+        res.writeHead(500);
+        return res.end("Erreur lors de la génération de la page.");
     }
 }
     else 
