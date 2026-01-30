@@ -49,7 +49,6 @@ const server = http.createServer(async (req, res) => {
             brainrotsList = player ? (player.brainrots || []).map(b => ({ ...b, Player: player.displayName })) : [];
         }
 
-        // 2. Rendu de la page HTML
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         return res.end(`
             <!DOCTYPE html>
@@ -57,36 +56,21 @@ const server = http.createServer(async (req, res) => {
             <head>
                 <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
                 <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
+                    body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
                     .dashboard-header { 
                         background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px;
                         display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
                     }
-                    .title-section h1 { margin: 0; color: #00e5ff; font-size: 1.5rem; }
-                    .controls { display: flex; gap: 15px; align-items: center; }
-                    select { 
-                        background: #2d2d2d; color: white; border: 1px solid #444; 
-                        padding: 10px; border-radius: 8px; cursor: pointer; outline: none;
-                    }
-                    select:hover { border-color: #00e5ff; }
+                    h1 { margin: 0; color: #00e5ff; font-size: 1.5rem; }
+                    .stats { color: #888; font-size: 0.9rem; }
                     .gridjs-container { background: #1e1e1e; border-radius: 12px; padding: 10px; }
                 </style>
             </head>
             <body>
                 <div class="dashboard-header">
-                    <div class="title-section">
+                    <div>
                         <h1>🧠 Brainrots Inventory</h1>
-                        <span id="stats">${brainrotsList.length} items détectés</span>
-                    </div>
-                    <div class="controls">
-                        <label>Grouper par :</label>
-                        <select id="group-select" onchange="applyGrouping()">
-                            <option value="none">Aucun groupage</option>
-                            <option value="Player">Player</option>
-                            <option value="Mutation">Mutation</option>
-                            <option value="Rarity">Rareté</option>
-                            <option value="Name">Nom</option>
-                        </select>
+                        <div class="stats">${brainrotsList.length} items totalisés</div>
                     </div>
                 </div>
 
@@ -94,55 +78,46 @@ const server = http.createServer(async (req, res) => {
 
                 <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
                 <script>
-                    const rawData = ${JSON.stringify(brainrotsList)};
-                    let grid;
-
-                    function renderGrid(data) {
-                        const container = document.getElementById("table-container");
-                        container.innerHTML = ""; // On nettoie
-                        
-                        grid = new gridjs.Grid({
-                            columns: ["Player", "Name", "Rarity", "Gen", "Mutation", "Traits"],
-                            data: data.map(item => [
-                                item.Player || "Unknown",
-                                item.Name,
-                                item.Rarity,
-                                item.GenString, // Utilisation de GenString comme demandé
-                                item.Mutation,
-                                (item.Traits || []).join(", ")
-                            ]),
-                            sort: true,
-                            search: true,
-                            pagination: { limit: 25 },
-                            style: { 
-                                table: { background: '#1e1e1e', color: '#ccc' },
-                                th: { background: '#2d2d2d', color: '#fff', border: '1px solid #444' },
-                                td: { border: '1px solid #333' }
-                            }
-                        }).render(container);
+                    // Fonction de formatage K, M, B, T
+                    function formatKMBT(value) {
+                        if (value >= 1e12) return "$" + (value / 1e12).toFixed(1) + "T/s";
+                        if (value >= 1e9)  return "$" + (value / 1e9).toFixed(1) + "B/s";
+                        if (value >= 1e6)  return "$" + (value / 1e6).toFixed(1) + "M/s";
+                        if (value >= 1e3)  return "$" + (value / 1e3).toFixed(1) + "K/s";
+                        return "$" + value.toFixed(1) + "/s";
                     }
 
-                    function applyGrouping() {
-                        const groupBy = document.getElementById("group-select").value;
-                        if (groupBy === "none") {
-                            renderGrid(rawData);
-                            return;
+                    const data = ${JSON.stringify(brainrotsList)};
+
+                    new gridjs.Grid({
+                        columns: [
+                            { name: "Player" },
+                            { name: "Name" },
+                            { name: "Rarity" },
+                            { 
+                                name: "Generation", 
+                                formatter: (cell) => formatKMBT(cell) // Affichage stylé
+                            },
+                            { name: "Mutation" },
+                            { name: "Traits", formatter: (cell) => (cell || []).join(", ") }
+                        ],
+                        data: data.map(item => [
+                            item.Player || "Unknown",
+                            item.Name,
+                            item.Rarity,
+                            item.Generation || 0, // Valeur brute pour le tri
+                            item.Mutation,
+                            item.Traits
+                        ]),
+                        sort: true,
+                        search: true,
+                        pagination: { limit: 25 },
+                        style: { 
+                            table: { background: '#1e1e1e', color: '#ccc' },
+                            th: { background: '#2d2d2d', color: '#fff', border: '1px solid #444' },
+                            td: { border: '1px solid #333' }
                         }
-
-                        // Logique de tri pour grouper les éléments identiques ensemble
-                        const grouped = [...rawData].sort((a, b) => {
-                            const valA = String(a[groupBy] || "").toLowerCase();
-                            const valB = String(b[groupBy] || "").toLowerCase();
-                            if (valA < valB) return -1;
-                            if (valA > valB) return 1;
-                            return 0;
-                        });
-
-                        renderGrid(grouped);
-                    }
-
-                    // Premier rendu
-                    renderGrid(rawData);
+                    }).render(document.getElementById("table-container"));
                 </script>
             </body>
             </html>
@@ -150,7 +125,7 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
         console.error(err);
         res.writeHead(500);
-        return res.end("Erreur lors de la génération de la page.");
+        return res.end("Erreur serveur.");
     }
 }
     else 
