@@ -106,6 +106,10 @@ const server = http.createServer(async (req, res) => {
         res.end("Erreur de chargement");
     }
 }
+    else 
+    {
+        res.end("Erreur de chargement");
+    }
 });
 
 // --- WebSocket ---
