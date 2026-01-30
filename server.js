@@ -68,34 +68,45 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-    // Ici aussi on utilise 'async' pour pouvoir utiliser 'await' à l'intérieur
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
-            if (Method === "PlayerAdded" || Method === "ServerInfos") {
-                const playersToProcess = Method === "PlayerAdded" ? { [Data.DisplayName]: Data } : Data.Player;
-
-                if (!playersToProcess) return;
-
-                for (const [name, info] of Object.entries(playersToProcess)) {
-                    if (!info) continue;
-                    
-                    await Player.findOneAndUpdate(
-                        { displayName: name },
-                        { 
-                            cash: info.Cash,
-                            rebirths: info.Rebirths,
-                            steals: info.Steals,
-                            brainrots: info.Brainrots,
-                            lastUpdate: new Date()
-                        },
-                        { upsert: true }
-                    );
-                }
-                console.log(`✅ [DB] Mise à jour réussie (${Method})`);
+            // 1. Gestion des informations générales du serveur
+            if (Method === "ServerInfos") {
+                console.log(`🌐 [SERVER] Nouveau serveur connecté. ID: ${Data.ServerId}`);
+                return; // On s'arrête ici pour ce message
             }
+
+            // 2. Gestion de l'ajout ou de la mise à jour d'un joueur
+            if (Method === "PlayerAdded") {
+                if (!Data || !Data.DisplayName) return;
+
+                await Player.findOneAndUpdate(
+                    { displayName: Data.DisplayName },
+                    { 
+                        cash: Data.Cash,
+                        rebirths: Data.Rebirths,
+                        steals: Data.Steals,
+                        brainrots: Data.Brainrots,
+                        isOnline: true, // Optionnel : pour savoir s'il est en ligne
+                        lastUpdate: new Date()
+                    },
+                    { upsert: true }
+                );
+                console.log(`✅ [DB] Mise à jour : ${Data.DisplayName} (${Data.Brainrots.length} brainrots)`);
+            }
+
+            // 3. Gestion de la déconnexion
+            if (Method === "PlayerRemoving") {
+                console.log(`🚪 [OFFLINE] ${Data}`);
+                await Player.findOneAndUpdate(
+                    { displayName: Data }, 
+                    { isOnline: false }
+                );
+            }
+
         } catch (e) {
             console.error("❌ Erreur traitement message:", e);
         }
