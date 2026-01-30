@@ -1,6 +1,7 @@
 const http = require('http');
 const WebSocket = require('ws');
 const url = require('url');
+const mongoose = require('mongoose');
 
 // Récupération du port via variable d'environnement (indispensable pour Render)
 const PORT = process.env.PORT || 3000;
