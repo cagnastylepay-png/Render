@@ -1,18 +1,15 @@
 const http = require('http');
 const WebSocket = require('ws');
-const url = require('url');
 const mongoose = require('mongoose');
 
-// Récupération du port via variable d'environnement (indispensable pour Render)
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI; // Récupéré depuis Render
+const MONGO_URI = process.env.MONGO_URI;
 
 // --- Connexion MongoDB ---
 mongoose.connect(MONGO_URI)
     .then(() => console.log("💾 [DB] Connecté à MongoDB Atlas"))
     .catch(err => console.error("❌ [DB] Erreur connexion :", err));
 
-// Structure des données d'un joueur
 const PlayerSchema = new mongoose.Schema({
     displayName: { type: String, unique: true },
     cash: Number,
@@ -24,36 +21,36 @@ const PlayerSchema = new mongoose.Schema({
 
 const Player = mongoose.model('Player', PlayerSchema);
 
-// 1. Création du serveur HTTP
-const server = http.createServer((req, res) => {
-    console.log(`[HTTP] Requête reçue : ${req.method} ${req.url}`);
+// --- Serveur HTTP ---
+// L'ajout du mot-clé 'async' ici règle ton erreur !
+const server = http.createServer(async (req, res) => {
     if (req.url === "/view-db") {
-        const players = await Player.find().sort({ lastUpdate: -1 });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(players, null, 2));
+        try {
+            const players = await Player.find().sort({ lastUpdate: -1 });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify(players, null, 2));
+        } catch (err) {
+            res.writeHead(500);
+            return res.end("Erreur lors de la lecture de la base de données");
+        }
     }
     res.end("Serveur Persistant OK. Allez sur /view-db");
 });
 
-// 2. Création du serveur WebSocket attaché au serveur HTTP
+// --- WebSocket ---
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws, req) => {
-    // Extraction des paramètres de l'URL (ex: ?user=clientusername)
-    const parameters = url.parse(req.url, true).query;
-    const username = parameters.user || 'Anonyme';
-
-    console.log(`[WS] Nouvelle connexion : ${username} (URL: ${req.url})`);
-
-    ws.on('message', (message) => {
-        // Le message arrive souvent sous forme de Buffer
-        console.log(`[WS] Message reçu de ${username} : ${message}`);
+wss.on('connection', (ws) => {
+    // Ici aussi on utilise 'async' pour pouvoir utiliser 'await' à l'intérieur
+    ws.on('message', async (message) => {
         try {
-            const { Method, Data } = JSON.parse(message);
+            const payload = JSON.parse(message);
+            const { Method, Data } = payload;
 
             if (Method === "PlayerAdded" || Method === "ServerInfos") {
-                // On prépare les données à traiter
                 const playersToProcess = Method === "PlayerAdded" ? { [Data.DisplayName]: Data } : Data.Player;
+
+                if (!playersToProcess) return;
 
                 for (const [name, info] of Object.entries(playersToProcess)) {
                     if (!info) continue;
@@ -70,20 +67,12 @@ wss.on('connection', (ws, req) => {
                         { upsert: true }
                     );
                 }
-                console.log(`✅ [DB] Synchro terminée pour ${Method}`);
+                console.log(`✅ [DB] Mise à jour réussie (${Method})`);
             }
         } catch (e) {
             console.error("❌ Erreur traitement message:", e);
         }
     });
-
-    ws.on('close', () => {
-        console.log(`[WS] Déconnexion de ${username}`);
-    });
-    
 });
 
-// 3. Lancement du serveur
-server.listen(PORT, () => {
-    console.log(`Serveur en écoute sur le port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Serveur actif sur port ${PORT}`));
