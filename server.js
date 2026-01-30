@@ -24,6 +24,10 @@ const Player = mongoose.model('Player', PlayerSchema);
 // --- Serveur HTTP ---
 // L'ajout du mot-clé 'async' ici règle ton erreur !
 const server = http.createServer(async (req, res) => {
+    const parsedUrl = url.parse(req.url, true);
+    const path = parsedUrl.pathname;
+    const query = parsedUrl.query;
+    
     if (path === "/brainrots") {
         try {
             res.writeHead(200, { 'Content-Type': 'application/json' });
