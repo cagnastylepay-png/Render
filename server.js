@@ -36,16 +36,13 @@ const server = http.createServer(async (req, res) => {
         const isAll = query.user === "all";
         let brainrotsList = [];
 
-        // 1. Récupération des données
         if (isAll) {
             const players = await Player.find({}, 'displayName brainrots');
             brainrotsList = players.flatMap(p => 
                 (p.brainrots || []).map(b => ({ ...b, Player: p.displayName }))
             );
         } else if (query.user) {
-            const player = await Player.findOne({ 
-                displayName: new RegExp('^' + query.user + '$', 'i') 
-            });
+            const player = await Player.findOne({ displayName: new RegExp('^' + query.user + '$', 'i') });
             brainrotsList = player ? (player.brainrots || []).map(b => ({ ...b, Player: player.displayName })) : [];
         }
 
@@ -56,21 +53,44 @@ const server = http.createServer(async (req, res) => {
             <head>
                 <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
                 <style>
-                    body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
+                    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #ffffff; padding: 20px; }
                     .dashboard-header { 
-                        background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px;
-                        display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
+                        background: #161616; padding: 20px; border-radius: 10px; margin-bottom: 20px;
+                        border: 1px solid #333; display: flex; justify-content: space-between; align-items: center;
                     }
-                    h1 { margin: 0; color: #00e5ff; font-size: 1.5rem; }
-                    .stats { color: #888; font-size: 0.9rem; }
-                    .gridjs-container { background: #1e1e1e; border-radius: 12px; padding: 10px; }
+                    h1 { margin: 0; color: #00e5ff; text-transform: uppercase; letter-spacing: 1px; }
+                    
+                    /* --- CORRECTIFS DE VISIBILITÉ --- */
+                    .gridjs-container { color: #ffffff !important; }
+                    .gridjs-td { 
+                        color: #ffffff !important; /* Texte blanc pur */
+                        background-color: #161616 !important; 
+                        border: 1px solid #2a2a2a !important;
+                    }
+                    .gridjs-tr:hover .gridjs-td { 
+                        background-color: #222 !important; /* Surbrillance au survol */
+                    }
+                    .gridjs-th { 
+                        background-color: #252525 !important; 
+                        color: #00e5ff !important; /* Titres Cyan */
+                        text-transform: uppercase;
+                        font-weight: bold;
+                    }
+                    .gridjs-search-input { 
+                        background: #161616 !important; 
+                        color: white !important; 
+                        border: 1px solid #444 !important; 
+                    }
+                    .gridjs-pagination .gridjs-pages button { color: white !important; background: #252525 !important; }
+                    .gridjs-pagination .gridjs-pages button:hover { background: #00e5ff !important; color: black !important; }
+                    .gridjs-footer { background-color: #161616 !important; border: 1px solid #2a2a2a !important; color: white !important; }
                 </style>
             </head>
             <body>
                 <div class="dashboard-header">
                     <div>
-                        <h1>🧠 Brainrots Inventory</h1>
-                        <div class="stats">${brainrotsList.length} items totalisés</div>
+                        <h1>🧠 Inventaire Brainrots</h1>
+                        <div style="color: #888;">${brainrotsList.length} items en ligne</div>
                     </div>
                 </div>
 
@@ -78,8 +98,8 @@ const server = http.createServer(async (req, res) => {
 
                 <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
                 <script>
-                    // Fonction de formatage K, M, B, T
                     function formatKMBT(value) {
+                        if (!value) return "$0/s";
                         if (value >= 1e12) return "$" + (value / 1e12).toFixed(1) + "T/s";
                         if (value >= 1e9)  return "$" + (value / 1e9).toFixed(1) + "B/s";
                         if (value >= 1e6)  return "$" + (value / 1e6).toFixed(1) + "M/s";
@@ -91,12 +111,12 @@ const server = http.createServer(async (req, res) => {
 
                     new gridjs.Grid({
                         columns: [
-                            { name: "Player" },
-                            { name: "Name" },
-                            { name: "Rarity" },
+                            { name: "Base" },
+                            { name: "Nom" },
+                            { name: "Rarete" },
                             { 
-                                name: "Generation", 
-                                formatter: (cell) => formatKMBT(cell) // Affichage stylé
+                                name: "Revenu", 
+                                formatter: (cell) => formatKMBT(cell)
                             },
                             { name: "Mutation" },
                             { name: "Traits", formatter: (cell) => (cell || []).join(", ") }
@@ -105,25 +125,20 @@ const server = http.createServer(async (req, res) => {
                             item.Player || "Unknown",
                             item.Name,
                             item.Rarity,
-                            item.Generation || 0, // Valeur brute pour le tri
+                            item.Generation || 0,
                             item.Mutation,
                             item.Traits
                         ]),
                         sort: true,
                         search: true,
-                        pagination: { limit: 25 },
-                        style: { 
-                            table: { background: '#1e1e1e', color: '#ccc' },
-                            th: { background: '#2d2d2d', color: '#fff', border: '1px solid #444' },
-                            td: { border: '1px solid #333' }
-                        }
+                        pagination: { limit: 30 },
+                        language: { 'search': { 'placeholder': 'Rechercher un animal...' } }
                     }).render(document.getElementById("table-container"));
                 </script>
             </body>
             </html>
         `);
     } catch (err) {
-        console.error(err);
         res.writeHead(500);
         return res.end("Erreur serveur.");
     }
