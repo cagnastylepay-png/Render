@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
                                 const response = await fetch('/send-command', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ target: target, method: "GetBrainrots" })
+                                    body: JSON.stringify({ target: target, method: "UpdateDatabase" })
                                 });
                                 
                                 if(response.ok) {
@@ -182,7 +182,7 @@ const server = http.createServer(async (req, res) => {
 
                 if (client && client.socket && client.socket.readyState === 1) {
                     // Relais du message vers le client Roblox
-                    client.socket.send(JSON.stringify({ Method: method, Data: { TargetPlayer: target } }));
+                    client.socket.send(JSON.stringify({ Method: method, Data: { } }));
                     res.writeHead(200);
                     res.end("OK");
                 } else {
@@ -205,6 +205,7 @@ const server = http.createServer(async (req, res) => {
 // --- WebSocket ---
 const wss = new WebSocket.Server({ server });
 wss.on('connection', (ws) => {
+
     ws.on('close', () => {
         // On cherche quel joueur était lié à cette socket pour le supprimer
         for (let name in connectedClients) {
@@ -215,12 +216,13 @@ wss.on('connection', (ws) => {
             }
         }
     });
+
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
-            // 1. Gestion des informations générales du serveur
+            // 1. Gestion des informations générales du client
             if (Method === "ClientInfos") {
                 const playerName = Data.Player;
                 const serverId = Data.ServerId;
@@ -251,6 +253,7 @@ wss.on('connection', (ws) => {
                 );
                 console.log(`✅ [DB] Mise à jour : ${Data.DisplayName} (${Data.Brainrots.length} brainrots)`);
             }
+
         } catch (e) {
             console.error("❌ Erreur traitement message:", e);
         }
