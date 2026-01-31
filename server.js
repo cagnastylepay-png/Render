@@ -6,6 +6,24 @@ const url = require('url');
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const connectedClients = {};
+const pendingRequests = {};
+let nextRequestId = 1;
+
+function waitResponse(requestId, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+        // On stocke le "resolve" dans notre dictionnaire
+        pendingRequests[requestId] = (data) => {
+            clearTimeout(timer);
+            resolve(data);
+        };
+
+        // Sécurité : si le client ne répond jamais
+        const timer = setTimeout(() => {
+            delete pendingRequests[requestId];
+            reject(new Error("Timeout : Le client n'a pas répondu à temps."));
+        }, timeoutMs);
+    });
+}
 
 // --- Connexion MongoDB ---
 mongoose.connect(MONGO_URI)
@@ -210,21 +228,16 @@ const server = http.createServer(async (req, res) => {
                         </div>
                     </div>
 
-                    <div class="command-row">
-                        <label>TÉLÉPORTATION (Joueur A vers Joueur B)</label>
-                        <div class="flex-group" style="flex-wrap: wrap;">
-                            <select id="tpSource">
-                                <option value="">Source (Qui ?)</option>
-                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
-                            </select>
-                            <span style="color: #00e5ff;">➔</span>
-                            <select id="tpTarget">
-                                <option value="">Destination (Vers qui ?)</option>
-                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
-                            </select>
-                            <button onclick="sendTeleport()">TÉLÉPORTER</button>
+                    <div class="command-row" style="border: 2px solid #ff00ff; padding: 20px; border-radius: 10px; background: rgba(255, 0, 255, 0.05);">
+                        <label style="color: #ff00ff;">🌌 RITUEL : LA VACCA SATURNO SATURNITA</label>
+                        <div class="flex-group" style="flex-wrap: wrap; margin-top: 10px;">
+                            <select id="ritual1"><option value="">Participant 1</option>${options}</select>
+                            <select id="ritual2"><option value="">Participant 2</option>${options}</select>
+                            <select id="ritual3"><option value="">Participant 3</option>${options}</select>
+                            <button onclick="ExecuteRitual('La Vacca Saturno Saturnita')" style="background: #ff00ff; color: white;">INCANTER</button>
                         </div>
                     </div>
+
                     <div id="msgStatus" class="status"></div>
                 </div>
 
@@ -242,21 +255,25 @@ const server = http.createServer(async (req, res) => {
                             setTimeout(() => status.innerText = "", 3000);
                         } catch(e) { status.innerText = "❌ Erreur réseau."; }
                     }
+                    async function ExecuteRitual(name) {
+                        const p1 = document.getElementById('ritual1').value;
+                        const p2 = document.getElementById('ritual2').value;
+                        const p3 = document.getElementById('ritual3').value;
 
+                        if (!p1 || !p2 || !p3) return alert("Le rituel nécessite 3 participants !");
+            
+                        // On envoie la commande au serveur Node
+                        // On peut l'envoyer au "Participant 1" qui servira de maître de cérémonie
+                        execPost({ 
+                            target: p1, 
+                            method: "ExecuteRitual", 
+                            data: { ritualName: name, players: [p1, p2, p3] } 
+                        });
+                    }
                     function sendCommand(id, method) {
                         const target = document.getElementById(id).value;
                         if (!target) return alert("Sélectionnez un client.");
                         execPost({ target, method });
-                    }
-
-                    function sendTeleport() {
-                        const source = document.getElementById('tpSource').value;
-                        const dest = document.getElementById('tpTarget').value;
-                        if (!source || !dest) return alert("Sélectionnez les deux clients.");
-                        if (source === dest) return alert("Source et destination identiques !");
-                    
-                        // On envoie la commande à la source, avec le nom de la destination en donnée
-                        execPost({ target: source, method: "Teleport", data: { To: dest } });
                     }
                 </script>
             </body>
@@ -283,32 +300,49 @@ const server = http.createServer(async (req, res) => {
                     }
                     return;
                 }
-                if (method === "Teleport") {
-                    const targetName = data && data.To;
-                    const destinationClient = connectedClients[targetName]; // On cherche les infos du joueur cible
+                if (method === "ExecuteRitual") {
+                    const { ritualName, players } = data; 
+    
+                    // On définit la fonction asynchrone pour gérer la séquence
+                    const runSequentialRitual = async () => {
+                        try {
+                            for (const playerName of players) {
+                                const client = connectedClients[playerName];
+                
+                                if (client && client.socket.readyState === 1) {
+                                    const requestId = nextRequestId++;
+                                    console.log(`🔮 [RITUEL] Phase : ${playerName}`);
+                    
+                                    client.socket.send(JSON.stringify({
+                                        Id: requestId, // On envoie l'ID pour le waitResponse
+                                        Method: "ExecuteRitual",
+                                        Param: ritualName
+                                    }));
 
-                    if (client && client.socket && client.socket.readyState === 1) {
-                        if (destinationClient && destinationClient.serverId) {
-                            // On envoie le ServerId de la cible au client source
-                            client.socket.send(JSON.stringify({ 
-                                Method: method, 
-                                Data: { 
-                                    ServerId: destinationClient.serverId
-                                } 
-                            }));
+                                    // Utilisation de waitResponse (le nom que tu as défini en haut)
+                                    // On attend que le client Roblox réponde avant de passer à l'itération suivante
+                                    await waitResponse(requestId, 20000); 
+                                    console.log(`✅ [RITUEL] ${playerName} a validé sa phase.`);
+                                } else {
+                                    console.warn(`⚠️ [RITUEL] ${playerName} absent, saut de l'étape.`);
+                                }
+                            }
             
                             res.writeHead(200);
-                            res.end("OK");
-                        } else {
-                            res.writeHead(400);
-                            res.end("Le client de destination n'a pas de ServerId valide.");
+                            res.end("Rituel complété avec succès.");
+                        } catch (err) {
+                            console.error("❌ Erreur Rituel:", err.message);
+                            if (!res.writableEnded) {
+                                res.writeHead(504);
+                                res.end("Échec du rituel : " + err.message);
+                            }
                         }
-                    } else {
-                        res.writeHead(404);
-                        res.end("Client Source déconnecté.");
-                    }
+                    };
+
+                    runSequentialRitual();
                     return;
-                }            
+                }
+
             } catch (e) {
                 res.writeHead(400);
                 res.end("Format JSON invalide");
@@ -342,6 +376,11 @@ wss.on('connection', (ws) => {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
+            if (payload.RequestId && pendingRequests[payload.RequestId]) {
+                pendingRequests[payload.RequestId](payload); // On exécute le callback
+                delete pendingRequests[payload.RequestId];    // On nettoie
+                return;
+            }
             // 1. Gestion des informations générales du client
             if (Method === "ClientInfos") {
                 const playerName = Data.Player;
