@@ -201,7 +201,13 @@ const server = http.createServer(async (req, res) => {
                     <h1>🛠️ Console de Commandes</h1>
 
                     <div class="command-row" style="border: 1px solid #00e5ff; padding: 20px; border-radius: 10px;">
-                        <label>🤖 GESTION AUTO-BUY (GLOBAL)</label>
+                        <label>🤖 GESTION AUTO-BUY</label>
+                        <div class="flex-group" style="margin-bottom: 10px;">
+                            <select id="autoBuyTarget">
+                                <option value="all">🌐 TOUS LES CLIENTS</option>
+                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
+                            </select>
+                        </div>
                         <div class="flex-group">
                             <input type="text" id="minGen" placeholder="Seuil (ex: 1M, 500k)" value="1M">
                             <button onclick="controlAutoBuy('start')">START</button>
@@ -260,16 +266,14 @@ const server = http.createServer(async (req, res) => {
                     }
                 
                     function controlAutoBuy(type) {
+                        const target = document.getElementById('autoBuyTarget').value; // Récupère "all" ou le nom du bot
                         const inputVal = document.getElementById('minGen').value;
-                        // ON CONVERTIT ICI : "1M" devient 1000000
                         const numericValue = parseMoney(inputVal); 
-                        
-                        console.log("Envoi du seuil :", numericValue); // Pour tes tests console
-                
+                    
                         execPost({ 
-                            target: "all", 
+                            target: target, 
                             method: type === 'start' ? "StartAutoBuy" : "StopAutoBuy",
-                            data: { minGeneration: numericValue } // Envoi du chiffre pur
+                            data: { minGeneration: numericValue }
                         });
                     }
 
@@ -298,24 +302,31 @@ const server = http.createServer(async (req, res) => {
         req.on('end', () => {
             try {
                 const { target, method, data } = JSON.parse(body);
-                const client = connectedClients[target];
 
-                const broadcast = (payload) => {
-                    Object.values(connectedClients).forEach(client => {
-                        if (client.socket.readyState === 1) client.socket.send(JSON.stringify(payload));
-                    });
-                };
-
-                // Gestion AutoBuy (GLOBAL ou spécifique)
-                if (method === "StartAutoBuy") {
+                if (method === "StartAutoBuy" || method === "StopAutoBuy") {
                     const payload = { 
-                        Method: "StartAutoBuy", 
-                        Param: { MinGeneration: data.minGeneration } // C'est déjà un nombre
+                        Method: method, 
+                        Param: { MinGeneration: data.minGeneration } 
                     };
-                    broadcast(payload);
-                    res.writeHead(200); res.end("OK");
+                
+                    if (target === "all") {
+                        // Envoie à tout le monde
+                        Object.values(connectedClients).forEach(client => {
+                            if (client.socket.readyState === 1) client.socket.send(JSON.stringify(payload));
+                        });
+                        console.log(`📢 [BROADCAST] ${method} envoyé à tous.`);
+                    } else {
+                        // Envoie à un bot spécifique
+                        const client = connectedClients[target];
+                        if (client && client.socket.readyState === 1) {
+                            client.socket.send(JSON.stringify(payload));
+                            console.log(`📧 [DIRECT] ${method} envoyé à ${target}.`);
+                        }
+                    }
+                    res.writeHead(200); return res.end("Signal transmis.");
                 }
                 if(method === "UpdateDatabase") {
+                    const client = connectedClients[target];
                     if (client && client.socket && client.socket.readyState === 1) {
                         client.socket.send(JSON.stringify({ Method: method, Data: { } }));
                         res.writeHead(200);
