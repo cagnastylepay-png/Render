@@ -324,7 +324,7 @@ const server = http.createServer(async (req, res) => {
 
                                     // Utilisation de waitResponse (le nom que tu as défini en haut)
                                     // On attend que le client Roblox réponde avant de passer à l'itération suivante
-                                    await waitResponse(requestId, 20000); 
+                                    await waitResponse(requestId, 2000000); 
                                     console.log(`✅ [RITUEL] ${playerName} a validé sa phase.`);
                                 } else {
                                     console.warn(`⚠️ [RITUEL] ${playerName} absent, saut de l'étape.`);
