@@ -171,24 +171,144 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
+    if (path === "/cmd") {
+        const onlinePlayers = Object.keys(connectedClients);
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(`
+            <!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #ffffff; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+                    .panel { background: #161616; padding: 30px; border-radius: 15px; border: 1px solid #333; width: 100%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                    h1 { color: #00e5ff; text-transform: uppercase; text-align: center; margin-bottom: 30px; }
+                    .command-row { display: flex; flex-direction: column; gap: 15px; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 1px solid #2a2a2a; }
+                    .command-row:last-child { border-bottom: none; }
+                    label { font-weight: bold; color: #888; font-size: 14px; }
+                    .flex-group { display: flex; gap: 10px; align-items: center; }
+                    select, button { padding: 12px; border-radius: 8px; border: 1px solid #444; outline: none; }
+                    select { background: #121212; color: white; flex-grow: 1; }
+                    button { background: #00e5ff; color: black; font-weight: bold; cursor: pointer; border: none; transition: 0.3s; min-width: 120px; }
+                    button:hover { background: #00b8d4; transform: translateY(-2px); }
+                    button:active { transform: translateY(0); }
+                    .status { text-align: center; font-size: 14px; margin-top: 10px; min-height: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="panel">
+                    <h1>🛠️ Console de Commandes</h1>
+
+                    <div class="command-row">
+                        <label>MISE À JOUR GLOBALE</label>
+                        <div class="flex-group">
+                            <select id="updateSelect">
+                                <option value="">-- Sélectionner Client --</option>
+                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
+                            </select>
+                            <button onclick="sendCommand('updateSelect', 'UpdateDatabase')">EXÉCUTER</button>
+                        </div>
+                    </div>
+
+                    <div class="command-row">
+                        <label>TÉLÉPORTATION (Joueur A vers Joueur B)</label>
+                        <div class="flex-group" style="flex-wrap: wrap;">
+                            <select id="tpSource">
+                                <option value="">Source (Qui ?)</option>
+                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
+                            </select>
+                            <span style="color: #00e5ff;">➔</span>
+                            <select id="tpTarget">
+                                <option value="">Destination (Vers qui ?)</option>
+                                ${onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('')}
+                            </select>
+                            <button onclick="sendTeleport()">TÉLÉPORTER</button>
+                        </div>
+                    </div>
+                    <div id="msgStatus" class="status"></div>
+                </div>
+
+                <script>
+                    async function execPost(data) {
+                        const status = document.getElementById('msgStatus');
+                        status.innerText = "⏳ Envoi...";
+                        try {
+                            const res = await fetch('/send-command', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+                            status.innerText = res.ok ? "✅ Commande envoyée avec succès !" : "❌ Erreur lors de l'envoi.";
+                            setTimeout(() => status.innerText = "", 3000);
+                        } catch(e) { status.innerText = "❌ Erreur réseau."; }
+                    }
+
+                    function sendCommand(id, method) {
+                        const target = document.getElementById(id).value;
+                        if (!target) return alert("Sélectionnez un client.");
+                        execPost({ target, method });
+                    }
+
+                    function sendTeleport() {
+                        const source = document.getElementById('tpSource').value;
+                        const dest = document.getElementById('tpTarget').value;
+                        if (!source || !dest) return alert("Sélectionnez les deux clients.");
+                        if (source === dest) return alert("Source et destination identiques !");
+                    
+                        // On envoie la commande à la source, avec le nom de la destination en donnée
+                        execPost({ target: source, method: "Teleport", data: { To: dest } });
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+    }
     // --- ROUTE : ENVOI DE COMMANDE VIA WEBSOCKET ---
     if (path === "/send-command" && req.method === "POST") {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
         req.on('end', () => {
             try {
-                const { target, method } = JSON.parse(body);
+                const { target, method, data } = JSON.parse(body);
                 const client = connectedClients[target];
 
-                if (client && client.socket && client.socket.readyState === 1) {
-                    // Relais du message vers le client Roblox
-                    client.socket.send(JSON.stringify({ Method: method, Data: { } }));
-                    res.writeHead(200);
-                    res.end("OK");
-                } else {
-                    res.writeHead(404);
-                    res.end("Client Introuvable ou Déconnecté");
+                if(method === "UpdateDatabase") {
+                    if (client && client.socket && client.socket.readyState === 1) {
+                        client.socket.send(JSON.stringify({ Method: method, Data: { } }));
+                        res.writeHead(200);
+                        res.end("OK");
+                    } else {
+                        res.writeHead(404);
+                        res.end("Client Introuvable ou Déconnecté");
+                    }
+                    return;
                 }
+                if (method === "Teleport") {
+                    const targetName = data && data.To;
+                    const destinationClient = connectedClients[targetName]; // On cherche les infos du joueur cible
+
+                    if (client && client.socket && client.socket.readyState === 1) {
+                        if (destinationClient && destinationClient.serverId) {
+                            // On envoie le ServerId de la cible au client source
+                            client.socket.send(JSON.stringify({ 
+                                Method: method, 
+                                Data: { 
+                                    ServerId: destinationClient.serverId
+                                } 
+                            }));
+            
+                            res.writeHead(200);
+                            res.end("OK");
+                        } else {
+                            res.writeHead(400);
+                            res.end("Le client de destination n'a pas de ServerId valide.");
+                        }
+                    } else {
+                        res.writeHead(404);
+                        res.end("Client Source déconnecté.");
+                    }
+                    return;
+                }            
             } catch (e) {
                 res.writeHead(400);
                 res.end("Format JSON invalide");
