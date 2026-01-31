@@ -6,24 +6,6 @@ const url = require('url');
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const connectedClients = {};
-const pendingRequests = {};
-let nextRequestId = 1;
-
-function waitResponse(requestId, timeoutMs = 15000) {
-    return new Promise((resolve, reject) => {
-        // On stocke le "resolve" dans notre dictionnaire
-        pendingRequests[requestId] = (data) => {
-            clearTimeout(timer);
-            resolve(data);
-        };
-
-        // Sécurité : si le client ne répond jamais
-        const timer = setTimeout(() => {
-            delete pendingRequests[requestId];
-            reject(new Error("Timeout : Le client n'a pas répondu à temps."));
-        }, timeoutMs);
-    });
-}
 
 // --- Connexion MongoDB ---
 mongoose.connect(MONGO_URI)
@@ -302,50 +284,26 @@ const server = http.createServer(async (req, res) => {
                     return;
                 }
                 if (method === "ExecuteRitual") {
-                    const { ritualName, players } = data; 
-    
-                    // On définit la fonction asynchrone pour gérer la séquence
-                    const runSequentialRitual = async () => {
-                        try {
-                            let placenumber = 0;
-                            for (const playerName of players) {
-                                const client = connectedClients[playerName];
-                                if (client && client.socket.readyState === 1) {
-                                    const requestId = nextRequestId++;
-                                    console.log(`🔮 [RITUEL] Phase : ${playerName}`);
-
-                                    placenumber++;
-                    
-                                    client.socket.send(JSON.stringify({
-                                        Id: requestId, // On envoie l'ID pour le waitResponse
-                                        Method: "ExecuteRitual",
-                                        Param: {name:ritualName, place:placenumber}
-                                    }));
-
-                                    // Utilisation de waitResponse (le nom que tu as défini en haut)
-                                    // On attend que le client Roblox réponde avant de passer à l'itération suivante
-                                    await waitResponse(requestId, 2000000); 
-                                    console.log(`✅ [RITUEL] ${playerName} a validé sa phase.`);
-                                } else {
-                                    console.warn(`⚠️ [RITUEL] ${playerName} absent, saut de l'étape.`);
-                                }
+                    const { ritualName, players } = data; // players est ["Name1", "Name2", "Name3"]
+                    const client = connectedClients[players[0]];
+                
+                    if (client && client.socket.readyState === 1) {
+                        client.socket.send(JSON.stringify({
+                            Method: "ExecuteRitual",
+                            Param: { 
+                                RitualName: ritualName, 
+                                ClientNumber: 0, // On commence à 0
+                                Clients: players 
                             }
-            
-                            res.writeHead(200);
-                            res.end("Rituel complété avec succès.");
-                        } catch (err) {
-                            console.error("❌ Erreur Rituel:", err.message);
-                            if (!res.writableEnded) {
-                                res.writeHead(504);
-                                res.end("Échec du rituel : " + err.message);
-                            }
-                        }
-                    };
-
-                    runSequentialRitual();
+                        }));
+                        res.writeHead(200);
+                        res.end("Chaîne de rituel amorcée.");
+                    } else {
+                        res.writeHead(404);
+                        res.end("Premier participant introuvable.");
+                    }
                     return;
                 }
-
             } catch (e) {
                 res.writeHead(400);
                 res.end("Format JSON invalide");
@@ -379,12 +337,26 @@ wss.on('connection', (ws) => {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
-            if (payload.RequestId && pendingRequests[payload.RequestId]) {
-                pendingRequests[payload.RequestId](payload); // On exécute le callback
-                delete pendingRequests[payload.RequestId];    // On nettoie
-                return;
+            if (Method === "ExecuteRitualNextClient") {
+                const { RitualName, ClientNumber, Clients } = Data;
+                const nextPlayerName = Clients[ClientNumber]; // Le numéro est déjà incrémenté par Lua
+                const client = connectedClients[nextPlayerName];
+            
+                if (client && client.socket.readyState === 1) {
+                    console.log(`➡️ Relais du rituel passé à : ${nextPlayerName} (Index: ${ClientNumber})`);
+                    client.socket.send(JSON.stringify({
+                        Method: "ExecuteRitual",
+                        Param: { 
+                            RitualName: RitualName, 
+                            ClientNumber: ClientNumber, 
+                            Clients: Clients 
+                        }
+                    }));
+                } else {
+                    console.error(`❌ Client ${nextPlayerName} introuvable pour la suite du rituel.`);
+                }
             }
-            // 1. Gestion des informations générales du client
+
             if (Method === "ClientInfos") {
                 const playerName = Data.Player;
                 const serverId = Data.ServerId;
