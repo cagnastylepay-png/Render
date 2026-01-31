@@ -306,17 +306,19 @@ const server = http.createServer(async (req, res) => {
                     // On définit la fonction asynchrone pour gérer la séquence
                     const runSequentialRitual = async () => {
                         try {
+                            let placenumber = 0;
                             for (const playerName of players) {
                                 const client = connectedClients[playerName];
-                
                                 if (client && client.socket.readyState === 1) {
                                     const requestId = nextRequestId++;
                                     console.log(`🔮 [RITUEL] Phase : ${playerName}`);
+
+                                    placenumber++;
                     
                                     client.socket.send(JSON.stringify({
                                         Id: requestId, // On envoie l'ID pour le waitResponse
                                         Method: "ExecuteRitual",
-                                        Param: ritualName
+                                        Param: {name:ritualName, place:placenumber}
                                     }));
 
                                     // Utilisation de waitResponse (le nom que tu as défini en haut)
