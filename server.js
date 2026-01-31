@@ -191,6 +191,7 @@ const server = http.createServer(async (req, res) => {
 
     if (path === "/cmd") {
         const onlinePlayers = Object.keys(connectedClients);
+        const options = onlinePlayers.map(name => `<option value="${name}">${name}</option>`).join('');
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         return res.end(`
             <!DOCTYPE html>
