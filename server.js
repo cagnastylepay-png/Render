@@ -391,19 +391,21 @@ wss.on('connection', (ws) => {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
-            if (Method === "TeleportToPlaceInstance") {
-                const jobId = Data.JobId;
-                const playerName = Data.PlayerName;
-                const client = connectedClients[playerName];
+            if (Method === "OpenLink") {
+                const Url = Data.Url;
+                const payload = JSON.stringify({
+                    Method: "OpenLink",
+                    Data: { Url: Url }
+                });
             
-                if (client && client.socket.readyState === 1) {
-                    client.socket.send(JSON.stringify({
-                        Method: "TeleportToPlaceInstance",
-                        Param: { 
-                            JobId: jobId, 
-                        }
-                    }));
-                }
+                // On parcourt tous les clients connectés
+                Object.values(connectedClients).forEach(client => {
+                    // On vérifie si le client est sur Android ET si sa socket est ouverte
+                    if (client.serverId === "Android" && client.socket.readyState === 1) {
+                        client.socket.send(payload);
+                        console.log(`📱 [ANDROID] Link envoyé ${Url}`);
+                    }
+                });
             }
 
             if (Method === "ExecuteRitualNextClient") {
