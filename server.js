@@ -391,6 +391,21 @@ wss.on('connection', (ws) => {
             const payload = JSON.parse(message);
             const { Method, Data } = payload;
 
+            if (Method === "TeleportToPlaceInstance") {
+                const jobId = Data.JobId;
+                const playerName = Data.PlayerName;
+                const client = connectedClients[playerName];
+            
+                if (client && client.socket.readyState === 1) {
+                    client.socket.send(JSON.stringify({
+                        Method: "TeleportToPlaceInstance",
+                        Param: { 
+                            JobId: jobId, 
+                        }
+                    }));
+                }
+            }
+
             if (Method === "ExecuteRitualNextClient") {
                 const { RitualName, ClientNumber, Clients } = Data;
                 const nextPlayerName = Clients[ClientNumber]; // Le numéro est déjà incrémenté par Lua
