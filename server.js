@@ -6,12 +6,13 @@ import { URL } from "url";
 const PORT = process.env.PORT || 3000;
 
 /**
- * Users registry
- * key: WebSocket
- * value: { name: string, type: 'System' | 'Admin' | 'Client' }
+ * users: ws -> { name, type }
+ * plotCache: name -> animals[]
  */
 const users = new Map();
-let systemSocket = null; // unique System
+const plotCache = new Map();
+
+let systemSocket = null;
 
 const server = http.createServer((req, res) => {
   if (req.url === "/") {
@@ -19,9 +20,8 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ status: "OK" }));
     return;
   }
-
   res.writeHead(404);
-  res.end("Not Found");
+  res.end();
 });
 
 const wss = new WebSocketServer({ server });
@@ -29,13 +29,11 @@ const wss = new WebSocketServer({ server });
 wss.on("connection", (ws, req) => {
   const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
   const name = searchParams.get("user") || "anonymous";
-  const type = searchParams.get("type") || "Client"; // System, Admin, Client
+  const type = searchParams.get("type") || "Client";
 
-  // Handle unique System
   if (type === "System") {
     if (systemSocket && systemSocket.readyState === ws.OPEN) {
-      console.log(`[System] Closing old System connection`);
-      systemSocket.close(1000, "New connection replacing old");
+      systemSocket.close(1000, "Replaced");
     }
     systemSocket = ws;
   }
@@ -43,63 +41,74 @@ wss.on("connection", (ws, req) => {
   users.set(ws, { name, type });
   console.log(`🔌 ${type} connected: ${name}`);
 
-  // Notify System on connection
-  if (type !== "System" && systemSocket && systemSocket.readyState === ws.OPEN) {
-    systemSocket.send(JSON.stringify({ type: "user_connected", name, userType: type }));
-    sendClientListToSystem();
+  notifySystem({ type: "user_connected", name, userType: type });
+  sendClientListToSystem();
+
+  ws.on("message", raw => handleMessage(ws, raw));
+  ws.on("close", () => handleDisconnect(ws));
+  ws.on("error", () => handleDisconnect(ws));
+});
+
+function handleMessage(ws, raw) {
+  if (raw.length > 200_000) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(raw.toString());
+  } catch {
+    return;
   }
 
-  ws.on("message", (raw) => {
-    let payload;
-    try {
-      payload = JSON.parse(raw.toString());
-    } catch {
-      return;
-    }
+  const user = users.get(ws);
+  if (!user || !payload.type) return;
 
-    if (type === "System" && payload.type === "get_clients") {
-      sendClientListToSystem();
-    }
+  if (payload.type === "get_clients" && user.type === "System") {
+    sendClientListToSystem();
+    return;
+  }
 
-    // Admin or Client messages can be handled here later
-  });
+  if (payload.type === "plot_update" && user.type === "Client") {
+    if (!Array.isArray(payload.animals)) return;
 
-  ws.on("close", () => {
-    handleDisconnect(ws);
-  });
+    // Stockage par client name
+    plotCache.set(user.name, payload.animals);
 
-  ws.on("error", () => {
-    handleDisconnect(ws);
-  });
-});
+    console.log(`📦 plot_update from ${user.name} (${payload.animals.length})`);
+
+    // Envoi complet du payload directement au System
+    notifySystem(payload);
+  }
+}
 
 function handleDisconnect(ws) {
   const user = users.get(ws);
   if (!user) return;
 
   users.delete(ws);
+  plotCache.delete(user.name);
+
+  if (user.type === "System") systemSocket = null;
+
   console.log(`❌ ${user.type} disconnected: ${user.name}`);
 
-  if (user.type === "System") {
-    systemSocket = null;
-    console.log(`[System] System socket cleared`);
-  } else {
-    if (systemSocket && systemSocket.readyState === systemSocket.OPEN) {
-      systemSocket.send(JSON.stringify({ type: "user_disconnected", name: user.name, userType: user.type }));
-      sendClientListToSystem();
-    }
-  }
+  notifySystem({ type: "user_disconnected", name: user.name, userType: user.type });
+  sendClientListToSystem();
+}
+
+function notifySystem(obj) {
+  if (!systemSocket || systemSocket.readyState !== systemSocket.OPEN) return;
+  systemSocket.send(JSON.stringify(obj));
 }
 
 function sendClientListToSystem() {
   if (!systemSocket || systemSocket.readyState !== systemSocket.OPEN) return;
 
-  const clients = [];
+  const list = [];
   for (const user of users.values()) {
-    if (user.type !== "System") clients.push({ name: user.name, type: user.type });
+    if (user.type !== "System") list.push({ name: user.name, type: user.type });
   }
 
-  systemSocket.send(JSON.stringify({ type: "clients", clients }));
+  systemSocket.send(JSON.stringify({ type: "clients", clients: list }));
 }
 
 server.listen(PORT, () => {
