@@ -4,14 +4,14 @@ import { WebSocketServer } from "ws";
 import { URL } from "url";
 
 const PORT = process.env.PORT || 3000;
-const HEARTBEAT_INTERVAL = 30_000;
 
 /**
  * Users registry
  * key: WebSocket
- * value: { name: string, isAlive: boolean }
+ * value: { name: string, type: 'System' | 'Admin' | 'Client' }
  */
 const users = new Map();
+let systemSocket = null; // unique System
 
 const server = http.createServer((req, res) => {
   if (req.url === "/") {
@@ -29,33 +29,39 @@ const wss = new WebSocketServer({ server });
 wss.on("connection", (ws, req) => {
   const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
   const name = searchParams.get("user") || "anonymous";
+  const type = searchParams.get("type") || "Client"; // System, Admin, Client
 
-  users.set(ws, { name, isAlive: true });
+  // Handle unique System
+  if (type === "System") {
+    if (systemSocket && systemSocket.readyState === ws.OPEN) {
+      console.log(`[System] Closing old System connection`);
+      systemSocket.close(1000, "New connection replacing old");
+    }
+    systemSocket = ws;
+  }
 
-  ws.on("pong", () => {
-    const user = users.get(ws);
-    if (user) user.isAlive = true;
-  });
+  users.set(ws, { name, type });
+  console.log(`🔌 ${type} connected: ${name}`);
 
-  console.log(`🔌 ${name} connected`);
-
-  if (name !== "System") {
-    notifySystem({ type: "user_connected", name });
+  // Notify System on connection
+  if (type !== "System" && systemSocket && systemSocket.readyState === ws.OPEN) {
+    systemSocket.send(JSON.stringify({ type: "user_connected", name, userType: type }));
     sendClientListToSystem();
   }
 
   ws.on("message", (raw) => {
     let payload;
-
     try {
       payload = JSON.parse(raw.toString());
     } catch {
       return;
     }
 
-    if (name === "System" && payload.type === "get_clients") {
+    if (type === "System" && payload.type === "get_clients") {
       sendClientListToSystem();
     }
+
+    // Admin or Client messages can be handled here later
   });
 
   ws.on("close", () => {
@@ -72,50 +78,29 @@ function handleDisconnect(ws) {
   if (!user) return;
 
   users.delete(ws);
+  console.log(`❌ ${user.type} disconnected: ${user.name}`);
 
-  console.log(`❌ ${user.name} disconnected`);
-
-  if (user.name !== "System") {
-    notifySystem({ type: "user_disconnected", name: user.name });
-    sendClientListToSystem();
-  }
-}
-
-function notifySystem(payload) {
-  const message = JSON.stringify(payload);
-
-  for (const [socket, user] of users) {
-    if (user.name !== "System") continue;
-    if (socket.readyState === socket.OPEN) {
-      socket.send(message);
+  if (user.type === "System") {
+    systemSocket = null;
+    console.log(`[System] System socket cleared`);
+  } else {
+    if (systemSocket && systemSocket.readyState === systemSocket.OPEN) {
+      systemSocket.send(JSON.stringify({ type: "user_disconnected", name: user.name, userType: user.type }));
+      sendClientListToSystem();
     }
   }
 }
 
 function sendClientListToSystem() {
+  if (!systemSocket || systemSocket.readyState !== systemSocket.OPEN) return;
+
   const clients = [];
-
   for (const user of users.values()) {
-    if (user.name !== "System") {
-      clients.push(user.name);
-    }
+    if (user.type !== "System") clients.push({ name: user.name, type: user.type });
   }
 
-  notifySystem({ type: "clients", clients });
+  systemSocket.send(JSON.stringify({ type: "clients", clients }));
 }
-
-setInterval(() => {
-  for (const [ws, user] of users) {
-    if (!user.isAlive) {
-      ws.terminate();
-      handleDisconnect(ws);
-      continue;
-    }
-
-    user.isAlive = false;
-    ws.ping();
-  }
-}, HEARTBEAT_INTERVAL);
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
