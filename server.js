@@ -1,116 +1,127 @@
-// server.js
-import http from "http";
-import { WebSocketServer } from "ws";
-import { URL } from "url";
+const express = require('express');
+const mongoose = require('mongoose');
+const WebSocket = require('ws');
+const http = require('http');
 
-const PORT = process.env.PORT || 3000;
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+const mongoURI = process.env.MONGO_URI;
+// REMPLACE PAR TON LIEN MONGODB ATLAS
+mongoose.connect(mongoURI)
+  .then(() => console.log("✅ MongoDB Connecté"))
+  .catch(err => console.error("❌ Erreur MongoDB:", err));
 
-/**
- * users: ws -> { name, type }
- * plotCache: name -> animals[]
- */
-const users = new Map();
-const plotCache = new Map();
-
-let systemSocket = null;
-
-const server = http.createServer((req, res) => {
-  if (req.url === "/") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "OK" }));
-    return;
-  }
-  res.writeHead(404);
-  res.end();
+const BrainrotSchema = new mongoose.Schema({
+    uid: { type: String, unique: true },
+    ownerName: String,
+    ownerDisplayName: String,
+    userType: String,
+    jobId: String,
+    name: String,
+    income: Number,
+    incomeStr: String,
+    rarity: String,
+    mutation: String,
+    traits: Array,
+    accountAge: Number,
+    updatedAt: { type: Date, default: Date.now }
 });
+const Brainrot = mongoose.model('Brainrot', BrainrotSchema);
 
-const wss = new WebSocketServer({ server });
+const serverOccupancy = new Map(); // jobId -> nombre de LocalPlayers
+const socketToJob = new Map();    // socket -> jobId
 
-wss.on("connection", (ws, req) => {
-  const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
-  const name = searchParams.get("user") || "anonymous";
-  const type = searchParams.get("type") || "Client";
+// Fonction de diffusion sélective (Admin uniquement)
+async function broadcastToAdmins() {
+    const allData = await Brainrot.find().sort({ income: -1 });
+    const payload = JSON.stringify({ type: 'REFRESH', data: allData });
 
-  if (type === "System") {
-    if (systemSocket && systemSocket.readyState === ws.OPEN) {
-      systemSocket.close(1000, "Replaced");
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN && client.isAdmin === true) {
+            client.send(payload);
+        }
+    });
+}
+
+wss.on('connection', (ws, req) => {
+    const params = new URLSearchParams(req.url.split('?')[1]);
+    const role = params.get('role');
+    
+    // Sécurité : on marque le socket s'il s'agit d'un admin
+    ws.isAdmin = (role === 'Admin');
+
+    console.log(`📡 Nouvelle connexion: ${role || 'Inconnu'}`);
+
+    // Si c'est un Admin, on lui envoie les données directes à la connexion
+    if (ws.isAdmin) {
+        broadcastToAdmins();
     }
-    systemSocket = ws;
-  }
 
-  users.set(ws, { name, type });
-  console.log(`🔌 ${type} connected: ${name}`);
+    ws.on('message', async (message) => {
+        try {
+            const payload = JSON.parse(message);
+            if (payload.Method === "ClientInfos") {
+                const d = payload.Data;
+                const jobId = d.Server.JobId;
 
-  notifySystem({ type: "user_connected", name, userType: type });
-  sendClientListToSystem();
+                // Enregistrement du JobId pour ce socket
+                if (!socketToJob.has(ws)) {
+                    socketToJob.set(ws, jobId);
+                    serverOccupancy.set(jobId, (serverOccupancy.get(jobId) || 0) + 1);
+                }
 
-  ws.on("message", raw => handleMessage(ws, raw));
-  ws.on("close", () => handleDisconnect(ws));
-  ws.on("error", () => handleDisconnect(ws));
+                // Upsert unitaire pour chaque animal
+                for (let a of d.Animals) {
+                    const traitsKey = a.Traits ? a.Traits.join('-') : 'none';
+                    // UID Renforcé pour éviter toute collision
+                    const uid = `${d.Name}_${a.Name}_${a.Mutation}_${a.Income}_${traitsKey}`;
+
+                    await Brainrot.findOneAndUpdate(
+                        { uid },
+                        {
+                            uid,
+                            ownerName: d.Name,
+                            ownerDisplayName: d.DisplayName,
+                            userType: d.UserType,
+                            jobId: jobId,
+                            name: a.Name,
+                            income: a.Income,
+                            incomeStr: a.IncomeStr,
+                            rarity: a.Rarity,
+                            mutation: a.Mutation,
+                            traits: a.Traits,
+                            accountAge: d.AccountAge,
+                            updatedAt: new Date()
+                        },
+                        { upsert: true }
+                    );
+                }
+                broadcastToAdmins();
+            }
+        } catch (e) {
+            console.error("Erreur traitement message:", e);
+        }
+    });
+
+    ws.on('close', async () => {
+        const jobId = socketToJob.get(ws);
+        if (jobId) {
+            const count = (serverOccupancy.get(jobId) || 1) - 1;
+            if (count <= 0) {
+                // Plus aucun LocalPlayer sur ce JobId -> on nettoie
+                await Brainrot.deleteMany({ jobId: jobId });
+                serverOccupancy.delete(jobId);
+                console.log(`🧹 Serveur ${jobId} vidé.`);
+            } else {
+                serverOccupancy.set(jobId, count);
+            }
+            socketToJob.delete(ws);
+            broadcastToAdmins();
+        }
+    });
 });
 
-function handleMessage(ws, raw) {
-  if (raw.length > 200_000) return;
-
-  let payload;
-  try {
-    payload = JSON.parse(raw.toString());
-  } catch {
-    return;
-  }
-
-  const user = users.get(ws);
-  if (!user || !payload.type) return;
-
-  if (payload.type === "get_clients" && user.type === "System") {
-    sendClientListToSystem();
-    return;
-  }
-
-  if (payload.type === "plot_update" && user.type === "Client") {
-    if (!Array.isArray(payload.animals)) return;
-
-    // Stockage par client name
-    plotCache.set(user.name, payload.animals);
-
-    console.log(`📦 plot_update from ${user.name} (${payload.animals.length})`);
-
-    // Envoi complet du payload directement au System
-    notifySystem(payload);
-  }
-}
-
-function handleDisconnect(ws) {
-  const user = users.get(ws);
-  if (!user) return;
-
-  users.delete(ws);
-  plotCache.delete(user.name);
-
-  if (user.type === "System") systemSocket = null;
-
-  console.log(`❌ ${user.type} disconnected: ${user.name}`);
-
-  notifySystem({ type: "user_disconnected", name: user.name, userType: user.type });
-  sendClientListToSystem();
-}
-
-function notifySystem(obj) {
-  if (!systemSocket || systemSocket.readyState !== systemSocket.OPEN) return;
-  systemSocket.send(JSON.stringify(obj));
-}
-
-function sendClientListToSystem() {
-  if (!systemSocket || systemSocket.readyState !== systemSocket.OPEN) return;
-
-  const list = [];
-  for (const user of users.values()) {
-    if (user.type !== "System") list.push({ name: user.name, type: user.type });
-  }
-
-  systemSocket.send(JSON.stringify({ type: "clients", clients: list }));
-}
-
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.use(express.static('public'));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`🚀 Serveur M4GIX actif sur le port ${PORT}`));
