@@ -7,10 +7,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const mongoURI = process.env.MONGO_URI;
-// REMPLACE PAR TON LIEN MONGODB ATLAS
-mongoose.connect(mongoURI)
-  .then(() => console.log("✅ MongoDB Connecté"))
-  .catch(err => console.error("❌ Erreur MongoDB:", err));
+
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ MongoDB Connecté avec succès"))
+  .catch(err => console.error("❌ Erreur de connexion MongoDB :", err));
 
 const BrainrotSchema = new mongoose.Schema({
     uid: { type: String, unique: true },
