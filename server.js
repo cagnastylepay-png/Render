@@ -6,13 +6,12 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+const mongoURI = process.env.MONGO_URI;
 
-// Connexion MongoDB
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connecté"))
   .catch(err => console.error("❌ Erreur MongoDB :", err));
 
-// Schema
 const BrainrotSchema = new mongoose.Schema({
     uid: { type: String, unique: true },
     ownerName: String,
@@ -36,44 +35,43 @@ const BrainrotSchema = new mongoose.Schema({
 
 const Brainrot = mongoose.model('Brainrot', BrainrotSchema);
 
-// Envoi aux Dashboards
+const serverOccupancy = new Map();
+const socketToJob = new Map();
+
 async function broadcastToAdmins() {
-    const allData = await Brainrot.find().sort({ income: -1 });
-    const payload = JSON.stringify({ type: 'REFRESH', data: allData });
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN && client.isAdmin) {
-            client.send(payload);
-        }
-    });
+    try {
+        const allData = await Brainrot.find().sort({ income: -1 });
+        const payload = JSON.stringify({ type: 'REFRESH', data: allData });
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN && client.isAdmin) client.send(payload);
+        });
+    } catch (e) { console.error(e); }
 }
 
-// Gestion WebSocket
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(req.url.split('?')[1]);
-    const isAdmin = (params.get('role') === 'Admin');
-    const userName = params.get('user') || 'Inconnu';
-    
-    ws.isAdmin = isAdmin;
+    ws.isAdmin = (params.get('role') === 'Admin');
 
-    if (isAdmin) {
-        console.log(`🖥️  ADMIN CONNECTÉ : ${userName}`);
-        broadcastToAdmins();
-    }
+    if (ws.isAdmin) broadcastToAdmins();
 
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
-            
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
+                const jobId = d.Server.JobId;
 
-                // --- LOGS SPÉCIFIQUES POUR LOCALPLAYER ---
-                if (d.UserType === "LocalPlayer") {
-                    console.log(`[MY ACCOUNT] 👤 ${d.Name} (@${d.UserId}) | 📈 Revenu Total: ${d.Animals.reduce((acc, curr) => acc + curr.Income, 0)}/s | 📍 Job: ${d.Server.JobId}`);
+                // LOG DE RÉCEPTION
+                console.log(`📥 Reçu : ${d.Name} | Serveur: ${jobId.substring(0,6)} | Animaux: ${d.Animals.length}`);
+
+                if (!socketToJob.has(ws)) {
+                    socketToJob.set(ws, jobId);
+                    serverOccupancy.set(jobId, (serverOccupancy.get(jobId) || 0) + 1);
                 }
 
                 for (let a of d.Animals) {
-                    const uid = `${d.Name}_${a.Name}_${a.Mutation}_${a.Income}`;
+                    const traitsKey = a.Traits ? a.Traits.sort().join('-') : 'none';
+                    const uid = `${d.Name}_${a.Name}_${a.Mutation}_${a.Income}_${traitsKey}`;
 
                     await Brainrot.findOneAndUpdate(
                         { uid: uid },
@@ -95,7 +93,7 @@ wss.on('connection', (ws, req) => {
                                 maxPlayers: d.Server.MaxPlayers,
                                 isPrivate: d.Server.IsPrivate
                             },
-                            updatedAt: new Date()
+                            updatedAt: new Date() // Reset du timer de 20 min
                         },
                         { upsert: true }
                     );
@@ -103,18 +101,31 @@ wss.on('connection', (ws, req) => {
                 broadcastToAdmins();
             }
         } catch (e) {
-            console.error("❌ Erreur traitement :", e);
+            console.error("❌ Erreur traitement message:", e);
         }
     });
 
-    ws.on('close', () => {
-        if (!ws.isAdmin) console.log(`🛰️  BOT DÉCONNECTÉ : ${userName}`);
+    ws.on('close', async () => {
+        const jobId = socketToJob.get(ws);
+        if (jobId) {
+            const count = (serverOccupancy.get(jobId) || 1) - 1;
+            if (count <= 0) {
+                await Brainrot.deleteMany({ jobId: jobId });
+                serverOccupancy.delete(jobId);
+            } else { serverOccupancy.set(jobId, count); }
+            socketToJob.delete(ws);
+            broadcastToAdmins();
+        }
     });
 });
 
+setInterval(async () => {
+    const expiration = new Date(Date.now() - 20 * 60 * 1000); // 20 min
+    const result = await Brainrot.deleteMany({ updatedAt: { $lt: expiration } });
+    if (result.deletedCount > 0) {
+        console.log(`🧹 Nettoyage : ${result.deletedCount} entrées expirées supprimées.`);
+        broadcastToAdmins();
+    }
+}, 60000);
 app.use(express.static('public'));
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 SERVEUR M4GIX PRÊT (Port ${PORT})`);
-});
+server.listen(process.env.PORT || 3000);
