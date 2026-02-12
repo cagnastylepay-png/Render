@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M4GIX - Global Grid & Teleporter</title>
     <style>
-        :root { --accent: #00ff00; --bg: #0a0a0a; --card: #161616; --text: #eee; --local: #00d9ff; }
+        :root { --accent: #00ff00; --bg: #0a0a0a; --card: #161616; --text: #eee; --local: #00d9ff; --private: #ffaa00; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; }
         
-        /* Barre de navigation fixe */
         .nav { 
             background: #111; padding: 15px; display: flex; justify-content: center; gap: 20px; 
             border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 100;
@@ -21,10 +20,8 @@
         .btn.active { background: var(--accent); color: black; border-color: var(--accent); }
         .btn:hover:not(.active) { border-color: var(--accent); }
 
-        /* Grille de cartes */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 30px; }
         
-        /* Styles des Cartes */
         .card { 
             background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; 
             display: flex; flex-direction: column; transition: 0.2s; position: relative;
@@ -32,7 +29,6 @@
         .card.is-local { border: 1px dashed var(--local); box-shadow: 0 0 15px rgba(0, 217, 255, 0.05); }
         .card:hover { transform: translateY(-5px); border-color: var(--accent); }
 
-        /* Contenu de la carte */
         .income { 
             background: var(--accent); color: black; padding: 6px 12px; border-radius: 6px; 
             font-weight: 900; font-family: monospace; font-size: 1.2em; width: fit-content; margin-bottom: 10px; 
@@ -46,11 +42,17 @@
         .traits-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; min-height: 25px; }
         .trait-tag { background: rgba(0, 217, 255, 0.1); color: var(--local); font-size: 0.7em; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(0, 217, 255, 0.2); }
 
-        /* Footer & Actions */
-        .footer { font-size: 0.8em; color: #777; margin-top: auto; padding-top: 15px; border-top: 1px solid #282828; line-height: 1.5; }
+        .footer { font-size: 0.8em; color: #777; margin-top: auto; padding-top: 15px; border-top: 1px solid #282828; line-height: 1.6; }
         .timestamp { color: var(--accent); font-weight: bold; font-size: 0.85em; margin-bottom: 5px; display: block; }
-        .user-badge { float: right; font-size: 0.75em; padding: 2px 6px; border-radius: 4px; background: #333; color: #fff; }
-        .badge-local { background: var(--local); color: #000; font-weight: bold; }
+        
+        /* Badges */
+        .badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; text-transform: uppercase; }
+        .badge-user { background: #333; color: #fff; float: right; }
+        .badge-local { background: var(--local); color: #000; float: right; }
+        .badge-private { background: var(--private); color: #000; }
+        .badge-public { background: #444; color: #fff; }
+        
+        .server-info { color: #aaa; display: block; margin-top: 5px; font-family: monospace; }
 
         .join-btn {
             margin-top: 12px; background: #1a1a1a; border: 1px solid var(--accent); color: var(--accent);
@@ -76,7 +78,6 @@
         const gridElement = document.getElementById('grid');
         const statusElement = document.getElementById('status');
 
-        // Initialisation WebSocket
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${location.host}?role=Admin`);
 
@@ -91,7 +92,6 @@
             }
         };
 
-        // Calcul du temps écoulé (ex: "Il y a 12s")
         function timeAgo(dateString) {
             const now = new Date();
             const past = new Date(dateString);
@@ -113,7 +113,14 @@
                 ? brainrots.filter(b => b.userType === 'LocalPlayer') 
                 : brainrots;
 
-            gridElement.innerHTML = filtered.map(b => `
+            gridElement.innerHTML = filtered.map(b => {
+                // Gestion sécurité si les données server sont absentes (vieux logs)
+                const s = b.server || { PlayerCount: '?', MaxPlayers: '?', IsPrivate: false };
+                const serverTypeBadge = s.IsPrivate 
+                    ? `<span class="badge badge-private">🔒 Private</span>` 
+                    : `<span class="badge badge-public">🌍 Public</span>`;
+
+                return `
                 <div class="card ${b.userType === 'LocalPlayer' ? 'is-local' : ''}">
                     <div class="income">${b.incomeStr}</div>
                     <div class="rarity ${b.rarity}">${b.rarity}</div>
@@ -126,19 +133,23 @@
 
                     <div class="footer">
                         <span class="timestamp">⏱ ${timeAgo(b.updatedAt)}</span>
-                        <span class="user-badge ${b.userType === 'LocalPlayer' ? 'badge-local' : ''}">${b.userType}</span>
+                        <span class="badge ${b.userType === 'LocalPlayer' ? 'badge-local' : 'badge-user'}">${b.userType}</span>
                         👤 <b>${b.ownerDisplayName}</b> (@${b.ownerName})<br>
-                        📅 ${b.accountAge}j | ID: <span style="font-family:monospace">${b.jobId.substring(0,8)}</span>
+                        📅 ${b.accountAge}j | ${serverTypeBadge}
+                        
+                        <span class="server-info">
+                            👥 Joueurs: ${s.PlayerCount}/${s.MaxPlayers}<br>
+                            🔑 ID: ${b.jobId.substring(0,12)}...
+                        </span>
                         
                         <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="join-btn">
                             🚀 JOIN SERVER
                         </a>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
-        // Rafraîchir les timestamps toutes les secondes sans re-rendre toute la grille
         setInterval(render, 5000);
     </script>
 </body>
