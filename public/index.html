@@ -2,59 +2,246 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>M4GIX TRACKER v2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M4GIX - Global Grid & Teleporter</title>
     <style>
-        body { background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; margin: 0; }
-        .nav { background: #111; padding: 15px; border-bottom: 2px solid #0f0; text-align: center; position: sticky; top: 0; z-index: 100; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding: 25px; }
-        .card { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 20px; transition: 0.2s; position: relative; }
-        .card:hover { border-color: #0f0; transform: translateY(-5px); }
-        .income { background: #0f0; color: #000; font-weight: 900; padding: 8px 12px; border-radius: 6px; font-size: 1.2em; display: inline-block; margin-bottom: 10px; }
-        .footer { margin-top: 15px; border-top: 1px solid #282828; padding-top: 15px; font-size: 0.85em; }
+        :root { 
+            --accent: #00ff00; 
+            --bg: #0a0a0a; 
+            --card: #161616; 
+            --text: #eee; 
+            --local: #00d9ff; 
+            --private: #ffaa00;
+            --danger: #ff4444;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            overflow-x: hidden;
+        }
+        
+        .nav { 
+            background: #111; 
+            padding: 15px; 
+            display: flex; 
+            justify-content: center; 
+            gap: 20px; 
+            border-bottom: 2px solid var(--accent); 
+            position: sticky; 
+            top: 0; 
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .btn { 
+            background: #222; 
+            color: white; 
+            border: 1px solid #444; 
+            padding: 10px 25px; 
+            cursor: pointer; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            transition: 0.2s;
+        }
+
+        .btn.active { background: var(--accent); color: black; border-color: var(--accent); }
+        .btn:hover:not(.active) { border-color: var(--accent); }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+            gap: 20px; 
+            padding: 30px; 
+        }
+        
+        .card { 
+            background: var(--card); 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            transition: 0.2s; 
+            position: relative;
+        }
+
+        .card.is-local { border: 2px solid var(--local); box-shadow: 0 0 15px rgba(0, 217, 255, 0.1); }
+        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+
+        .income { 
+            background: var(--accent); 
+            color: black; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-weight: 900; 
+            font-family: monospace; 
+            font-size: 1.4em; 
+            width: fit-content; 
+            margin-bottom: 10px; 
+        }
+
+        .rarity { font-size: 0.8em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .Legendary { color: #ffff55; } .Epic { color: #ff55ff; } .Rare { color: #5555ff; } .Common { color: #888; }
+        
+        .name { font-size: 1.3em; font-weight: bold; color: #fff; margin-bottom: 2px; }
+        .mutation { color: #ff00ff; font-size: 0.85em; font-style: italic; margin-bottom: 12px; }
+        
+        .traits-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; min-height: 25px; }
+        .trait-tag { background: rgba(0, 217, 255, 0.1); color: var(--local); font-size: 0.7em; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(0, 217, 255, 0.2); }
+
+        .footer { 
+            font-size: 0.85em; 
+            color: #aaa; 
+            margin-top: auto; 
+            padding-top: 15px; 
+            border-top: 1px solid #282828; 
+            line-height: 1.6; 
+        }
+
+        .timestamp { color: var(--accent); font-weight: bold; display: block; margin-bottom: 8px; }
+        
+        .badge { font-size: 0.7em; padding: 3px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+        .badge-user { background: #333; color: #fff; float: right; }
+        .badge-local { background: var(--local); color: #000; float: right; }
+        .badge-private { background: var(--private); color: #000; display: inline-block; margin-top: 5px; }
+        .badge-public { background: #444; color: #fff; display: inline-block; margin-top: 5px; }
+        
+        .server-stats { margin: 10px 0; font-family: monospace; color: #888; font-size: 0.9em; }
+
         .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
-        .btn { text-decoration: none; text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; transition: 0.2s; border: 1px solid; }
-        .btn-job { background: #0f0; color: #000; border-color: #0f0; }
-        .btn-follow { color: #00d9ff; border-color: #00d9ff; }
-        .btn:hover { filter: brightness(1.2); }
-        .badge { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-        .badge-private { background: #ffaa00; color: #000; }
+        
+        .join-btn {
+            padding: 10px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            text-align: center; 
+            text-decoration: none; 
+            font-size: 0.85em; 
+            transition: 0.2s;
+            border: 1px solid;
+        }
+
+        .btn-id { background: var(--accent); color: #000; border-color: var(--accent); }
+        .btn-follow { background: transparent; color: var(--local); border-color: var(--local); }
+        .btn-web { background: transparent; color: #666; border-color: #444; font-size: 0.75em; }
+        
+        .join-btn:hover { filter: brightness(1.2); }
+
+        #status { align-self: center; font-size: 0.8em; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="nav"><h2 style="margin:0; color:#0f0;">M4GIX GLOBAL TRACKER</h2></div>
+
+    <div class="nav">
+        <button class="btn active" onclick="setFilter('ALL', this)">GLOBAL GRID</button>
+        <button class="btn" onclick="setFilter('LOCAL', this)">MY ACCOUNTS</button>
+        <div id="status">CONNECTING...</div>
+    </div>
+
     <div id="grid" class="grid"></div>
 
     <script>
-        const grid = document.getElementById('grid');
-        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}?role=Admin`);
+        let currentFilter = 'ALL';
+        let brainrots = [];
+        const gridElement = document.getElementById('grid');
+        const statusElement = document.getElementById('status');
 
-        ws.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            if (msg.type === 'REFRESH') render(msg.data);
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${location.host}?role=Admin`);
+
+        ws.onopen = () => { 
+            statusElement.innerText = "● LIVE"; 
+            statusElement.style.color = "#00ff00"; 
+        };
+        ws.onclose = () => { 
+            statusElement.innerText = "● OFFLINE"; 
+            statusElement.style.color = "#ff4444"; 
         };
 
-        function render(data) {
-            grid.innerHTML = data.map(b => {
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'REFRESH') {
+                brainrots = msg.data;
+                render();
+            }
+        };
+
+        function timeAgo(dateString) {
+            const now = new Date();
+            const past = new Date(dateString);
+            const diffSeconds = Math.floor((now - past) / 1000);
+            if (diffSeconds < 10) return "À l'instant";
+            if (diffSeconds < 60) return `Il y a ${diffSeconds}s`;
+            const mins = Math.floor(diffSeconds / 60);
+            return `Il y a ${mins}m`;
+        }
+
+        function setFilter(f, btn) {
+            currentFilter = f;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            render();
+        }
+
+        function render() {
+            const filtered = currentFilter === 'LOCAL' 
+                ? brainrots.filter(b => b.userType === 'LocalPlayer') 
+                : brainrots;
+
+            const now = new Date();
+            const activeData = filtered.filter(b => (now - new Date(b.updatedAt)) < 600000);
+
+            gridElement.innerHTML = activeData.map(b => {
                 const s = b.server || { playerCount: 0, maxPlayers: 0, isPrivate: false };
+                const isVeryOld = (now - new Date(b.updatedAt)) > 120000;
+
                 return `
-                <div class="card">
+                <div class="card ${b.userType === 'LocalPlayer' ? 'is-local' : ''}" style="${isVeryOld ? 'opacity: 0.6' : ''}">
                     <div class="income">${b.incomeStr}</div>
-                    <div style="font-size: 1.2em; font-weight: bold;">${b.name}</div>
-                    <div style="color:#ff00ff; margin-bottom: 10px;">✨ ${b.mutation}</div>
+                    <div class="rarity ${b.rarity}">${b.rarity}</div>
+                    <div class="name">${b.name}</div>
+                    <div class="mutation">✨ ${b.mutation}</div>
                     
+                    <div class="traits-list">
+                        ${b.traits && b.traits.length > 0 ? b.traits.map(t => `<span class="trait-tag">#${t}</span>`).join('') : '<span class="trait-tag" style="opacity:0.3">Aucun trait</span>'}
+                    </div>
+
                     <div class="footer">
-                        👤 <b>${b.ownerDisplayName}</b> (@${b.ownerName})<br>
-                        ${s.isPrivate ? '<span class="badge badge-private">🔒 PRIVÉ</span>' : '<span>🌍 PUBLIC</span>'} 
-                        | 👥 ${s.playerCount}/${s.maxPlayers}
+                        <span class="timestamp">⏱ ${timeAgo(b.updatedAt)}</span>
+                        <span class="badge ${b.userType === 'LocalPlayer' ? 'badge-local' : 'badge-user'}">${b.userType}</span>
                         
+                        👤 <b>${b.ownerDisplayName}</b> (@${b.ownerName})<br>
+                        
+                        ${s.isPrivate ? '<span class="badge badge-private">🔒 Serveur Privé</span>' : '<span class="badge badge-public">🌍 Serveur Public</span>'}
+                        
+                        <div class="server-stats">
+                            👥 Joueurs: ${s.playerCount}/${s.maxPlayers}<br>
+                            🔑 ID: <code>${b.jobId.substring(0,10)}...</code>
+                        </div>
+
                         <div class="btn-group">
-                            <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="btn btn-job">REJOINDRE (JOB ID)</a>
-                            <a href="roblox://experiences/start?placeId=109983668079237&followUserId=${b.ownerId}" class="btn btn-follow">👥 SUIVRE LE JOUEUR</a>
+                            <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="join-btn btn-id">
+                                🚀 REJOINDRE (JOB ID)
+                            </a>
+
+                            <a href="roblox://experiences/start?placeId=109983668079237&followUserId=${b.ownerId}" class="join-btn btn-follow">
+                                👥 SUIVRE LE JOUEUR
+                            </a>
+
+                            <a href="https://www.roblox.com/games/start?placeId=109983668079237&instanceId=${b.jobId}" target="_blank" class="join-btn btn-web">
+                                🌐 VIA NAVIGATEUR
+                            </a>
                         </div>
                     </div>
                 </div>
             `}).join('');
         }
+
+        setInterval(render, 10000);
     </script>
 </body>
 </html>
