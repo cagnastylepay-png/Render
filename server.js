@@ -113,24 +113,6 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-// SURVEILLANCE PASSIVE
-const interval = setInterval(() => {
-    const now = new Date().toLocaleTimeString();
-    console.log(`\n🔍 [HEARTBEAT_CHECK] ${now} - Vérification de l'activité des clients...`);
-
-    wss.clients.forEach((ws) => {
-        if (ws.isAdmin) return;
-
-        if (ws.isAlive === false) {
-            console.log(`💀 [TIMEOUT] Aucune activité de ${ws.userName} depuis 60s. Terminaison.`);
-            return ws.terminate();
-        }
-
-        // On réinitialise pour le prochain cycle
-        ws.isAlive = false; 
-    });
-}, 60000);
-
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
