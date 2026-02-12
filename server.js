@@ -119,13 +119,5 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-setInterval(async () => {
-    const expiration = new Date(Date.now() - 20 * 60 * 1000); // 20 min
-    const result = await Brainrot.deleteMany({ updatedAt: { $lt: expiration } });
-    if (result.deletedCount > 0) {
-        console.log(`🧹 Nettoyage : ${result.deletedCount} entrées expirées supprimées.`);
-        broadcastToAdmins();
-    }
-}, 60000);
 app.use(express.static('public'));
 server.listen(process.env.PORT || 3000);
