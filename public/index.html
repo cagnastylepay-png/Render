@@ -3,245 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX - Global Grid & Teleporter</title>
+    <title>M4GIX - Monitoring Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root { 
-            --accent: #00ff00; 
-            --bg: #0a0a0a; 
-            --card: #161616; 
-            --text: #eee; 
-            --local: #00d9ff; 
-            --private: #ffaa00;
-            --danger: #ff4444;
-        }
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
+        
         body { 
-            background: var(--bg); 
-            color: var(--text); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            overflow-x: hidden;
+            background-color: #0c0c0e; 
+            color: #e4e4e7; 
+            font-family: 'Inter', sans-serif; 
         }
         
-        .nav { 
-            background: #111; 
-            padding: 15px; 
-            display: flex; 
-            justify-content: center; 
-            gap: 20px; 
-            border-bottom: 2px solid var(--accent); 
-            position: sticky; 
-            top: 0; 
-            z-index: 100;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        .card-bg { 
+            background-color: #121215; 
+            border: 1px solid #1f1f23; 
+            transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
-        .btn { 
-            background: #222; 
-            color: white; 
-            border: 1px solid #444; 
-            padding: 10px 25px; 
-            cursor: pointer; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            transition: 0.2s;
+        .card-bg:hover {
+            border-color: #3f3f46;
         }
 
-        .btn.active { background: var(--accent); color: black; border-color: var(--accent); }
-        .btn:hover:not(.active) { border-color: var(--accent); }
-
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-            gap: 20px; 
-            padding: 30px; 
+        .status-online { 
+            background: #10b981; 
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); 
         }
         
-        .card { 
-            background: var(--card); 
-            border: 1px solid #333; 
-            border-radius: 12px; 
-            padding: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            transition: 0.2s; 
-            position: relative;
+        .status-offline { 
+            background: #4b5563; 
         }
 
-        .card.is-local { border: 2px solid var(--local); box-shadow: 0 0 15px rgba(0, 217, 255, 0.1); }
-        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
-
-        .income { 
-            background: var(--accent); 
-            color: black; 
-            padding: 6px 12px; 
-            border-radius: 6px; 
-            font-weight: 900; 
-            font-family: monospace; 
-            font-size: 1.4em; 
-            width: fit-content; 
-            margin-bottom: 10px; 
-        }
-
-        .rarity { font-size: 0.8em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .Legendary { color: #ffff55; } .Epic { color: #ff55ff; } .Rare { color: #5555ff; } .Common { color: #888; }
+        .scroll-custom::-webkit-scrollbar { width: 4px; }
+        .scroll-custom::-webkit-scrollbar-track { background: transparent; }
+        .scroll-custom::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
         
-        .name { font-size: 1.3em; font-weight: bold; color: #fff; margin-bottom: 2px; }
-        .mutation { color: #ff00ff; font-size: 0.85em; font-style: italic; margin-bottom: 12px; }
-        
-        .traits-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; min-height: 25px; }
-        .trait-tag { background: rgba(0, 217, 255, 0.1); color: var(--local); font-size: 0.7em; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(0, 217, 255, 0.2); }
-
-        .footer { 
-            font-size: 0.85em; 
-            color: #aaa; 
-            margin-top: auto; 
-            padding-top: 15px; 
-            border-top: 1px solid #282828; 
-            line-height: 1.6; 
-        }
-
-        .timestamp { color: var(--accent); font-weight: bold; display: block; margin-bottom: 8px; }
-        
-        .badge { font-size: 0.7em; padding: 3px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
-        .badge-user { background: #333; color: #fff; float: right; }
-        .badge-local { background: var(--local); color: #000; float: right; }
-        .badge-private { background: var(--private); color: #000; display: inline-block; margin-top: 5px; }
-        .badge-public { background: #444; color: #fff; display: inline-block; margin-top: 5px; }
-        
-        .server-stats { margin: 10px 0; font-family: monospace; color: #888; font-size: 0.9em; }
-
-        .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
-        
-        .join-btn {
-            padding: 10px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            text-align: center; 
-            text-decoration: none; 
-            font-size: 0.85em; 
-            transition: 0.2s;
-            border: 1px solid;
-        }
-
-        .btn-id { background: var(--accent); color: #000; border-color: var(--accent); }
-        .btn-follow { background: transparent; color: var(--local); border-color: var(--local); }
-        .btn-web { background: transparent; color: #666; border-color: #444; font-size: 0.75em; }
-        
-        .join-btn:hover { filter: brightness(1.2); }
-
-        #status { align-self: center; font-size: 0.8em; font-weight: bold; }
+        .font-mono-custom { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
-<body>
+<body class="p-4 md:p-10">
 
-    <div class="nav">
-        <button class="btn active" onclick="setFilter('ALL', this)">GLOBAL GRID</button>
-        <button class="btn" onclick="setFilter('LOCAL', this)">MY ACCOUNTS</button>
-        <div id="status">CONNECTING...</div>
+    <div class="max-w-5xl mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
+            <div>
+                <h1 class="text-4xl font-black tracking-tighter bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+                    M4GIX PANEL
+                </h1>
+                <p class="text-zinc-500 text-sm mt-1 font-medium uppercase tracking-widest">Real-time Data Extraction</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div id="stats-badge" class="hidden md:flex items-center px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-[11px] font-bold text-zinc-400 mr-2">
+                    <span id="active-count" class="text-green-500 mr-1">0</span> CONNECTED
+                </div>
+                <div class="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+                    <button onclick="setFilter('all')" id="btn-all" class="px-6 py-2 rounded-lg text-sm font-bold transition-all bg-zinc-800 text-white shadow-lg">TOUS</button>
+                    <button onclick="setFilter('online')" id="btn-online" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-zinc-500 hover:text-white">EN LIGNE</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="clients-container" class="grid grid-cols-1 gap-8">
+            <div class="text-center py-20 border-2 border-dashed border-zinc-900 rounded-3xl">
+                <p class="text-zinc-600 font-medium">En attente de données WebSocket...</p>
+            </div>
+        </div>
     </div>
 
-    <div id="grid" class="grid"></div>
-
     <script>
-        let currentFilter = 'ALL';
-        let brainrots = [];
-        const gridElement = document.getElementById('grid');
-        const statusElement = document.getElementById('status');
+        let currentFilter = 'all';
+        let wsData = [];
 
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${location.host}?role=Admin`);
+        // Gestion de la connexion WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const socket = new WebSocket(`${protocol}://${window.location.host}?role=Admin`);
 
-        ws.onopen = () => { 
-            statusElement.innerText = "● LIVE"; 
-            statusElement.style.color = "#00ff00"; 
-        };
-        ws.onclose = () => { 
-            statusElement.innerText = "● OFFLINE"; 
-            statusElement.style.color = "#ff4444"; 
-        };
-
-        ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'REFRESH') {
-                brainrots = msg.data;
+        socket.onmessage = (event) => {
+            const payload = JSON.parse(event.data);
+            if (payload.type === 'REFRESH') {
+                wsData = payload.data;
                 render();
             }
         };
 
-        function timeAgo(dateString) {
-            const now = new Date();
-            const past = new Date(dateString);
-            const diffSeconds = Math.floor((now - past) / 1000);
-            if (diffSeconds < 10) return "À l'instant";
-            if (diffSeconds < 60) return `Il y a ${diffSeconds}s`;
-            const mins = Math.floor(diffSeconds / 60);
-            return `Il y a ${mins}m`;
-        }
-
-        function setFilter(f, btn) {
-            currentFilter = f;
-            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.getElementById('btn-all').className = filter === 'all' ? 'px-6 py-2 rounded-lg text-sm font-bold bg-zinc-800 text-white shadow-lg' : 'px-6 py-2 rounded-lg text-sm font-bold text-zinc-500 hover:text-white';
+            document.getElementById('btn-online').className = filter === 'online' ? 'px-6 py-2 rounded-lg text-sm font-bold bg-zinc-800 text-white shadow-lg' : 'px-6 py-2 rounded-lg text-sm font-bold text-zinc-500 hover:text-white';
             render();
         }
 
         function render() {
-            const filtered = currentFilter === 'LOCAL' 
-                ? brainrots.filter(b => b.userType === 'LocalPlayer') 
-                : brainrots;
+            const container = document.getElementById('clients-container');
+            const activeBadge = document.getElementById('active-count');
+            container.innerHTML = '';
 
-            const now = new Date();
-            const activeData = filtered.filter(b => (now - new Date(b.updatedAt)) < 600000);
+            // 1. Filtrage (Online / All)
+            let filtered = [...wsData];
+            if (currentFilter === 'online') {
+                filtered = filtered.filter(c => c.isConnected);
+            }
 
-            gridElement.innerHTML = activeData.map(b => {
-                const s = b.server || { playerCount: 0, maxPlayers: 0, isPrivate: false };
-                const isVeryOld = (now - new Date(b.updatedAt)) > 120000;
+            // Mise à jour du compteur
+            activeBadge.innerText = wsData.filter(c => c.isConnected).length;
 
-                return `
-                <div class="card ${b.userType === 'LocalPlayer' ? 'is-local' : ''}" style="${isVeryOld ? 'opacity: 0.6' : ''}">
-                    <div class="income">${b.incomeStr}</div>
-                    <div class="rarity ${b.rarity}">${b.rarity}</div>
-                    <div class="name">${b.name}</div>
-                    <div class="mutation">✨ ${b.mutation}</div>
-                    
-                    <div class="traits-list">
-                        ${b.traits && b.traits.length > 0 ? b.traits.map(t => `<span class="trait-tag">#${t}</span>`).join('') : '<span class="trait-tag" style="opacity:0.3">Aucun trait</span>'}
+            // 2. TRI DES CARTES (La carte avec l'animal le plus cher en premier)
+            filtered.sort((a, b) => {
+                const maxA = (a.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
+                const maxB = (b.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
+                return maxB - maxA;
+            });
+
+            // 3. GÉNÉRATION DU HTML
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun client trouvé avec ce filtre.</div>`;
+                return;
+            }
+
+            filtered.forEach(client => {
+                // Tri des animaux à l'intérieur de la carte (décroissant)
+                const sortedAnimals = (client.animals || []).sort((a, b) => (b.Income || 0) - (a.Income || 0));
+                
+                const card = document.createElement('div');
+                card.className = 'card-bg rounded-2xl overflow-hidden';
+                if (client.isConnected) card.style.borderLeft = "4px solid #10b981";
+
+                card.innerHTML = `
+                    <div class="p-6 border-b border-zinc-800/50">
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="flex items-center gap-2 text-zinc-500 text-[11px] font-black uppercase tracking-[0.2em]">
+                                <i data-lucide="database" class="w-3.5 h-3.5"></i> Player Identity
+                            </div>
+                            <div class="text-[10px] text-zinc-600 font-mono italic">UID: ${client.userId}</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Display Name</span><span class="font-bold text-zinc-200">${client.displayName}</span></div>
+                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Username</span><span class="font-bold text-zinc-400">@${client.name}</span></div>
+                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Account Age</span><span class="font-bold text-zinc-200">${client.accountAge} days</span></div>
+                            <div class="flex flex-col"><span class="text-zinc-600 text-[10px] uppercase font-bold">Server Occupancy</span><span class="font-bold text-zinc-200">${client.server?.playerCount || 0}/${client.server?.maxPlayers || 0}</span></div>
+                        </div>
                     </div>
 
-                    <div class="footer">
-                        <span class="timestamp">⏱ ${timeAgo(b.updatedAt)}</span>
-                        <span class="badge ${b.userType === 'LocalPlayer' ? 'badge-local' : 'badge-user'}">${b.userType}</span>
-                        
-                        👤 <b>${b.ownerDisplayName}</b> (@${b.ownerName})<br>
-                        
-                        ${s.isPrivate ? '<span class="badge badge-private">🔒 Serveur Privé</span>' : '<span class="badge badge-public">🌍 Serveur Public</span>'}
-                        
-                        <div class="server-stats">
-                            👥 Joueurs: ${s.playerCount}/${s.maxPlayers}<br>
-                            🔑 ID: <code>${b.jobId.substring(0,10)}...</code>
+                    <div class="px-6 py-4 bg-zinc-900/30 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2.5 h-2.5 rounded-full ${client.isConnected ? 'status-online' : 'status-offline'}"></div>
+                            <span class="text-sm font-bold tracking-tight ${client.isConnected ? 'text-zinc-200' : 'text-zinc-500'}">
+                                ${client.isConnected ? 'CONNECTED TO SOCKET' : 'CONNECTION TERMINATED'}
+                            </span>
                         </div>
+                        <div class="text-[10px] font-bold text-zinc-600 uppercase">Last Sync: ${new Date(client.updatedAt).toLocaleTimeString()}</div>
+                    </div>
 
-                        <div class="btn-group">
-                            <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="join-btn btn-id">
-                                🚀 REJOINDRE (JOB ID)
-                            </a>
-
-                            <a href="roblox://experiences/start?placeId=109983668079237&followUserId=${b.ownerId}" class="join-btn btn-follow">
-                                👥 SUIVRE LE JOUEUR
-                            </a>
-
-                            <a href="https://www.roblox.com/games/start?placeId=109983668079237&instanceId=${b.jobId}" target="_blank" class="join-btn btn-web">
-                                🌐 VIA NAVIGATEUR
-                            </a>
+                    <div class="p-6 bg-black/10">
+                        <div class="flex items-center gap-2 mb-5 text-zinc-500 text-[11px] font-black uppercase tracking-[0.2em]">
+                            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Extracted Brainrots
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto scroll-custom pr-4">
+                            ${sortedAnimals.map(a => `
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-white/5 hover:border-white/10 transition font-mono-custom group">
+                                    <div class="flex items-center gap-3">
+                                        <span class="grayscale group-hover:grayscale-0 transition duration-300">😜</span>
+                                        <div class="flex flex-col">
+                                            <span class="text-xs text-zinc-500 font-bold uppercase tracking-tighter">${a.Rarity || 'Common'}</span>
+                                            <span class="text-sm text-zinc-200">${a.Mutation !== 'Default' ? `<span class="text-amber-500">[${a.Mutation}]</span> ` : ''}${a.Name}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-zinc-600 font-bold">INCOME</div>
+                                        <div class="text-sm ${(a.Income || 0) > 50000000 ? 'text-emerald-400' : 'text-sky-400'} font-black">${a.IncomeStr}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
-                </div>
-            `}).join('');
+
+                    <div class="px-6 py-4 bg-zinc-900/50 flex gap-6 border-t border-zinc-800/50">
+                        <button class="text-[11px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 transition">Teleport to Instance</button>
+                        <button class="text-[11px] font-black uppercase tracking-widest text-zinc-600 hover:text-red-500 transition">Force Disconnect</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Re-render des icônes Lucide
+            lucide.createIcons();
         }
 
-        setInterval(render, 10000);
+        // Init initial
+        lucide.createIcons();
     </script>
 </body>
 </html>
