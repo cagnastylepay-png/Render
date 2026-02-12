@@ -58,7 +58,10 @@ wss.on('connection', (ws, req) => {
             const payload = JSON.parse(message);
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
-                const jobId = d.Server.JobId; // Lecture directe du JobId envoyé par Lua
+                const jobId = d.Server.JobId;
+
+                // LOG DE RÉCEPTION
+                console.log(`📥 Reçu : ${d.Name} | Serveur: ${jobId.substring(0,6)} | Animaux: ${d.Animals.length}`);
 
                 if (!socketToJob.has(ws)) {
                     socketToJob.set(ws, jobId);
@@ -77,7 +80,7 @@ wss.on('connection', (ws, req) => {
                             income: a.Income, incomeStr: a.IncomeStr, rarity: a.Rarity,
                             mutation: a.Mutation, traits: a.Traits, accountAge: d.AccountAge,
                             server: {
-                                playerCount: d.Server.PlayerCount, // Mapping vers Lua
+                                playerCount: d.Server.PlayerCount,
                                 maxPlayers: d.Server.MaxPlayers,
                                 isPrivate: d.Server.IsPrivate
                             },
@@ -88,7 +91,9 @@ wss.on('connection', (ws, req) => {
                 }
                 broadcastToAdmins();
             }
-        } catch (e) { console.error("Erreur message:", e); }
+        } catch (e) {
+            console.error("❌ Erreur traitement message:", e);
+        }
     });
 
     ws.on('close', async () => {
