@@ -109,47 +109,45 @@
         }
 
         function render() {
-            const filtered = currentFilter === 'LOCAL' 
-                ? brainrots.filter(b => b.userType === 'LocalPlayer') 
-                : brainrots;
+    const filtered = currentFilter === 'LOCAL' 
+        ? brainrots.filter(b => b.userType === 'LocalPlayer') 
+        : brainrots;
 
-            gridElement.innerHTML = filtered.map(b => {
-                // Gestion sécurité si les données server sont absentes (vieux logs)
-                const s = b.server || { PlayerCount: '?', MaxPlayers: '?', IsPrivate: false };
-                const serverTypeBadge = s.IsPrivate 
-                    ? `<span class="badge badge-private">🔒 Private</span>` 
-                    : `<span class="badge badge-public">🌍 Public</span>`;
-
-                return `
-                <div class="card ${b.userType === 'LocalPlayer' ? 'is-local' : ''}">
-                    <div class="income">${b.incomeStr}</div>
-                    <div class="rarity ${b.rarity}">${b.rarity}</div>
-                    <div class="name">${b.name}</div>
-                    <div class="mutation">✨ ${b.mutation}</div>
-                    
-                    <div class="traits-list">
-                        ${b.traits && b.traits.length > 0 ? b.traits.map(t => `<span class="trait-tag">#${t}</span>`).join('') : '<span class="trait-tag" style="opacity:0.5">Aucun trait</span>'}
-                    </div>
-
-                    <div class="footer">
-                        <span class="timestamp">⏱ ${timeAgo(b.updatedAt)}</span>
-                        <span class="badge ${b.userType === 'LocalPlayer' ? 'badge-local' : 'badge-user'}">${b.userType}</span>
-                        👤 <b>${b.ownerDisplayName}</b> (@${b.ownerName})<br>
-                        📅 ${b.accountAge}j | ${serverTypeBadge}
-                        
-                        <span class="server-info">
-                            👥 Joueurs: ${s.PlayerCount}/${s.MaxPlayers}<br>
-                            🔑 ID: ${b.jobId.substring(0,12)}...
-                        </span>
-                        
-                        <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="join-btn">
-                            🚀 JOIN SERVER
-                        </a>
-                    </div>
+    gridElement.innerHTML = filtered.map(b => {
+        // Sécurité si les données server sont absentes dans MongoDB
+        const s = b.server || { playerCount: 0, maxPlayers: 0, isPrivate: false };
+        
+        return `
+            <div class="card ${b.userType === 'LocalPlayer' ? 'is-local' : ''}">
+                <div class="income">${b.incomeStr}</div>
+                <div class="rarity ${b.rarity}">${b.rarity}</div>
+                <div class="name">${b.name}</div>
+                <div class="mutation">✨ ${b.mutation}</div>
+                
+                <div class="traits-list">
+                    ${b.traits && b.traits.length > 0 ? b.traits.map(t => `<span class="trait-tag">#${t}</span>`).join('') : '<span class="trait-tag">Aucun trait</span>'}
                 </div>
-            `}).join('');
-        }
 
+                <div class="footer">
+                    <span class="timestamp">⏱ ${timeAgo(b.updatedAt)}</span>
+                    <span class="badge ${b.userType === 'LocalPlayer' ? 'badge-local' : 'badge-user'}">${b.userType}</span>
+                    👤 <b>${b.ownerDisplayName}</b><br>
+                    
+                    ${s.isPrivate ? '<span class="badge badge-private">🔒 Private</span>' : '<span class="badge badge-public">🌍 Public</span>'}
+                    
+                    <span class="server-info">
+                        👥 Joueurs: ${s.playerCount}/${s.maxPlayers}<br>
+                        🔑 ID: ${b.jobId ? b.jobId.substring(0,10) : 'N/A'}...
+                    </span>
+                    
+                    <a href="roblox://experiences/start?placeId=109983668079237&gameInstanceId=${b.jobId}" class="join-btn">
+                        🚀 JOIN SERVER
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
         setInterval(render, 5000);
     </script>
 </body>
