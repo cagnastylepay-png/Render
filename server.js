@@ -12,6 +12,7 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connecté avec succès"))
   .catch(err => console.error("❌ Erreur de connexion MongoDB :", err));
 
+// SCHEMA MIS À JOUR
 const BrainrotSchema = new mongoose.Schema({
     uid: { type: String, unique: true },
     ownerName: String,
@@ -25,6 +26,12 @@ const BrainrotSchema = new mongoose.Schema({
     mutation: String,
     traits: Array,
     accountAge: Number,
+    // NOUVEAU : Sous-objet pour les détails du serveur
+    server: {
+        playerCount: Number,
+        maxPlayers: Number,
+        isPrivate: Boolean
+    },
     updatedAt: { type: Date, default: Date.now }
 });
 const Brainrot = mongoose.model('Brainrot', BrainrotSchema);
@@ -32,31 +39,29 @@ const Brainrot = mongoose.model('Brainrot', BrainrotSchema);
 const serverOccupancy = new Map(); // jobId -> nombre de LocalPlayers
 const socketToJob = new Map();    // socket -> jobId
 
-// Fonction de diffusion sélective (Admin uniquement)
 async function broadcastToAdmins() {
-    const allData = await Brainrot.find().sort({ income: -1 });
-    const payload = JSON.stringify({ type: 'REFRESH', data: allData });
+    try {
+        const allData = await Brainrot.find().sort({ income: -1 });
+        const payload = JSON.stringify({ type: 'REFRESH', data: allData });
 
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN && client.isAdmin === true) {
-            client.send(payload);
-        }
-    });
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN && client.isAdmin === true) {
+                client.send(payload);
+            }
+        });
+    } catch (e) {
+        console.error("Erreur Broadcast:", e);
+    }
 }
 
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(req.url.split('?')[1]);
     const role = params.get('role');
     
-    // Sécurité : on marque le socket s'il s'agit d'un admin
     ws.isAdmin = (role === 'Admin');
-
     console.log(`📡 Nouvelle connexion: ${role || 'Inconnu'}`);
 
-    // Si c'est un Admin, on lui envoie les données directes à la connexion
-    if (ws.isAdmin) {
-        broadcastToAdmins();
-    }
+    if (ws.isAdmin) broadcastToAdmins();
 
     ws.on('message', async (message) => {
         try {
@@ -65,7 +70,7 @@ wss.on('connection', (ws, req) => {
                 const d = payload.Data;
                 const jobId = d.Server.JobId;
 
-                // Enregistrement du JobId pour ce socket
+                // Gestion de l'occupation
                 if (!socketToJob.has(ws)) {
                     socketToJob.set(ws, jobId);
                     serverOccupancy.set(jobId, (serverOccupancy.get(jobId) || 0) + 1);
@@ -73,8 +78,7 @@ wss.on('connection', (ws, req) => {
 
                 // Upsert unitaire pour chaque animal
                 for (let a of d.Animals) {
-                    const traitsKey = a.Traits ? a.Traits.join('-') : 'none';
-                    // UID Renforcé pour éviter toute collision
+                    const traitsKey = a.Traits ? a.Traits.sort().join('-') : 'none';
                     const uid = `${d.Name}_${a.Name}_${a.Mutation}_${a.Income}_${traitsKey}`;
 
                     await Brainrot.findOneAndUpdate(
@@ -92,6 +96,12 @@ wss.on('connection', (ws, req) => {
                             mutation: a.Mutation,
                             traits: a.Traits,
                             accountAge: d.AccountAge,
+                            // ON ENREGISTRE LES INFOS SERVEUR ICI
+                            server: {
+                                playerCount: d.Server.PlayerCount,
+                                maxPlayers: d.Server.MaxPlayers,
+                                isPrivate: d.Server.IsPrivate
+                            },
                             updatedAt: new Date()
                         },
                         { upsert: true }
@@ -109,10 +119,9 @@ wss.on('connection', (ws, req) => {
         if (jobId) {
             const count = (serverOccupancy.get(jobId) || 1) - 1;
             if (count <= 0) {
-                // Plus aucun LocalPlayer sur ce JobId -> on nettoie
                 await Brainrot.deleteMany({ jobId: jobId });
                 serverOccupancy.delete(jobId);
-                console.log(`🧹 Serveur ${jobId} vidé.`);
+                console.log(`🧹 Serveur ${jobId} vidé (LocalPlayer déconnecté).`);
             } else {
                 serverOccupancy.set(jobId, count);
             }
@@ -124,4 +133,4 @@ wss.on('connection', (ws, req) => {
 
 app.use(express.static('public'));
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Serveur M4GIX actif sur le port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Serveur M4GIX actif sur ${PORT}`));
