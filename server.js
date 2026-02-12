@@ -26,27 +26,23 @@ const ClientSchema = new mongoose.Schema({
 
 const ClientModel = mongoose.model('Client', ClientSchema);
 
-// Fonction de Broadcast
+// Fonction de Broadcast (Envoi des données à tous les admins)
 async function broadcastToAdmins() {
     try {
         const allClients = await ClientModel.find().sort({ updatedAt: -1 });
         const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
-        let adminCount = 0;
-
+        
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN && client.isAdmin) {
                 client.send(payload);
-                adminCount++;
             }
         });
-        if (adminCount > 0) console.log(`📢 [BROADCAST] Données envoyées à ${adminCount} admin(s)`);
     } catch (e) { console.error("❌ [BROADCAST] Erreur :", e); }
 }
 
 async function updateStatus(userName, status) {
     if (!userName || userName === 'Inconnu') return;
     await ClientModel.updateOne({ name: userName }, { isConnected: status });
-    console.log(`📡 [STATUT] ${userName} est maintenant ${status ? "EN LIGNE" : "HORS LIGNE"}`);
     broadcastToAdmins();
 }
 
@@ -57,7 +53,6 @@ wss.on('connection', (ws, req) => {
     
     ws.isAdmin = (role === 'Admin');
     ws.userName = userName;
-    ws.isAlive = true;
 
     console.log(`\n✨ [NEW_CONN] ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} : ${userName}`);
 
@@ -68,18 +63,12 @@ wss.on('connection', (ws, req) => {
     }
 
     ws.on('message', async (message) => {
-        ws.isAlive = true; // Signal de vie reçu
-
         try {
             const payload = JSON.parse(message);
+
+            // --- LOGIQUE : RÉCEPTION DES DONNÉES DU BOT ---
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
-
-                // Calcul rapide pour le log
-                const totalIncome = d.Animals.reduce((acc, a) => acc + (a.Income || 0), 0);
-                
-                console.log(`📥 [DATA] Reçu de ${d.Name} | Pets: ${d.Animals.length} | Total: ${totalIncome.toLocaleString()}/s`);
-
                 await ClientModel.findOneAndUpdate(
                     { userId: d.UserId },
                     {
@@ -96,20 +85,35 @@ wss.on('connection', (ws, req) => {
                 );
                 broadcastToAdmins();
             }
+
+            // --- LOGIQUE : RELAIS DES COMMANDES (ADMIN -> CLIENT) ---
+            if (payload.type === "COMMAND") {
+                const { target, method, data } = payload;
+                console.log(`🕹️ [COMMAND] Relay: ${method} vers ${target}`);
+
+                // On cherche le socket du bot correspondant au nom "target"
+                let targetFound = false;
+                wss.clients.forEach(client => {
+                    if (!client.isAdmin && client.userName === target && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({
+                            Method: method,
+                            Data: data
+                        }));
+                        targetFound = true;
+                    }
+                });
+
+                if (!targetFound) console.warn(`⚠️ [COMMAND] Cible ${target} non trouvée ou déconnectée.`);
+            }
+
         } catch (e) { 
-            console.error(`⚠️ [MESSAGE_ERR] Erreur de parsing de ${ws.userName}:`, e.message); 
+            console.error(`⚠️ [MESSAGE_ERR] de ${ws.userName}:`, e.message); 
         }
     });
 
     ws.on('close', () => {
-        console.log(`🔌 [DISCONNECT] ${ws.userName} a fermé la connexion.`);
-        if (!ws.isAdmin) {
-            updateStatus(ws.userName, false);
-        }
-    });
-
-    ws.on('error', (err) => {
-        console.error(`💥 [SOCKET_ERR] Erreur sur le socket de ${ws.userName}:`, err);
+        console.log(`🔌 [DISCONNECT] ${ws.userName}`);
+        if (!ws.isAdmin) updateStatus(ws.userName, false);
     });
 });
 
@@ -117,11 +121,5 @@ app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`
-=========================================
-🚀 SERVEUR M4GIX DÉMARRÉ SUR LE PORT ${PORT}
-📅 Date : ${new Date().toLocaleString()}
-🛡️ Mode : Zéro Filtrage / Surveillance Passive
-=========================================
-    `);
+    console.log(`🚀 SERVEUR M4GIX PRÊT (PORT ${PORT})`);
 });
