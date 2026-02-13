@@ -106,28 +106,40 @@
             const container = document.getElementById('clients-container');
             const minPlayers = parseInt(document.getElementById('min-players-filter').value) || 0;
             container.innerHTML = '';
-
-            // Filtrage combiné (Statut + Min Players)
+        
+            // 1. FILTRAGE (Statut + Min Players)
             let filtered = wsData.filter(client => {
                 const isStatusOk = currentFilter === 'all' || client.isConnected;
                 const isPlayerCountOk = (client.server?.PlayerCount || 0) >= minPlayers;
                 return isStatusOk && isPlayerCountOk;
             });
-
+        
+            // 2. TRI (Le plus gros Income en haut)
+            filtered.sort((a, b) => {
+                // On récupère l'income max de chaque client pour comparer les cartes
+                const maxA = (a.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
+                const maxB = (b.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
+                return maxB - maxA; // Tri décroissant
+            });
+        
+            // Mise à jour du compteur global
             document.getElementById('active-count').innerText = wsData.filter(c => c.isConnected).length;
-
+        
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun serveur ne correspond aux critères (${minPlayers}+ joueurs).</div>`;
                 return;
             }
-
+        
+            // 3. GÉNÉRATION DU HTML
             filtered.forEach(client => {
+                // Tri des animaux à l'intérieur de chaque carte
                 const sortedAnimals = (client.animals || []).sort((a, b) => (b.Income || 0) - (a.Income || 0));
+                
                 const inputId = `tele-input-${client.name}`;
                 const card = document.createElement('div');
-                card.className = 'card-bg rounded-2xl overflow-hidden';
+                card.className = 'card-bg rounded-2xl overflow-hidden mb-4'; // Ajout d'une marge
                 if (client.isConnected) card.style.borderLeft = "4px solid #10b981";
-
+        
                 card.innerHTML = `
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -143,17 +155,17 @@
                                 <span class="text-lg font-mono-custom text-blue-400 font-bold">${client.server?.PlayerCount || 0}/${client.server?.MaxPlayers || 0}</span>
                             </div>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-4 mb-6 bg-black/20 p-3 rounded-xl border border-white/5">
+        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-black/20 p-3 rounded-xl border border-white/5">
                              <div class="flex flex-col">
                                 <span class="text-zinc-600 text-[9px] uppercase font-bold">Share Link / JobId</span>
                                 <div class="flex gap-2 mt-1">
                                     <input id="${inputId}" type="text" placeholder="Paste link..." class="input-dark flex-1 px-2 py-1 rounded text-[10px]">
-                                    <button onclick="handleLinkTeleport('${client.name}', '${inputId}')" class="bg-blue-600 px-2 py-1 rounded text-[10px] font-bold">Send</button>
+                                    <button onclick="handleLinkTeleport('${client.name}', '${inputId}')" class="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded text-[10px] font-bold transition">Send</button>
                                 </div>
                              </div>
                              <div class="flex items-end justify-end gap-2">
-                                <button onclick="joinAsAdmin('${client.server?.JobId}')" 
+                                <button onclick="joinAsAdmin(${client.server?.PlaceId}, '${client.server?.JobId}')" 
                                         class="h-8 px-4 bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 rounded-lg text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition">
                                     Join Server
                                 </button>
@@ -163,12 +175,12 @@
                                 </button>
                              </div>
                         </div>
-
-                        <div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto scroll-custom pr-2">
-                            ${sortedAnimals.slice(0, 5).map(a => `
-                                <div class="flex justify-between items-center p-2 bg-white/5 rounded-lg border border-white/5">
+        
+                        <div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto scroll-custom pr-2 font-mono-custom">
+                            ${sortedAnimals.map(a => `
+                                <div class="flex justify-between items-center p-2 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition">
                                     <span class="text-xs text-zinc-300 font-medium">${a.Name}</span>
-                                    <span class="text-xs text-sky-400 font-bold font-mono-custom">${a.IncomeStr}</span>
+                                    <span class="text-xs text-sky-400 font-bold">${a.IncomeStr}</span>
                                 </div>
                             `).join('')}
                         </div>
