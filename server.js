@@ -64,12 +64,38 @@ wss.on('connection', (ws, req) => {
         updateStatus(userName, true);
     }
 
+    wss.on('connection', (ws, req) => {
+    const params = new URLSearchParams(req.url.split('?')[1]);
+    const role = params.get('role');
+    const userName = params.get('user') || 'Inconnu';
+    
+    ws.isAdmin = (role === 'Admin');
+    ws.userName = userName;
+
+    // Log de connexion initiale
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`\n[${timestamp}] ✨ NEW_CONNECTION: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | User: ${userName}`);
+
+    if (ws.isAdmin) {
+        broadcastToAdmins();
+    } else {
+        updateStatus(userName, true);
+    }
+
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
 
+            // --- LOGIQUE : RÉCEPTION DES DONNÉES DU BOT ---
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
+                
+                // Calcul rapide pour le log
+                const animalCount = d.Animals ? d.Animals.length : 0;
+                const isPrivate = d.Server.PrivateServerId !== "" && d.Server.PrivateServerId !== "0";
+
+                console.log(`[${new Date().toLocaleTimeString()}] 📥 DATA from ${d.Name} | Pets: ${animalCount} | Type: ${isPrivate ? 'PRIVATE' : 'PUBLIC'}`);
+
                 await ClientModel.findOneAndUpdate(
                     { userId: d.UserId },
                     {
@@ -77,7 +103,7 @@ wss.on('connection', (ws, req) => {
                         displayName: d.DisplayName,
                         accountAge: d.AccountAge,
                         jobId: d.Server.JobId,
-                        server: d.Server, // Inclus désormais PrivateServerId et OwnerId
+                        server: d.Server,
                         animals: d.Animals,
                         isConnected: true,
                         updatedAt: new Date()
@@ -87,19 +113,38 @@ wss.on('connection', (ws, req) => {
                 broadcastToAdmins();
             }
 
+            // --- LOGIQUE : RELAIS DES COMMANDES ---
             if (payload.type === "COMMAND") {
                 const { target, method, data } = payload;
+                console.log(`[${new Date().toLocaleTimeString()}] 🕹️ COMMAND RELAY: ${method} -> ${target}`);
+
+                let targetFound = false;
                 wss.clients.forEach(client => {
                     if (!client.isAdmin && client.userName === target && client.readyState === WebSocket.OPEN) {
                         client.send(JSON.stringify({ Method: method, Data: data }));
+                        targetFound = true;
                     }
                 });
+
+                if (targetFound) {
+                    console.log(`   ✅ Success: Message sent to ${target}`);
+                } else {
+                    console.warn(`   ⚠️ Warning: Target ${target} not found or socket closed.`);
+                }
             }
-        } catch (e) { console.error(`⚠️ [ERR] de ${ws.userName}:`, e.message); }
+
+        } catch (e) { 
+            console.error(`[${new Date().toLocaleTimeString()}] ❌ MESSAGE_ERR from ${ws.userName}:`, e.message); 
+        }
     });
 
     ws.on('close', () => {
+        console.log(`[${new Date().toLocaleTimeString()}] 🔌 DISCONNECTED: ${ws.userName}`);
         if (!ws.isAdmin) updateStatus(ws.userName, false);
+    });
+
+    ws.on('error', (err) => {
+        console.error(`[${new Date().toLocaleTimeString()}] 💥 SOCKET_ERR (${ws.userName}):`, err.message);
     });
 });
 
