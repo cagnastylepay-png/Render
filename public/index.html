@@ -140,13 +140,27 @@
             filtered.forEach(client => {
                 // Tri des animaux à l'intérieur de chaque carte
                 const sortedAnimals = (client.animals || []).sort((a, b) => (b.Income || 0) - (a.Income || 0));
-                
+                const isPrivate = client.server?.PrivateServerId && client.server.PrivateServerId !== "" && client.server.PrivateServerId !== "0";
+                const ownerId = client.server?.PrivateServerOwnerId;
                 const inputId = `tele-input-${client.name}`;
                 const card = document.createElement('div');
                 card.className = 'card-bg rounded-2xl overflow-hidden mb-4'; // Ajout d'une marge
                 if (client.isConnected) card.style.borderLeft = "4px solid #10b981";
         
                 card.innerHTML = `
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-black text-xl text-white">
+                                    ${client.displayName} 
+                                    ${isPrivate ? '<span class="ml-2 text-[9px] bg-purple-600/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full uppercase tracking-widest">Private</span>' : ''}
+                                </h3>
+                                <div class="text-[10px] text-zinc-500 mt-1 font-mono">
+                                    ${isPrivate ? `Owner ID: ${ownerId}` : 'Public Server'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <div>
