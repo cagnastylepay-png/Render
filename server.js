@@ -54,7 +54,7 @@ wss.on('connection', (ws, req) => {
     ws.isAdmin = (role === 'Admin');
     ws.userName = userName;
 
-    console.log(`\n✨ [NEW_CONN] ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} : ${userName}`);
+    console.log(`✨ [NEW_CONN] ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} : ${userName}`);
 
     if (ws.isAdmin) {
         broadcastToAdmins();
