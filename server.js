@@ -123,6 +123,16 @@ wss.on('connection', (ws, req) => {
     });
 });
 
+app.post('/api/clear-database', async (req, res) => {
+    try {
+        await ClientModel.deleteMany({});
+        console.log("🧹 [DB] La base de données a été vidée par l'admin.");
+        broadcastToAdmins(); // Pour rafraîchir le panel de tout le monde
+        res.status(200).json({ message: "Database cleared" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
