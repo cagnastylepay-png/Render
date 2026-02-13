@@ -60,7 +60,7 @@ wss.on('connection', (ws, req) => {
     ws.userName = userName;
 
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`\n[${timestamp}] ✨ NEW_CONN: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | ${userName}`);
+    console.log(`[${timestamp}] ✨ NEW_CONN: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | ${userName}`);
 
     if (ws.isAdmin) {
         broadcastToAdmins();
