@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
-        
         body { background-color: #0c0c0e; color: #e4e4e7; font-family: 'Inter', sans-serif; }
         .card-bg { background-color: #121215; border: 1px solid #1f1f23; transition: all 0.2s ease; }
         .card-bg:hover { border-color: #3f3f46; }
@@ -78,12 +77,9 @@
         }
 
         function joinAsAdmin(jobId) {
-            console.log("Tentative de join avec JobId:", jobId); // Pour voir si c'est 'undefined' ou vide
-            
             if (!jobId || jobId === "" || jobId === "undefined" || jobId.includes("00000000")) {
                 return alert("JobId manquant ou invalide (Le bot est peut-être en Studio)");
             }
-            
             const placeId = "109983668079237";
             window.location.href = `roblox://experiences/start?placeId=${placeId}&gameInstanceId=${jobId}`;
         }
@@ -113,36 +109,36 @@
             const minPlayers = parseInt(document.getElementById('min-players-filter').value) || 0;
             container.innerHTML = '';
         
-            // 1. FILTRAGE (Statut + Min Players)
             let filtered = wsData.filter(client => {
                 const isStatusOk = currentFilter === 'all' || client.isConnected;
                 const isPlayerCountOk = (client.server?.PlayerCount || 0) >= minPlayers;
                 return isStatusOk && isPlayerCountOk;
             });
         
-            // 2. TRI (Le plus gros Income en haut)
             filtered.sort((a, b) => {
-                // On récupère l'income max de chaque client pour comparer les cartes
                 const maxA = (a.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
                 const maxB = (b.animals || []).reduce((m, p) => Math.max(m, p.Income || 0), 0);
-                return maxB - maxA; // Tri décroissant
+                return maxB - maxA;
             });
         
-            // Mise à jour du compteur global
             document.getElementById('active-count').innerText = wsData.filter(c => c.isConnected).length;
         
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun serveur ne correspond aux critères (${minPlayers}+ joueurs).</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-zinc-600">Aucun serveur trouvé.</div>`;
                 return;
             }
         
-            // 3. GÉNÉRATION DU HTML
             filtered.forEach(client => {
-                // Tri des animaux à l'intérieur de chaque carte
                 const sortedAnimals = (client.animals || []).sort((a, b) => (b.Income || 0) - (a.Income || 0));
                 const inputId = `tele-input-${client.name}`;
+                
+                // --- DEFINITION DES VARIABLES ---
+                const isPrivate = client.server?.PrivateServerId && client.server.PrivateServerId !== "" && client.server.PrivateServerId !== "0";
+                const ownerId = client.server?.PrivateServerOwnerId || "0";
+                const jobId = client.jobId || client.server?.JobId;
+
                 const card = document.createElement('div');
-                card.className = 'card-bg rounded-2xl overflow-hidden mb-4'; // Ajout d'une marge
+                card.className = 'card-bg rounded-2xl overflow-hidden mb-4';
                 if (client.isConnected) card.style.borderLeft = "4px solid #10b981";
         
                 card.innerHTML = `
@@ -150,19 +146,9 @@
                         <div class="flex justify-between items-start mb-4">
                             <div>
                                 <h3 class="font-black text-xl text-white">
-                                    ${client.displayName} 
+                                    ${client.displayName} <span class="text-zinc-600 font-medium text-sm">@${client.name}</span>
                                     ${isPrivate ? '<span class="ml-2 text-[9px] bg-purple-600/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full uppercase tracking-widest">Private</span>' : ''}
                                 </h3>
-                                <div class="text-[10px] text-zinc-500 mt-1 font-mono">
-                                    `Owner ID: ${ownerId}`
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="font-black text-xl text-white">${client.displayName} <span class="text-zinc-600 font-medium text-sm">@${client.name}</span></h3>
                                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                                     <div class="flex items-center gap-2">
                                         <div class="w-2 h-2 rounded-full ${client.isConnected ? 'status-online' : 'status-offline'}"></div>
@@ -176,7 +162,7 @@
                                         </div>
                                         <div class="flex flex-col border-l border-zinc-800 pl-3">
                                             <span class="text-[9px] text-zinc-600 font-bold uppercase leading-none">Owner</span>
-                                            <span class="text-[10px] font-mono-custom text-zinc-400 leading-tight">${client.server?.PrivateServerOwnerId || '0'}</span>
+                                            <span class="text-[10px] font-mono-custom text-zinc-400 leading-tight">${ownerId}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -196,7 +182,7 @@
                                 </div>
                              </div>
                              <div class="flex items-end justify-end gap-2">
-                                <button onclick="joinAsAdmin('${client.jobId}')" 
+                                <button onclick="joinAsAdmin('${jobId}')" 
                                         class="h-8 px-4 bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 rounded-lg text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition">
                                     Join Server
                                 </button>
@@ -221,7 +207,6 @@
             });
             lucide.createIcons();
         }
-        lucide.createIcons();
     </script>
 </body>
 </html>
