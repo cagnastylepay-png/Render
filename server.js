@@ -8,34 +8,63 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Connexion MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ [DB] MongoDB Connecté avec succès"))
-  .catch(err => console.error("❌ [DB] Erreur de connexion :", err));
+mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/brainrot")
+  .then(() => console.log("✅ [DB] MongoDB Connecté"))
+  .catch(err => console.error("❌ [DB] Erreur MongoDB :", err));
 
+// --- SCHEMAS ---
+
+// Clients (Bots)
 const ClientSchema = new mongoose.Schema({
     userId: { type: Number, unique: true },
     name: String,
     displayName: String,
     accountAge: Number,
     jobId: String,
-    server: mongoose.Schema.Types.Mixed,
-    animals: mongoose.Schema.Types.Mixed, 
+    parameters: mongoose.Schema.Types.Mixed,
     isConnected: { type: Boolean, default: false },
     updatedAt: { type: Date, default: Date.now }
 }, { strict: false });
 
-const ClientModel = mongoose.model('Client', ClientSchema);
+// Servers (Scanning global)
+const ServerSchema = new mongoose.Schema({
+    jobId: { type: String, unique: true },
+    scriptUser: String, // Le bot qui a scanné ce serveur
+    playerCount: Number,
+    maxPlayers: Number,
+    brainrots: Array, // Liste des animaux > 1M
+    updatedAt: { type: Date, default: Date.now }
+});
 
-// Fonction de Broadcast (Optimisée avec .lean() pour la RAM)
+const ClientModel = mongoose.model('Client', ClientSchema);
+const ServerModel = mongoose.model('Server', ServerSchema);
+
+// --- LOGIQUE DE NETTOYAGE ---
+
+// Supprime les serveurs qui n'ont pas été mis à jour depuis 30 minutes
+async function autoCleanServers() {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const result = await ServerModel.deleteMany({ updatedAt: { $lt: thirtyMinutesAgo } });
+    if (result.deletedCount > 0) {
+        console.log(`🧹 [CLEAN] ${result.deletedCount} serveurs inactifs supprimés.`);
+        broadcastToAdmins();
+    }
+}
+setInterval(autoCleanServers, 5 * 60 * 1000); // Check toutes les 5 min
+
+// --- COMMUNICATION ---
+
 async function broadcastToAdmins() {
     try {
-        const allClients = await ClientModel.find()
-            .select('name displayName userId server animals isConnected updatedAt')
-            .sort({ updatedAt: -1 })
-            .limit(100)
-            .lean(); 
+        const [clients, activeServers] = await Promise.all([
+            ClientModel.find().lean(),
+            ServerModel.find().sort({ updatedAt: -1 }).limit(20).lean()
+        ]);
 
-        const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
+        const payload = JSON.stringify({ 
+            type: 'REFRESH', 
+            data: { clients, servers: activeServers } 
+        });
         
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN && client.isAdmin) {
@@ -45,11 +74,13 @@ async function broadcastToAdmins() {
     } catch (e) { console.error("❌ [BROADCAST] Erreur :", e); }
 }
 
-async function updateStatus(userName, status) {
+async function updateClientStatus(userName, status) {
     if (!userName || userName === 'Inconnu') return;
-    await ClientModel.updateOne({ name: userName }, { isConnected: status });
+    await ClientModel.updateOne({ name: userName }, { isConnected: status, updatedAt: new Date() });
     broadcastToAdmins();
 }
+
+// --- WEBSOCKET ENGINE ---
 
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(req.url.split('?')[1]);
@@ -59,34 +90,24 @@ wss.on('connection', (ws, req) => {
     ws.isAdmin = (role === 'Admin');
     ws.userName = userName;
 
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ✨ NEW_CONN: ${ws.isAdmin ? "🚩 ADMIN" : "👤 CLIENT"} | ${userName}`);
+    console.log(`✨ [CONN]: ${ws.isAdmin ? "🚩 ADMIN" : "👤 BOT"} | ${userName}`);
 
-    if (ws.isAdmin) {
-        broadcastToAdmins();
-    } else {
-        updateStatus(userName, true);
-    }
+    if (!ws.isAdmin) updateClientStatus(userName, true);
 
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
 
+            // 1. Réception des infos du BOT
             if (payload.Method === "ClientInfos") {
                 const d = payload.Data;
-                const isPrivate = d.Server.PrivateServerId !== "" && d.Server.PrivateServerId !== "0";
-
-                console.log(`[${new Date().toLocaleTimeString()}] 📥 DATA: ${d.Name} | Private: ${isPrivate}`);
-
                 await ClientModel.findOneAndUpdate(
                     { userId: d.UserId },
                     {
                         name: d.Name,
                         displayName: d.DisplayName,
                         accountAge: d.AccountAge,
-                        jobId: d.Server.JobId,
-                        server: d.Server,
-                        animals: d.Animals,
+                        parameters: d.Parameters,
                         isConnected: true,
                         updatedAt: new Date()
                     },
@@ -95,47 +116,51 @@ wss.on('connection', (ws, req) => {
                 broadcastToAdmins();
             }
 
+            // 2. Réception des infos du SERVEUR (Animaux riches)
+            if (payload.Method === "ServerInfos") {
+                const s = payload.Data;
+                await ServerModel.findOneAndUpdate(
+                    { jobId: s.JobId },
+                    {
+                        scriptUser: s.ScriptUser,
+                        playerCount: s.PlayerCount,
+                        maxPlayers: s.MaxPlayers,
+                        brainrots: s.Brainrots,
+                        updatedAt: new Date()
+                    },
+                    { upsert: true }
+                );
+                console.log(`📊 [SERVER_SCAN] ${s.JobId} mis à jour par ${s.ScriptUser}`);
+                broadcastToAdmins();
+            }
+
+            // 3. Commandes Administrateur
             if (payload.type === "COMMAND") {
                 const { target, method, data } = payload;
-                console.log(`[${new Date().toLocaleTimeString()}] 🕹️ COMMAND: ${method} -> ${target}`);
-
-                let targetFound = false;
                 wss.clients.forEach(client => {
-                    if (!client.isAdmin && client.userName === target && client.readyState === WebSocket.OPEN) {
+                    if (client.userName === target && client.readyState === WebSocket.OPEN) {
                         client.send(JSON.stringify({ Method: method, Data: data }));
-                        targetFound = true;
                     }
                 });
-                if (!targetFound) console.warn(`   ⚠️ Target ${target} non trouvé.`);
             }
-        } catch (e) { 
-            console.error(`⚠️ [ERR] de ${ws.userName}:`, e.message); 
-        }
+        } catch (e) { console.error(`⚠️ [ERR] de ${ws.userName}:`, e.message); }
     });
 
     ws.on('close', () => {
-        console.log(`[${new Date().toLocaleTimeString()}] 🔌 DISCONNECT: ${ws.userName}`);
-        if (!ws.isAdmin) updateStatus(ws.userName, false);
-    });
-
-    ws.on('error', (err) => {
-        console.error(`💥 [SOCKET_ERR]:`, err.message);
+        console.log(`🔌 [DISCONNECT]: ${ws.userName}`);
+        if (!ws.isAdmin) updateClientStatus(ws.userName, false);
     });
 });
 
-app.post('/api/clear-database', async (req, res) => {
-    try {
-        await ClientModel.deleteMany({});
-        console.log("🧹 [DB] La base de données a été vidée par l'admin.");
-        broadcastToAdmins(); // Pour rafraîchir le panel de tout le monde
-        res.status(200).json({ message: "Database cleared" });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
+// --- ROUTES API ---
+
 app.use(express.static('public'));
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 SERVEUR M4GIX PRÊT SUR LE PORT ${PORT}`);
+app.post('/api/clear-database', async (req, res) => {
+    await Promise.all([ClientModel.deleteMany({}), ServerModel.deleteMany({})]);
+    broadcastToAdmins();
+    res.json({ message: "Database cleared" });
 });
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`🚀 M4GIX API ON PORT ${PORT}`));
