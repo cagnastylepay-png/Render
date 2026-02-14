@@ -29,9 +29,10 @@ wss.on('connection', (ws, req) => {
                 console.log(`Bot: ${userName}`);
                 console.log(`ID: ${Data.Id}`);
                 console.log(`Animal: ${Data.Name}`);
-                console.log(`Revenu: ${Data.IncomeStr}`);
+                console.log(`Revenu: ${Data.IncomeStr} (${Data.IncomeStr})`);
                 console.log(`Rarete: ${Data.Rarity}`);
-                console.log(`Serveur: ${Data.JobId}`);
+                console.log(`Mutation: ${Data.Mutation}`);
+                console.log(`Traits: ${Data.Traits.join(", ")}`);
                 console.log(`-----------------------`);
             } 
             
