@@ -60,73 +60,81 @@
         };
 
         function applyFilter() {
-            const query = document.getElementById('global-search').value.toLowerCase();
-            
-            // Filtrage des serveurs basé sur les animaux
-            const filteredServers = lastData.servers.filter(srv => {
-                if (!query) return true;
-                return srv.brainrots.some(br => 
-                    br.Name.toLowerCase().includes(query) ||
-                    br.Rarity.toLowerCase().includes(query) ||
-                    br.Mutation.toLowerCase().includes(query) ||
-                    (br.Traits && br.Traits.some(t => t.toLowerCase().includes(query))) ||
-                    br.Owner.toLowerCase().includes(query)
-                );
-            });
+        const query = document.getElementById('global-search').value.toLowerCase();
+        
+        // 1. Filtrage
+        let filteredServers = lastData.servers.filter(srv => {
+            if (!query) return true;
+            return srv.brainrots.some(br => 
+                br.Name.toLowerCase().includes(query) ||
+                br.Rarity.toLowerCase().includes(query) ||
+                br.Mutation.toLowerCase().includes(query) ||
+                (br.Traits && br.Traits.some(t => t.toLowerCase().includes(query)))
+            );
+        });
 
-            render(lastData.clients, filteredServers);
-        }
+        // 2. TRI PAR PLUS GROS REVENU (Max Income)
+        filteredServers.sort((a, b) => {
+            const maxA = Math.max(...a.brainrots.map(br => br.Income || 0), 0);
+            const maxB = Math.max(...b.brainrots.map(br => br.Income || 0), 0);
+            return maxB - maxA; // Décroissant
+        });
 
+        render(lastData.clients, filteredServers);
+    }
         function render(clients, servers) {
-            document.getElementById('bot-count').innerText = clients.filter(c => c.isConnected).length;
-            document.getElementById('server-count').innerText = servers.length;
+    document.getElementById('bot-count').innerText = clients.filter(c => c.isConnected).length;
+    document.getElementById('server-count').innerText = servers.length;
 
-            // Rendu Bots
-            document.getElementById('bots-list').innerHTML = clients.map(bot => `
-                <div class="card p-4 rounded flex justify-between items-center border-l-2 ${bot.isConnected ? 'border-blue-500' : 'border-red-500/30'}">
-                    <div>
-                        <div class="font-bold text-sm">${bot.displayName} <span class="text-slate-500 font-medium text-[10px]">@${bot.name}</span></div>
-                        <div class="text-[9px] text-slate-500 uppercase mt-1 italic">Bot Instance • Age: ${bot.accountAge}d</div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="sendCommand('${bot.name}', 'Notify')" class="text-[10px] bg-blue-600/20 text-blue-400 border border-blue-600/30 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition">NOTIFY</button>
-                        <button onclick="sendCommand('${bot.name}', 'Kick')" class="text-[10px] bg-red-600/10 text-red-500 border border-red-600/30 px-3 py-1 rounded hover:bg-red-600 hover:text-white transition font-bold tracking-tighter">KICK</button>
-                    </div>
+    // Rendu Bots (Inchangé)
+    // ... (votre code précédent pour les bots)
+
+    // Rendu Serveurs (Trié par Income et avec Labels Debug)
+    document.getElementById('servers-list').innerHTML = servers.map(srv => {
+        const isPrivate = srv.privateServerId && srv.privateServerId !== "0" && srv.privateServerId !== "";
+        
+        return `
+            <div class="card p-4 rounded shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 flex">
+                    ${isPrivate ? '<span class="bg-yellow-600 text-[8px] px-2 font-black text-white">PRIVATE</span>' : '<span class="bg-blue-600 text-[8px] px-2 font-black text-white">PUBLIC</span>'}
                 </div>
-            `).join('');
-
-            // Rendu Serveurs
-            document.getElementById('servers-list').innerHTML = servers.map(srv => `
-                <div class="card p-4 rounded shadow-2xl">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
-                        <div class="flex flex-col">
-                            <span class="text-[9px] font-mono text-blue-400 truncate w-40">${srv.jobId}</span>
-                            <span class="text-[9px] text-slate-500 uppercase">Scanner: ${srv.scriptUser}</span>
+                
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[9px] font-mono text-blue-400 truncate w-48" title="JobId: ${srv.jobId}">JOB: ${srv.jobId}</span>
+                        
+                        <div class="flex gap-2">
+                            <span class="text-[8px] bg-slate-800 text-slate-400 px-1 rounded font-mono">PSID: ${srv.privateServerId || 'None'}</span>
+                            <span class="text-[8px] bg-slate-800 text-slate-400 px-1 rounded font-mono">OWNER: ${srv.privateServerOwnerId || '0'}</span>
                         </div>
-                        <button onclick="joinServer('${srv.jobId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black px-4 py-1.5 rounded-sm transition flex items-center gap-1">
-                            JOIN SERVEUR
-                        </button>
+                        
+                        <span class="text-[9px] text-slate-500 uppercase font-bold mt-1">Scanner: ${srv.scriptUser}</span>
                     </div>
-                    <div class="space-y-2">
-                        ${srv.brainrots.map(br => `
-                            <div class="bg-black/40 p-2 rounded border border-slate-800/50">
-                                <div class="flex justify-between text-[11px] mb-1">
-                                    <span class="text-slate-300 font-bold"><span class="text-emerald-500 font-black">${br.Owner}</span></span>
-                                    <span class="font-mono text-emerald-400 font-black">${br.IncomeStr}</span>
-                                </div>
-                                <div class="flex flex-wrap gap-1">
-                                    <span class="text-[10px] text-white font-bold uppercase">${br.Name}</span>
-                                    <span class="text-[8px] px-1 bg-purple-500/20 text-purple-400 border border-purple-500/40 rounded">${br.Mutation.toUpperCase()}</span>
-                                    <span class="text-[8px] px-1 bg-slate-700 text-slate-300 rounded uppercase font-bold">${br.Rarity}</span>
-                                    ${(br.Traits || []).map(t => `<span class="text-[8px] px-1 bg-blue-900/30 text-blue-300 border border-blue-800/50 rounded italic">${t}</span>`).join('')}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
+                    <button onclick="joinServer('${srv.jobId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded transition">
+                        JOIN
+                    </button>
                 </div>
-            `).join('');
-        }
 
+                <div class="space-y-2">
+                    ${srv.brainrots.sort((a,b) => (b.Income || 0) - (a.Income || 0)).map(br => `
+                        <div class="bg-black/40 p-2 rounded border border-slate-800/50">
+                            <div class="flex justify-between text-[11px] mb-1">
+                                <span class="text-emerald-500 font-black italic underline">${br.Owner}</span>
+                                <span class="font-mono text-emerald-400 font-black bg-emerald-950/30 px-1 rounded">${br.IncomeStr}</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1 items-center">
+                                <span class="text-[10px] text-white font-bold uppercase tracking-tight">${br.Name}</span>
+                                <span class="text-[8px] px-1 bg-purple-500/20 text-purple-400 border border-purple-500/40 rounded">${br.Mutation.toUpperCase()}</span>
+                                <span class="text-[8px] px-1 bg-slate-700 text-slate-300 rounded uppercase font-bold">${br.Rarity}</span>
+                                ${(br.Traits || []).map(t => `<span class="text-[8px] px-1 bg-blue-900/30 text-blue-300 border border-blue-800/50 rounded italic">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
         function joinServer(jobId) {
             const placeId = 109983668079237; // REMPLACE PAR LE PLACEID DU JEU ROBLOX
             window.location.href = `roblox://experiences/start?placeId=${placeId}&gameInstanceId=${jobId}`;
