@@ -7,11 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-        .card { background-color: #161e2d; border: 1px solid #1e293b; }
+        .card { background-color: #161e2d; border: 1px solid #1e293b; transition: all 0.2s; }
+        .card:hover { border-color: #3b82f6; }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .search-input:focus { border-color: #3b82f6; outline: none; }
+        .view-btn-active { background-color: #3b82f6; color: white; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        table { border-collapse: separate; border-spacing: 0 4px; }
     </style>
 </head>
 <body class="p-6">
@@ -21,133 +24,140 @@
             <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Advanced Monitoring System</p>
         </div>
         
-        <div class="relative w-full md:w-96">
-            <input type="text" id="global-search" oninput="applyFilter()" placeholder="Rechercher nom, rareté, trait ou mutation..." 
-                   class="search-input w-full px-4 py-2 rounded text-sm text-slate-200">
-            <span class="absolute right-3 top-2 text-slate-500 font-mono text-xs">FILTER</span>
+        <div class="flex flex-1 justify-center gap-2">
+            <div class="relative w-full max-w-md">
+                <input type="text" id="global-search" oninput="applyFilter()" placeholder="Rechercher nom, rareté, trait..." 
+                       class="search-input w-full px-4 py-2 rounded text-sm text-slate-200">
+            </div>
+            <div class="flex border border-slate-700 rounded overflow-hidden p-1 bg-slate-900/50">
+                <button onclick="setView('cards')" id="btn-cards" class="px-3 py-1 text-[10px] font-bold uppercase rounded transition view-btn-active">Cards</button>
+                <button onclick="setView('list')" id="btn-list" class="px-3 py-1 text-[10px] font-bold uppercase rounded transition text-slate-400">List</button>
+            </div>
         </div>
 
-        <button onclick="clearDB()" class="text-[10px] bg-red-600/10 text-red-500 border border-red-600/30 px-4 py-2 rounded hover:bg-red-600 hover:text-white transition font-bold">CLEAR ALL DATA</button>
+        <button onclick="clearDB()" class="text-[10px] bg-red-600/10 text-red-500 border border-red-600/30 px-4 py-2 rounded hover:bg-red-600 hover:text-white transition font-bold">CLEAR DATABASE</button>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <section>
-            <h2 class="text-xs font-bold uppercase text-slate-500 mb-4 flex justify-between">
-                Bots Actifs <span id="bot-count" class="text-blue-400">0</span>
-            </h2>
-            <div id="bots-list" class="space-y-3"></div>
-        </section>
-
-        <section>
-            <h2 class="text-xs font-bold uppercase text-slate-500 mb-4 flex justify-between">
-                Serveurs Détectés <span id="server-count" class="text-blue-400">0</span>
-            </h2>
-            <div id="servers-list" class="space-y-4 text-sm"></div>
-        </section>
+    <div id="stats-bar" class="mb-6 flex gap-4">
+        <div class="bg-blue-600/10 border border-blue-600/20 px-4 py-2 rounded">
+            <span class="text-[10px] text-slate-500 uppercase block">Players</span>
+            <span id="player-count" class="text-xl font-black text-blue-400">0</span>
+        </div>
     </div>
 
+    <div id="main-display"></div>
+
     <script>
-        let lastData = { clients: [], servers: [] };
+        let allPlayers = [];
+        let currentView = 'cards';
+
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const ws = new WebSocket(`${protocol}://${window.location.host}?role=Admin`);
 
         ws.onmessage = (event) => {
             const payload = JSON.parse(event.data);
             if (payload.type === 'REFRESH') {
-                lastData = payload.data;
+                allPlayers = payload.data;
                 applyFilter();
             }
         };
 
-        function applyFilter() {
-        const query = document.getElementById('global-search').value.toLowerCase();
-        
-        // 1. Filtrage
-        let filteredServers = lastData.servers.filter(srv => {
-            if (!query) return true;
-            return srv.brainrots.some(br => 
-                br.Name.toLowerCase().includes(query) ||
-                br.Rarity.toLowerCase().includes(query) ||
-                br.Mutation.toLowerCase().includes(query) ||
-                (br.Traits && br.Traits.some(t => t.toLowerCase().includes(query)))
-            );
-        });
-
-        // 2. TRI PAR PLUS GROS REVENU (Max Income)
-        filteredServers.sort((a, b) => {
-            const maxA = Math.max(...a.brainrots.map(br => br.Income || 0), 0);
-            const maxB = Math.max(...b.brainrots.map(br => br.Income || 0), 0);
-            return maxB - maxA; // Décroissant
-        });
-
-        render(lastData.clients, filteredServers);
-    }
-        function render(clients, servers) {
-    document.getElementById('bot-count').innerText = clients.filter(c => c.isConnected).length;
-    document.getElementById('server-count').innerText = servers.length;
-
-    // Rendu Bots (Inchangé)
-    // ... (votre code précédent pour les bots)
-
-    // Rendu Serveurs (Trié par Income et avec Labels Debug)
-    document.getElementById('servers-list').innerHTML = servers.map(srv => {
-        const isPrivate = srv.privateServerId && srv.privateServerId !== "0" && srv.privateServerId !== "";
-        
-        return `
-            <div class="card p-4 rounded shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 flex">
-                    ${isPrivate ? '<span class="bg-yellow-600 text-[8px] px-2 font-black text-white">PRIVATE</span>' : '<span class="bg-blue-600 text-[8px] px-2 font-black text-white">PUBLIC</span>'}
-                </div>
-                
-                <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
-                    <div class="flex flex-col gap-1">
-                        <span class="text-[9px] font-mono text-blue-400 truncate w-48" title="JobId: ${srv.jobId}">JOB: ${srv.jobId}</span>
-                        
-                        <div class="flex gap-2">
-                            <span class="text-[8px] bg-slate-800 text-slate-400 px-1 rounded font-mono">PSID: ${srv.privateServerId || 'None'}</span>
-                            <span class="text-[8px] bg-slate-800 text-slate-400 px-1 rounded font-mono">OWNER: ${srv.privateServerOwnerId || '0'}</span>
-                        </div>
-                        
-                        <span class="text-[9px] text-slate-500 uppercase font-bold mt-1">Scanner: ${srv.scriptUser}</span>
-                    </div>
-                    <button onclick="joinServer('${srv.jobId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black px-4 py-2 rounded transition">
-                        JOIN
-                    </button>
-                </div>
-
-                <div class="space-y-2">
-                    ${srv.brainrots.sort((a,b) => (b.Income || 0) - (a.Income || 0)).map(br => `
-                        <div class="bg-black/40 p-2 rounded border border-slate-800/50">
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-emerald-500 font-black italic underline">${br.Owner}</span>
-                                <span class="font-mono text-emerald-400 font-black bg-emerald-950/30 px-1 rounded">${br.IncomeStr}</span>
-                            </div>
-                            <div class="flex flex-wrap gap-1 items-center">
-                                <span class="text-[10px] text-white font-bold uppercase tracking-tight">${br.Name}</span>
-                                <span class="text-[8px] px-1 bg-purple-500/20 text-purple-400 border border-purple-500/40 rounded">${br.Mutation.toUpperCase()}</span>
-                                <span class="text-[8px] px-1 bg-slate-700 text-slate-300 rounded uppercase font-bold">${br.Rarity}</span>
-                                ${(br.Traits || []).map(t => `<span class="text-[8px] px-1 bg-blue-900/30 text-blue-300 border border-blue-800/50 rounded italic">${t}</span>`).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-        function joinServer(jobId) {
-            const placeId = 109983668079237; // REMPLACE PAR LE PLACEID DU JEU ROBLOX
-            window.location.href = `roblox://experiences/start?placeId=${placeId}&gameInstanceId=${jobId}`;
+        function setView(view) {
+            currentView = view;
+            document.getElementById('btn-cards').classList.toggle('view-btn-active', view === 'cards');
+            document.getElementById('btn-list').classList.toggle('view-btn-active', view === 'list');
+            applyFilter();
         }
 
-        function sendCommand(target, method) {
-            ws.send(JSON.stringify({ type: 'COMMAND', target, method, data: null }));
+        function applyFilter() {
+            const query = document.getElementById('global-search').value.toLowerCase();
+            const filtered = allPlayers.filter(p => {
+                if (!query) return true;
+                const pMatch = p.name.toLowerCase().includes(query) || p.displayName.toLowerCase().includes(query);
+                const bMatch = (p.brainrots || []).some(br => 
+                    br.Name.toLowerCase().includes(query) || 
+                    br.Mutation.toLowerCase().includes(query) || 
+                    br.Rarity.toLowerCase().includes(query)
+                );
+                return pMatch || bMatch;
+            });
+
+            currentView === 'cards' ? renderCards(filtered) : renderList(filtered);
+        }
+
+        function renderCards(players) {
+            document.getElementById('player-count').innerText = players.length;
+            const container = document.getElementById('main-display');
+            container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">${
+                players.map(player => `
+                    <div class="card p-5 rounded">
+                        <div class="flex justify-between items-start mb-4 border-b border-slate-800 pb-2">
+                            <div>
+                                <h3 class="text-blue-400 font-black text-lg">${player.displayName}</h3>
+                                <span class="text-[9px] text-slate-500 font-mono">@${player.name}</span>
+                            </div>
+                            <button onclick="deletePlayer(${player.userId})" class="text-[9px] text-red-500 font-bold hover:underline">DELETE</button>
+                        </div>
+                        <div class="space-y-2">
+                            ${(player.brainrots || []).map(br => `
+                                <div class="bg-black/30 p-2 rounded text-[11px] flex justify-between border border-slate-800/30">
+                                    <span class="font-bold text-white uppercase">${br.Name}</span>
+                                    <span class="text-emerald-400 font-mono">${br.IncomeStr}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')
+            }</div>`;
+        }
+
+        function renderList(players) {
+            // Aplatir tous les brainrots dans un seul tableau pour la vue liste
+            const allBrainrots = [];
+            players.forEach(p => {
+                (p.brainrots || []).forEach(br => {
+                    allBrainrots.push({ ...br, playerName: p.displayName, playerUser: p.name });
+                });
+            });
+
+            // Trier par revenu descendant
+            allBrainrots.sort((a,b) => (b.Income || 0) - (a.Income || 0));
+
+            const container = document.getElementById('main-display');
+            container.innerHTML = `
+                <div class="overflow-x-auto bg-[#161e2d] rounded border border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-black/40 text-slate-400 font-bold uppercase">
+                            <tr>
+                                <th class="p-4">Owner</th>
+                                <th class="p-4">Brainrot</th>
+                                <th class="p-4">Mutation</th>
+                                <th class="p-4">Rarity</th>
+                                <th class="p-4">Income</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allBrainrots.map(br => `
+                                <tr class="hover:bg-blue-600/5 transition border-t border-slate-800/50">
+                                    <td class="p-4 font-bold text-blue-400">${br.playerName} <span class="text-[9px] text-slate-500 block">@${br.playerUser}</span></td>
+                                    <td class="p-4 text-white font-bold uppercase">${br.Name}</td>
+                                    <td class="p-4"><span class="bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">${br.Mutation}</span></td>
+                                    <td class="p-4 font-bold text-slate-400">${br.Rarity}</td>
+                                    <td class="p-4 font-mono text-emerald-400 font-bold">${br.IncomeStr}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function deletePlayer(userId) {
+            if(confirm("Supprimer ce joueur ?")) await fetch(`/api/client/${userId}`, { method: 'DELETE' });
         }
 
         async function clearDB() {
-            if(confirm("⚠ Suppression totale des données ?")) {
-                await fetch('/api/clear-database', { method: 'POST' });
-            }
+            if(confirm("Vider toute la base ?")) await fetch('/api/clear-database', { method: 'POST' });
         }
     </script>
 </body>
