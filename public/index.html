@@ -3,24 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX HUB - Advanced Analytics</title>
+    <title>M4GIX HUB - Full Chroma</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
-        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 12px; }
-        .card { background-color: #111827; border: 1px solid #1f2937; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 11px; }
+        .card { background-color: #111827; border: 1px solid #1f2937; position: relative; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #3b82f6; opacity: 0.5; }
         .search-input { background: #0f172a; border: 1px solid #334155; }
-        .view-btn-active { background-color: #3b82f6; color: white; }
-        .sort-header { cursor: pointer; transition: 0.2s; }
-        .sort-header:hover { background: rgba(59, 130, 246, 0.1); color: white; }
-        
-        /* Couleurs Thématiques basées sur tes fichiers */
-        .color-gold { color: #FFDE59; }
-        .color-cursed { color: #f53838; }
-        .color-nyan { color: #EE59FF; }
-        .color-galactic { color: #7D59FF; }
-        .color-common { color: #ffffff; }
-        
+        .sort-header { cursor: pointer; text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em; }
+        .sort-header:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+        .unit-row:hover { background: rgba(255,255,255,0.02); }
         #notification-container { position: fixed; bottom: 15px; right: 15px; z-index: 9999; }
         .toast { background: #1f2937; border-left: 4px solid #3b82f6; padding: 10px; margin-top: 5px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         ::-webkit-scrollbar { width: 4px; }
@@ -33,22 +26,19 @@
 
     <header class="flex flex-wrap justify-between items-center gap-4 mb-4">
         <div class="flex items-center gap-4">
-            <h1 class="text-xl font-black text-blue-500 italic">M4GIX <span class="text-white">PRO</span></h1>
+            <h1 class="text-xl font-black text-blue-500 italic uppercase">M4GIX <span class="text-white tracking-tighter">Database</span></h1>
             <div class="flex border border-slate-800 rounded p-0.5 bg-black/50">
-                <button onclick="setView('cards')" id="btn-cards" class="px-3 py-1 text-[10px] font-bold uppercase rounded view-btn-active">Cards</button>
-                <button onclick="setView('list')" id="btn-list" class="px-3 py-1 text-[10px] font-bold uppercase rounded text-slate-500">List</button>
+                <button onclick="setView('cards')" id="btn-cards" class="px-3 py-1 text-[9px] font-bold uppercase rounded view-btn-active bg-blue-600 text-white">Cards</button>
+                <button onclick="setView('list')" id="btn-list" class="px-3 py-1 text-[9px] font-bold uppercase rounded text-slate-500">Global List</button>
             </div>
         </div>
         
-        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Search Unit, Trait, Player..." 
-               class="search-input flex-1 max-w-md px-3 py-1.5 rounded text-xs focus:border-blue-500 outline-none">
+        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Filter by Name, Mutation, Trait or Rarity..." 
+               class="search-input flex-1 max-w-xl px-4 py-1.5 rounded text-xs focus:border-blue-500 outline-none">
 
-        <div class="flex gap-2">
-            <div class="bg-blue-600/10 px-3 py-1 rounded border border-blue-600/20 text-center">
-                <span class="text-[9px] text-slate-500 block uppercase leading-none">Global Income</span>
-                <span id="total-income-all" class="text-sm font-black text-emerald-400">$0/s</span>
-            </div>
-            <button onclick="clearDB()" class="text-[9px] text-red-500 font-bold border border-red-500/20 px-2 rounded hover:bg-red-500/10">RESET DB</button>
+        <div class="flex items-center gap-3 bg-emerald-600/10 border border-emerald-500/20 px-4 py-1.5 rounded">
+            <span class="text-[9px] text-slate-500 uppercase font-black">Total/s</span>
+            <span id="total-income-all" class="text-sm font-black text-emerald-400">$0</span>
         </div>
     </header>
 
@@ -59,28 +49,83 @@
         let currentView = 'cards';
         let sortConfig = { key: 'Income', direction: 'desc' };
 
-        // Configuration des couleurs extraite de tes fichiers
-        const STYLE_MAP = {
-            Mutations: {
-                'Gold': '#FFDE59', 'Cursed': '#f53838', 'Shiny': '#b4ff5e', 'Diamond': '#00e5ff', 'Default': '#94a3b8'
+        // --- DICTIONNAIRE DE COULEURS COMPLET (Basé sur tes fichiers) ---
+        const COLORS = {
+            // Mutations (Mutations.txt)
+            mut: {
+                'Gold': '#FFDE59',
+                'Diamond': '#25C4FE',
+                'Bloodrot': '#8A3B3C',
+                'Rainbow': '#ff00fb',
+                'Candy': '#ff46f6',
+                'Lava': '#ff7700',
+                'Galaxy': '#aa3cff',
+                'Radioactive': '#68f500',
+                'Cursed': '#f53838',
+                'Shiny': '#b4ff5e',
+                'YinYang': '#ffffff',
+                'Default': '#94a3b8'
             },
-            Rarities: {
-                'Common': '#ffffff', 'Rare': '#3b82f6', 'Epic': '#a855f7', 'Legendary': '#f59e0b', 'Mythic': '#ef4444'
+            // Traits (Traits.txt)
+            trait: {
+                'Taco': '#FFDE59',
+                'Nyan': '#EE59FF',
+                'Galactic': '#7D59FF',
+                'Fireworks': '#FF2828',
+                'Zombie': '#4aff47',
+                'Crab Claws': '#eb391a',
+                'Glitch': '#a75edf',
+                'Bubblegum': '#f058fe',
+                'Fire': '#ffaa00',
+                'Wet': '#1F85DE',
+                'Snowy': '#FFFFFF',
+                'Explosive': '#ff9d26',
+                'Disco': '#e863ff',
+                '10B': '#FF2828',
+                'Shark Fin': '#1F85DE',
+                'Matteo Hat': '#ff961d',
+                'Brazil': '#00ff00',
+                'Sleepy': '#2747ff',
+                'Lightning': '#2747ff',
+                'UFO': '#00ff00',
+                'Strawberry': '#ff5e5e',
+                'Paint': '#ffc800',
+                'Sombrero': '#fac711',
+                'Witch Hat': '#7f51cf',
+                'Indonesia': '#fb3d29',
+                'Meowl': '#ffffff',
+                'RIP Gravestone': '#ffffff',
+                'Jackolantern Pet': '#ff9d26',
+                'Santa Hat': '#ce4d4c',
+                'Reindeer Pet': '#ffffff',
+                'Skibidi': '#ffffff',
+                '26': '#ffed2c',
+                'Rose': '#d95050'
             },
-            Traits: {
-                'Nyan': '#EE59FF', 'Taco': '#FFDE59', 'Galactic': '#7D59FF'
+            // Rarities (Animals.txt)
+            rarity: {
+                'Common': '#ffffff',
+                'Rare': '#3b82f6',
+                'Epic': '#a855f7',
+                'Legendary': '#f59e0b',
+                'Mythic': '#ef4444',
+                'Secret': '#10b981',
+                'Admin': '#ff0000',
+                'Spooky': '#ff9d26',
+                'Festive': '#ce4d4c',
+                'Taco': '#FFDE59',
+                'OG': '#9ca3af'
             }
         };
-
         const fM = (v) => {
             if (v >= 1e12) return (v/1e12).toFixed(2) + "T";
             if (v >= 1e9) return (v/1e9).toFixed(2) + "B";
-            if (v >= 1e6) return (v/1e6).toFixed(2) + "M";
+            if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
             if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
             return (v || 0).toFixed(1);
         };
 
-        const getColor = (type, val) => STYLE_MAP[type][val] || '#94a3b8';
+        const getCol = (cat, val) => COLORS[cat][val] || '#94a3b8';
 
         const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`);
         ws.onmessage = (e) => {
@@ -93,14 +138,14 @@
 
         function setView(v) {
             currentView = v;
-            document.getElementById('btn-cards').className = `px-3 py-1 text-[10px] font-bold uppercase rounded ${v==='cards'?'view-btn-active':'text-slate-500'}`;
-            document.getElementById('btn-list').className = `px-3 py-1 text-[10px] font-bold uppercase rounded ${v==='list'?'view-btn-active':'text-slate-500'}`;
+            document.getElementById('btn-cards').className = `px-3 py-1 text-[9px] font-bold uppercase rounded ${v==='cards'?'bg-blue-600 text-white':'text-slate-500'}`;
+            document.getElementById('btn-list').className = `px-3 py-1 text-[9px] font-bold uppercase rounded ${v==='list'?'bg-blue-600 text-white':'text-slate-500'}`;
             applyFilter();
         }
 
-        function setSort(key) {
-            if (sortConfig.key === key) sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-            else { sortConfig.key = key; sortConfig.direction = 'desc'; }
+        function setSort(k) {
+            if (sortConfig.key === k) sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            else { sortConfig.key = k; sortConfig.direction = 'desc'; }
             applyFilter();
         }
 
@@ -114,42 +159,41 @@
         }
 
         function renderCards(players) {
-            let globalIncome = 0;
+            let gIncome = 0;
             const html = players.map(p => {
-                const pIncome = (p.brainrots || []).reduce((s, b) => s + (b.Income || 0), 0);
-                globalIncome += pIncome;
+                const pInc = (p.brainrots || []).reduce((s, b) => s + (b.Income || 0), 0);
+                gIncome += pInc;
                 return `
-                <div class="card p-3 rounded-lg flex flex-col gap-2 relative border-t-2 border-t-blue-500">
-                    <div class="flex justify-between items-start">
-                        <div class="truncate max-w-[150px]">
-                            <div class="font-black text-white text-sm leading-tight">${p.displayName}</div>
-                            <div class="text-[9px] text-slate-500">@${p.name}</div>
+                <div class="card p-3 rounded flex flex-col gap-2">
+                    <div class="flex justify-between border-b border-slate-800 pb-2">
+                        <div class="max-w-[140px]">
+                            <div class="font-black text-blue-400 truncate uppercase">${p.displayName}</div>
+                            <div class="text-[8px] text-slate-600 font-mono">@${p.name}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-emerald-400 font-black text-xs">$${fM(pIncome)}/s</div>
-                            <div class="text-[8px] text-slate-600 font-bold">#${(p.brainrots || []).length} UNITS</div>
+                            <div class="text-emerald-400 font-black">$${fM(pInc)}</div>
+                            <div class="text-[8px] text-slate-600 uppercase font-bold">${(p.brainrots || []).length} units</div>
                         </div>
                     </div>
-                    <div class="space-y-1 mt-1 overflow-y-auto max-h-56 pr-1">
+                    <div class="space-y-1 overflow-y-auto max-h-60 pr-1">
                         ${(p.brainrots || []).sort((a,b)=>b.Income-a.Income).map(b => `
                             <div class="bg-black/30 p-2 rounded border border-slate-800/40">
                                 <div class="flex justify-between items-center mb-1">
-                                    <span class="font-bold text-slate-200 truncate uppercase text-[10px]">${b.Name}</span>
-                                    <span class="font-mono text-emerald-400 text-[9px]">$${fM(b.Income)}</span>
+                                    <span class="font-black text-slate-300 uppercase truncate text-[9px]">${b.Name}</span>
+                                    <span class="text-emerald-500 font-mono text-[9px]">$${fM(b.Income)}</span>
                                 </div>
-                                <div class="flex flex-wrap gap-1">
-                                    <span style="color: ${getColor('Mutations', b.Mutation)}" class="text-[8px] font-black uppercase">${b.Mutation}</span>
-                                    <span style="color: ${getColor('Rarities', b.Rarity)}" class="text-[8px] font-bold uppercase opacity-80">${b.Rarity}</span>
-                                    ${(b.Traits || []).map(t => `<span style="color: ${getColor('Traits', t)}" class="text-[8px] italic font-bold">· ${t}</span>`).join('')}
+                                <div class="flex flex-wrap gap-1.5 leading-none">
+                                    <span style="color:${getCol('mut', b.Mutation)}" class="font-black uppercase text-[8px] tracking-tighter">${b.Mutation}</span>
+                                    <span style="color:${getCol('rarity', b.Rarity)}" class="font-bold uppercase text-[8px] opacity-70">${b.Rarity}</span>
+                                    ${(b.Traits || []).map(t => `<span style="color:${getCol('trait', t)}" class="italic font-bold text-[8px]">· ${t}</span>`).join('')}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <button onclick="deletePlayer(${p.userId})" class="text-[8px] text-slate-700 hover:text-red-500 mt-1 uppercase text-right">Delete Profile</button>
                 </div>`;
             }).join('');
-            document.getElementById('total-income-all').innerText = `$${fM(globalIncome)}/s`;
-            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">${html}</div>`;
+            document.getElementById('total-income-all').innerText = `$${fM(gIncome)}/s`;
+            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">${html}</div>`;
         }
 
         function renderList(players) {
@@ -160,41 +204,38 @@
                 if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = vB.toLowerCase(); }
                 return sortConfig.direction === 'asc' ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
             });
-            const icon = (k) => sortConfig.key === k ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '';
+            const ico = (k) => sortConfig.key === k ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
             
             document.getElementById('main-display').innerHTML = `
             <div class="overflow-x-auto rounded border border-slate-800 bg-[#111827]">
                 <table class="w-full text-left">
-                    <thead class="bg-black text-[10px] text-slate-500 uppercase font-black">
+                    <thead class="bg-black text-slate-500 font-black">
                         <tr>
-                            <th class="p-3 sort-header" onclick="setSort('pName')">Owner ${icon('pName')}</th>
-                            <th class="p-3 sort-header" onclick="setSort('Name')">Unit ${icon('Name')}</th>
-                            <th class="p-3 sort-header" onclick="setSort('Mutation')">Mutation ${icon('Mutation')}</th>
-                            <th class="p-3 sort-header" onclick="setSort('Rarity')">Rarity ${icon('Rarity')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('pName')">Owner${ico('pName')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Name')">Unit${ico('Name')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Mutation')">Mutation${ico('Mutation')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Rarity')">Rarity${ico('Rarity')}</th>
                             <th class="p-3">Traits</th>
-                            <th class="p-3 sort-header" onclick="setSort('Income')">Income ${icon('Income')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Income')">Income${ico('Income')}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
                         ${list.map(b => `
-                            <tr class="hover:bg-blue-600/5">
+                            <tr class="unit-row transition-colors">
                                 <td class="p-2 font-bold text-blue-400">${b.pName}</td>
-                                <td class="p-2 text-white font-black uppercase text-xs">${b.Name}</td>
-                                <td class="p-2 font-black uppercase text-[10px]" style="color: ${getColor('Mutations', b.Mutation)}">${b.Mutation}</td>
-                                <td class="p-2 font-bold uppercase text-[10px]" style="color: ${getColor('Rarities', b.Rarity)}">${b.Rarity}</td>
+                                <td class="p-2 text-white font-black uppercase">${b.Name}</td>
+                                <td class="p-2 font-black uppercase" style="color:${getCol('mut', b.Mutation)}">${b.Mutation}</td>
+                                <td class="p-2 font-bold uppercase opacity-80" style="color:${getCol('rarity', b.Rarity)}">${b.Rarity}</td>
                                 <td class="p-2">
-                                    ${(b.Traits||[]).map(t => `<span style="color: ${getColor('Traits', t)}" class="text-[9px] font-bold mr-1 italic">${t}</span>`).join('')}
+                                    ${(b.Traits||[]).map(t => `<span style="color:${getCol('trait', t)}" class="text-[9px] font-black mr-2 italic uppercase">${t}</span>`).join('')}
                                 </td>
-                                <td class="p-2 font-mono text-emerald-400 font-black text-xs">$${fM(b.Income)}/s</td>
+                                <td class="p-2 font-mono text-emerald-400 font-black">$${fM(b.Income)}/s</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             </div>`;
         }
-
-        async function deletePlayer(id) { if(confirm("Supprimer ce profil ?")) await fetch(`/api/client/${id}`, {method:'DELETE'}); }
-        async function clearDB() { if(confirm("Vider la base ?")) await fetch('/api/clear-database', {method:'POST'}); }
     </script>
 </body>
 </html>
