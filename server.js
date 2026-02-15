@@ -8,11 +8,14 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // --- CONFIGURATION MONGODB ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ [DB] MongoDB Connecté"))
-  .catch(err => console.error("❌ [DB] Erreur :", err));
+// Remplace par ton URI si tu n'utilises pas de variables d'environnement
+const MONGO_URI = process.env.MONGO_URI || "TON_LIEN_MONGODB_ICI";
 
-// Schéma flexible pour stocker toutes les infos du joueur et ses "Brainrots"
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("✅ [DB] MongoDB Connecté"))
+  .catch(err => console.error("❌ [DB] Erreur Connexion :", err));
+
+// Schéma de la collection
 const ClientSchema = new mongoose.Schema({
     userId: { type: Number, unique: true },
     name: String,
@@ -24,14 +27,35 @@ const ClientSchema = new mongoose.Schema({
 
 const ClientModel = mongoose.model('Client', ClientSchema);
 
-// --- LOGIQUE WEBSOCKET (RECEPTION DES DONNÉES) ---
+// --- FONCTION BROADCAST ---
+// Cette fonction récupère tout dans la DB et l'envoie aux pages HTML
+async function broadcastToAdmins() {
+    try {
+        const allClients = await ClientModel.find({});
+        const payload = JSON.stringify({ type: 'REFRESH', data: allClients });
+        
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(payload);
+            }
+        });
+    } catch (e) {
+        console.error("❌ [BROADCAST] Erreur :", e);
+    }
+}
 
-wss.on('connection', (ws) => {
+// --- GESTION WEBSOCKET ---
+wss.on('connection', async (ws) => {
+    console.log("🔌 Nouvelle connexion WebSocket");
+
+    // Envoi initial des données dès qu'on ouvre le Dashboard
+    await broadcastToAdmins();
+
     ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
 
-            // On intercepte uniquement le message envoyé par ton script Roblox
+            // Réception des données du script Roblox
             if (payload.Method === "PlayerInfos") {
                 const d = payload.Data;
 
@@ -46,22 +70,29 @@ wss.on('connection', (ws) => {
                     },
                     { upsert: true }
                 );
-                console.log(`[DB] Mise à jour effectuée pour : ${d.Name}`);
+                
+                console.log(`[DB] Mise à jour : ${d.Name}`);
+                
+                // On prévient tout de suite le HTML que les données ont changé
+                await broadcastToAdmins();
             }
-        } catch (e) { 
-            console.error(`⚠️ Erreur lors du traitement du message :`, e.message); 
+        } catch (e) {
+            console.error("⚠️ Erreur message entrant :", e.message);
         }
     });
+
+    ws.on('close', () => console.log("❌ Connexion fermée"));
 });
 
 // --- ROUTES API (NETTOYAGE) ---
 
-// Supprimer un client spécifique par son UserId
+// Supprimer un joueur spécifique
 app.delete('/api/client/:userId', async (req, res) => {
     try {
         await ClientModel.deleteOne({ userId: req.params.userId });
-        console.log(`🧹 Client ${req.params.userId} supprimé.`);
-        res.json({ message: "Client supprimé" });
+        console.log(`🧹 Suppression : ${req.params.userId}`);
+        await broadcastToAdmins();
+        res.json({ message: "Supprimé" });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -71,17 +102,24 @@ app.delete('/api/client/:userId', async (req, res) => {
 app.post('/api/clear-database', async (req, res) => {
     try {
         await ClientModel.deleteMany({});
-        console.log("🧹 [DB] Base de données entièrement vidée.");
-        res.json({ message: "Database cleared" });
+        console.log("🧹 [DB] Collection vidée");
+        await broadcastToAdmins();
+        res.json({ message: "Base vidée" });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Servir les fichiers statiques (pour le futur HTML)
+// Servir le dossier public (où se trouve ton index.html)
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 SERVEUR DE STOCKAGE PRÊT SUR LE PORT ${PORT}`);
+    console.log(`
+    🚀 ==========================================
+    🌍 SERVEUR M4GIX PRÊT SUR LE PORT ${PORT}
+    📂 Mode : Stockage Collection Personnel
+    💾 DB : MongoDB Atlas
+    =============================================
+    `);
 });
