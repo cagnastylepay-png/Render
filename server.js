@@ -1,62 +1,87 @@
+const express = require('express');
+const mongoose = require('mongoose');
 const WebSocket = require('ws');
 const http = require('http');
 
-const PORT = process.env.PORT || 3000;
-const server = http.createServer();
+const app = express();
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// On garde une trace des clients connectés par leur nom
-let connectedClients = new Map();
+// --- CONFIGURATION MONGODB ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ [DB] MongoDB Connecté"))
+  .catch(err => console.error("❌ [DB] Erreur :", err));
 
-wss.on('connection', (ws, req) => {
-    // Récupération du nom du bot via l'URL (?user=NomDuBot)
-    const urlParams = new URLSearchParams(req.url.split('?')[1]);
-    const userName = urlParams.get('user') || "Unknown_Bot";
+// Schéma flexible pour stocker toutes les infos du joueur et ses "Brainrots"
+const ClientSchema = new mongoose.Schema({
+    userId: { type: Number, unique: true },
+    name: String,
+    displayName: String,
+    accountAge: Number,
+    brainrots: mongoose.Schema.Types.Mixed, 
+    updatedAt: { type: Date, default: Date.now }
+}, { strict: false });
 
-    ws.userName = userName;
-    connectedClients.set(userName, ws);
+const ClientModel = mongoose.model('Client', ClientSchema);
 
-    console.log(`[CONNECTÉ] Bot : ${userName} | Total en ligne : ${connectedClients.size}`);
+// --- LOGIQUE WEBSOCKET (RECEPTION DES DONNÉES) ---
 
-    ws.on('message', (message) => {
+wss.on('connection', (ws) => {
+    ws.on('message', async (message) => {
         try {
             const payload = JSON.parse(message);
-            const { Method, Data } = payload;
 
-            // Le serveur ne fait que "écouter" et afficher les données reçues
-            if (Method === "OnBrainrotSpawn") {
-                console.log(`--- [NOUVEAU SPAWN] ---`);
-                console.log(`Bot: ${userName}`);
-                console.log(`ID: ${Data.Id}`);
-                console.log(`Animal: ${Data.Name}`);
-                console.log(`Revenu: ${Data.IncomeStr} (${Data.IncomeStr})`);
-                console.log(`Rarete: ${Data.Rarity}`);
-                console.log(`Mutation: ${Data.Mutation}`);
-                console.log(`Traits: ${Data.Traits.join(", ")}`);
-                console.log(`-----------------------`);
-            } 
-            
-            else if (Method === "OnAnimalPurchased") {
-                console.log(`[ACHAT] ID ${Data.Id} a été acheté par ${Data.Buyer} (${userName})`);
-            } 
-            
-            else if (Method === "OnBrainrotDespawn") {
-                console.log(`[DESPAWN] ID ${Data.Id} n'est plus disponible.`);
+            // On intercepte uniquement le message envoyé par ton script Roblox
+            if (payload.Method === "PlayerInfos") {
+                const d = payload.Data;
+
+                await ClientModel.findOneAndUpdate(
+                    { userId: d.UserId },
+                    {
+                        name: d.Name,
+                        displayName: d.DisplayName,
+                        accountAge: d.AccountAge,
+                        brainrots: d.Brainrots,
+                        updatedAt: new Date()
+                    },
+                    { upsert: true }
+                );
+                console.log(`[DB] Mise à jour effectuée pour : ${d.Name}`);
             }
-
-        } catch (err) {
-            // Optionnel : logger l'erreur si le message n'est pas du JSON valide
-            console.error(`[ERREUR JSON] provenant de ${userName}`);
+        } catch (e) { 
+            console.error(`⚠️ Erreur lors du traitement du message :`, e.message); 
         }
-    });
-
-    ws.on('close', () => {
-        connectedClients.delete(userName);
-        console.log(`[DÉCONNECTÉ] Bot : ${userName} | Restants : ${connectedClients.size}`);
     });
 });
 
+// --- ROUTES API (NETTOYAGE) ---
+
+// Supprimer un client spécifique par son UserId
+app.delete('/api/client/:userId', async (req, res) => {
+    try {
+        await ClientModel.deleteOne({ userId: req.params.userId });
+        console.log(`🧹 Client ${req.params.userId} supprimé.`);
+        res.json({ message: "Client supprimé" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Vider toute la collection
+app.post('/api/clear-database', async (req, res) => {
+    try {
+        await ClientModel.deleteMany({});
+        console.log("🧹 [DB] Base de données entièrement vidée.");
+        res.json({ message: "Database cleared" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Servir les fichiers statiques (pour le futur HTML)
+app.use(express.static('public'));
+
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🛰️ Serveur de réception M4GIX démarré sur le port ${PORT}`);
-    console.log(`En attente de données en provenance de Roblox...`);
+    console.log(`🚀 SERVEUR DE STOCKAGE PRÊT SUR LE PORT ${PORT}`);
 });
