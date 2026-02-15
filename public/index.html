@@ -3,19 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX HUB v2.1</title>
+    <title>M4GIX HUB - Advanced Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
-        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 13px; }
+        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 12px; }
         .card { background-color: #111827; border: 1px solid #1f2937; }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .view-btn-active { background-color: #3b82f6; color: white; }
-        .sort-header { cursor: pointer; transition: color 0.2s; }
-        .sort-header:hover { color: #3b82f6; }
+        .sort-header { cursor: pointer; transition: 0.2s; }
+        .sort-header:hover { background: rgba(59, 130, 246, 0.1); color: white; }
+        
+        /* Couleurs Thématiques basées sur tes fichiers */
+        .color-gold { color: #FFDE59; }
+        .color-cursed { color: #f53838; }
+        .color-nyan { color: #EE59FF; }
+        .color-galactic { color: #7D59FF; }
+        .color-common { color: #ffffff; }
+        
         #notification-container { position: fixed; bottom: 15px; right: 15px; z-index: 9999; }
-        .toast { background: #1f2937; border-left: 4px solid #3b82f6; padding: 8px 15px; margin-top: 5px; border-radius: 4px; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .toast { background: #1f2937; border-left: 4px solid #3b82f6; padding: 10px; margin-top: 5px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #374151; }
     </style>
@@ -24,31 +31,26 @@
 
     <div id="notification-container"></div>
 
-    <header class="flex flex-wrap justify-between items-center gap-4 mb-6">
-        <div class="flex items-center gap-3">
-            <h1 class="text-xl font-black text-blue-500 italic">M4GIX <span class="text-white">DB</span></h1>
+    <header class="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-black text-blue-500 italic">M4GIX <span class="text-white">PRO</span></h1>
             <div class="flex border border-slate-800 rounded p-0.5 bg-black/50">
                 <button onclick="setView('cards')" id="btn-cards" class="px-3 py-1 text-[10px] font-bold uppercase rounded view-btn-active">Cards</button>
                 <button onclick="setView('list')" id="btn-list" class="px-3 py-1 text-[10px] font-bold uppercase rounded text-slate-500">List</button>
             </div>
         </div>
         
-        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Filter collection (Unit, Rarity, Player...)" 
+        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Search Unit, Trait, Player..." 
                class="search-input flex-1 max-w-md px-3 py-1.5 rounded text-xs focus:border-blue-500 outline-none">
 
-        <button onclick="clearDB()" class="text-[10px] text-red-500 font-bold hover:bg-red-500/10 px-2 py-1 rounded">CLEAR ALL</button>
+        <div class="flex gap-2">
+            <div class="bg-blue-600/10 px-3 py-1 rounded border border-blue-600/20 text-center">
+                <span class="text-[9px] text-slate-500 block uppercase leading-none">Global Income</span>
+                <span id="total-income-all" class="text-sm font-black text-emerald-400">$0/s</span>
+            </div>
+            <button onclick="clearDB()" class="text-[9px] text-red-500 font-bold border border-red-500/20 px-2 rounded hover:bg-red-500/10">RESET DB</button>
+        </div>
     </header>
-
-    <div class="flex gap-4 mb-6">
-        <div class="bg-blue-600/5 border border-blue-600/20 px-4 py-2 rounded">
-            <span class="text-[9px] text-slate-500 uppercase font-bold">Players</span>
-            <div id="player-count" class="text-lg font-black leading-none">0</div>
-        </div>
-        <div class="bg-emerald-600/5 border border-emerald-600/20 px-4 py-2 rounded">
-            <span class="text-[9px] text-slate-500 uppercase font-bold">Total Income</span>
-            <div id="total-income-all" class="text-lg font-black leading-none text-emerald-400">$0/s</div>
-        </div>
-    </div>
 
     <main id="main-display"></main>
 
@@ -57,28 +59,33 @@
         let currentView = 'cards';
         let sortConfig = { key: 'Income', direction: 'desc' };
 
+        // Configuration des couleurs extraite de tes fichiers
+        const STYLE_MAP = {
+            Mutations: {
+                'Gold': '#FFDE59', 'Cursed': '#f53838', 'Shiny': '#b4ff5e', 'Diamond': '#00e5ff', 'Default': '#94a3b8'
+            },
+            Rarities: {
+                'Common': '#ffffff', 'Rare': '#3b82f6', 'Epic': '#a855f7', 'Legendary': '#f59e0b', 'Mythic': '#ef4444'
+            },
+            Traits: {
+                'Nyan': '#EE59FF', 'Taco': '#FFDE59', 'Galactic': '#7D59FF'
+            }
+        };
+
         const fM = (v) => {
-            if (v >= 1e12) return (v/1e12).toFixed(1) + "T";
-            if (v >= 1e9) return (v/1e9).toFixed(1) + "B";
-            if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
+            if (v >= 1e12) return (v/1e12).toFixed(2) + "T";
+            if (v >= 1e9) return (v/1e9).toFixed(2) + "B";
+            if (v >= 1e6) return (v/1e6).toFixed(2) + "M";
             if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
             return (v || 0).toFixed(1);
         };
 
-        const notify = (m) => {
-            const c = document.getElementById('notification-container');
-            const t = document.createElement('div');
-            t.className = 'toast text-[11px]';
-            t.innerHTML = m;
-            c.appendChild(t);
-            setTimeout(() => { t.remove() }, 3000);
-        };
+        const getColor = (type, val) => STYLE_MAP[type][val] || '#94a3b8';
 
         const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`);
         ws.onmessage = (e) => {
             const p = JSON.parse(e.data);
             if (p.type === 'REFRESH') {
-                if (p.data.length > allPlayers.length && allPlayers.length > 0) notify("➕ New Player Detected");
                 allPlayers = p.data;
                 applyFilter();
             }
@@ -92,12 +99,8 @@
         }
 
         function setSort(key) {
-            if (sortConfig.key === key) {
-                sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortConfig.key = key;
-                sortConfig.direction = 'desc';
-            }
+            if (sortConfig.key === key) sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            else { sortConfig.key = key; sortConfig.direction = 'desc'; }
             applyFilter();
         }
 
@@ -111,81 +114,78 @@
         }
 
         function renderCards(players) {
-            document.getElementById('player-count').innerText = players.length;
             let globalIncome = 0;
             const html = players.map(p => {
                 const pIncome = (p.brainrots || []).reduce((s, b) => s + (b.Income || 0), 0);
                 globalIncome += pIncome;
                 return `
-                <div class="card p-3 rounded-md flex flex-col gap-2 relative">
-                    <div class="absolute top-0 right-0 p-1 bg-blue-500/10 text-[8px] font-bold text-blue-400">#${(p.brainrots || []).length} UNITS</div>
-                    <div class="border-b border-slate-800 pb-2">
-                        <div class="font-black text-blue-400 text-sm truncate">${p.displayName}</div>
-                        <div class="text-[9px] text-slate-500 flex justify-between">
-                            <span>@${p.name}</span>
-                            <span class="text-emerald-500 font-bold">$${fM(pIncome)}/s</span>
+                <div class="card p-3 rounded-lg flex flex-col gap-2 relative border-t-2 border-t-blue-500">
+                    <div class="flex justify-between items-start">
+                        <div class="truncate max-w-[150px]">
+                            <div class="font-black text-white text-sm leading-tight">${p.displayName}</div>
+                            <div class="text-[9px] text-slate-500">@${p.name}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-emerald-400 font-black text-xs">$${fM(pIncome)}/s</div>
+                            <div class="text-[8px] text-slate-600 font-bold">#${(p.brainrots || []).length} UNITS</div>
                         </div>
                     </div>
-                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    <div class="space-y-1 mt-1 overflow-y-auto max-h-56 pr-1">
                         ${(p.brainrots || []).sort((a,b)=>b.Income-a.Income).map(b => `
-                            <div class="bg-black/40 p-1.5 rounded text-[10px] border border-slate-800/50">
-                                <div class="flex justify-between font-bold">
-                                    <span class="text-slate-200 uppercase">${b.Name}</span>
-                                    <span class="text-emerald-400">$${fM(b.Income)}</span>
+                            <div class="bg-black/30 p-2 rounded border border-slate-800/40">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-slate-200 truncate uppercase text-[10px]">${b.Name}</span>
+                                    <span class="font-mono text-emerald-400 text-[9px]">$${fM(b.Income)}</span>
                                 </div>
-                                <div class="flex flex-wrap gap-1 mt-1">
-                                    <span class="text-[7px] text-purple-400 font-bold uppercase">${b.Mutation}</span>
-                                    <span class="text-[7px] text-slate-500 uppercase">${b.Rarity}</span>
-                                    ${(b.Traits || []).map(t => `<span class="text-[7px] text-blue-300 italic">${t}</span>`).join('')}
+                                <div class="flex flex-wrap gap-1">
+                                    <span style="color: ${getColor('Mutations', b.Mutation)}" class="text-[8px] font-black uppercase">${b.Mutation}</span>
+                                    <span style="color: ${getColor('Rarities', b.Rarity)}" class="text-[8px] font-bold uppercase opacity-80">${b.Rarity}</span>
+                                    ${(b.Traits || []).map(t => `<span style="color: ${getColor('Traits', t)}" class="text-[8px] italic font-bold">· ${t}</span>`).join('')}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <button onclick="deletePlayer(${p.userId})" class="mt-1 text-[8px] text-slate-600 hover:text-red-500 text-right uppercase font-bold">Delete</button>
+                    <button onclick="deletePlayer(${p.userId})" class="text-[8px] text-slate-700 hover:text-red-500 mt-1 uppercase text-right">Delete Profile</button>
                 </div>`;
             }).join('');
             document.getElementById('total-income-all').innerText = `$${fM(globalIncome)}/s`;
-            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">${html}</div>`;
+            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">${html}</div>`;
         }
 
         function renderList(players) {
             const list = [];
             players.forEach(p => (p.brainrots || []).forEach(b => list.push({...b, pName: p.displayName})));
-            
-            // LOGIQUE DE TRI
             list.sort((a, b) => {
-                let valA = a[sortConfig.key];
-                let valB = b[sortConfig.key];
-                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
-                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
+                let vA = a[sortConfig.key], vB = b[sortConfig.key];
+                if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = vB.toLowerCase(); }
+                return sortConfig.direction === 'asc' ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
             });
-
-            const icon = (k) => sortConfig.key === k ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
-
+            const icon = (k) => sortConfig.key === k ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '';
+            
             document.getElementById('main-display').innerHTML = `
             <div class="overflow-x-auto rounded border border-slate-800 bg-[#111827]">
-                <table class="w-full text-left text-[11px]">
-                    <thead class="bg-black/50 text-slate-500 uppercase font-bold">
+                <table class="w-full text-left">
+                    <thead class="bg-black text-[10px] text-slate-500 uppercase font-black">
                         <tr>
-                            <th class="p-2 sort-header" onclick="setSort('pName')">Owner${icon('pName')}</th>
-                            <th class="p-2 sort-header" onclick="setSort('Name')">Unit${icon('Name')}</th>
-                            <th class="p-2 sort-header" onclick="setSort('Mutation')">Mutation${icon('Mutation')}</th>
-                            <th class="p-2 sort-header" onclick="setSort('Rarity')">Rarity${icon('Rarity')}</th>
-                            <th class="p-2">Traits</th>
-                            <th class="p-2 sort-header" onclick="setSort('Income')">Income${icon('Income')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('pName')">Owner ${icon('pName')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Name')">Unit ${icon('Name')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Mutation')">Mutation ${icon('Mutation')}</th>
+                            <th class="p-3 sort-header" onclick="setSort('Rarity')">Rarity ${icon('Rarity')}</th>
+                            <th class="p-3">Traits</th>
+                            <th class="p-3 sort-header" onclick="setSort('Income')">Income ${icon('Income')}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
                         ${list.map(b => `
                             <tr class="hover:bg-blue-600/5">
                                 <td class="p-2 font-bold text-blue-400">${b.pName}</td>
-                                <td class="p-2 text-white uppercase font-bold">${b.Name}</td>
-                                <td class="p-2 text-purple-400 text-[10px] uppercase font-bold">${b.Mutation}</td>
-                                <td class="p-2 text-slate-400 text-[10px] uppercase">${b.Rarity}</td>
-                                <td class="p-2 text-slate-500 italic text-[9px]">${(b.Traits||[]).join(', ')}</td>
-                                <td class="p-2 font-mono text-emerald-400 font-bold">$${fM(b.Income)}/s</td>
+                                <td class="p-2 text-white font-black uppercase text-xs">${b.Name}</td>
+                                <td class="p-2 font-black uppercase text-[10px]" style="color: ${getColor('Mutations', b.Mutation)}">${b.Mutation}</td>
+                                <td class="p-2 font-bold uppercase text-[10px]" style="color: ${getColor('Rarities', b.Rarity)}">${b.Rarity}</td>
+                                <td class="p-2">
+                                    ${(b.Traits||[]).map(t => `<span style="color: ${getColor('Traits', t)}" class="text-[9px] font-bold mr-1 italic">${t}</span>`).join('')}
+                                </td>
+                                <td class="p-2 font-mono text-emerald-400 font-black text-xs">$${fM(b.Income)}/s</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -193,8 +193,8 @@
             </div>`;
         }
 
-        async function deletePlayer(id) { if(confirm("Delete Player?")) await fetch(`/api/client/${id}`, {method:'DELETE'}); }
-        async function clearDB() { if(confirm("Clear All?")) await fetch('/api/clear-database', {method:'POST'}); }
+        async function deletePlayer(id) { if(confirm("Supprimer ce profil ?")) await fetch(`/api/client/${id}`, {method:'DELETE'}); }
+        async function clearDB() { if(confirm("Vider la base ?")) await fetch('/api/clear-database', {method:'POST'}); }
     </script>
 </body>
 </html>
