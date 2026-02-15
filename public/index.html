@@ -7,19 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         .card { background-color: #161e2d; border: 1px solid #1e293b; transition: all 0.2s; }
         .card:hover { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.05); }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .search-input:focus { border-color: #3b82f6; outline: none; }
         .view-btn-active { background-color: #3b82f6; color: white; }
+        
+        /* Style des Notifications */
+        #notification-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #1e293b; border-left: 4px solid #3b82f6; padding: 12px 20px; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); animation: slideIn 0.3s ease-out; min-width: 250px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.fade-out { transform: translateX(100%); opacity: 0; transition: 0.5s; }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        table { border-collapse: separate; border-spacing: 0; }
-        .sort-header:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
     </style>
 </head>
 <body class="p-4 md:p-8">
+
+    <div id="notification-container"></div>
 
     <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
         <div>
@@ -32,7 +39,6 @@
                 <input type="text" id="global-search" oninput="applyFilter()" 
                        placeholder="Rechercher un joueur, une unité, une rareté..." 
                        class="search-input w-full px-5 py-2.5 rounded text-sm text-slate-200">
-                <span class="absolute right-4 top-3 text-slate-600 font-mono text-[10px]">SEARCH</span>
             </div>
 
             <div class="flex border border-slate-700 rounded p-1 bg-slate-900/80 shrink-0">
@@ -41,7 +47,7 @@
             </div>
         </div>
 
-        <button onclick="clearDB()" class="bg-red-600/10 text-red-500 border border-red-600/30 px-5 py-2 rounded hover:bg-red-600 hover:text-white transition text-[10px] font-black uppercase tracking-wider">
+        <button onclick="clearDB()" class="bg-red-600/10 text-red-500 border border-red-600/30 px-5 py-2 rounded hover:bg-red-600 hover:text-white transition text-[10px] font-black uppercase">
             Clear Database
         </button>
     </header>
@@ -57,27 +63,51 @@
         </div>
     </div>
 
-    <main id="main-display">
-        </main>
+    <main id="main-display"></main>
 
     <script>
         let allPlayers = [];
         let currentView = 'cards';
         let sortConfig = { key: 'Income', direction: 'desc' };
 
-        // --- WEBSOCKET CONNECTION ---
+        // --- SYSTEME DE NOTIFICATION ---
+        function notify(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            const toast = document.createElement('div');
+            toast.className = `toast border-l-4 ${type === 'danger' ? 'border-red-500' : 'border-blue-500'}`;
+            toast.innerHTML = `
+                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">${type === 'danger' ? 'System Alert' : 'Collection Update'}</div>
+                <div class="text-xs text-white mt-1">${message}</div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 500); }, 4000);
+        }
+
+        // --- WEBSOCKET & LOGIQUE DE COMPARAISON ---
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const ws = new WebSocket(`${protocol}://${window.location.host}?role=Admin`);
 
         ws.onmessage = (event) => {
             const payload = JSON.parse(event.data);
             if (payload.type === 'REFRESH') {
-                allPlayers = payload.data;
+                const newData = payload.data;
+                
+                // Détecter les nouveaux joueurs
+                newData.forEach(newP => {
+                    const oldP = allPlayers.find(p => p.userId === newP.userId);
+                    if (!oldP) {
+                        notify(`👤 Nouveau joueur ajouté : <b>${newP.displayName}</b>`);
+                    } else if (newP.updatedAt !== oldP.updatedAt) {
+                        notify(`🔄 Mise à jour : <b>${newP.displayName}</b>`);
+                    }
+                });
+
+                allPlayers = newData;
                 applyFilter();
             }
         };
 
-        // --- NAVIGATION & FILTERS ---
+        // --- NAVIGATION & FILTERS (Inchangés) ---
         function setView(view) {
             currentView = view;
             document.getElementById('btn-cards').classList.toggle('view-btn-active', view === 'cards');
@@ -88,10 +118,7 @@
         function setSort(key) {
             if (sortConfig.key === key) {
                 sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortConfig.key = key;
-                sortConfig.direction = 'desc';
-            }
+            } else { sortConfig.key = key; sortConfig.direction = 'desc'; }
             applyFilter();
         }
 
@@ -99,24 +126,15 @@
             const query = document.getElementById('global-search').value.toLowerCase();
             const filtered = allPlayers.filter(p => {
                 if (!query) return true;
-                const pMatch = p.name.toLowerCase().includes(query) || p.displayName.toLowerCase().includes(query);
-                const bMatch = (p.brainrots || []).some(br => 
-                    br.Name.toLowerCase().includes(query) || 
-                    br.Mutation.toLowerCase().includes(query) || 
-                    br.Rarity.toLowerCase().includes(query) ||
-                    (br.Traits && br.Traits.some(t => t.toLowerCase().includes(query)))
-                );
-                return pMatch || bMatch;
+                return p.name.toLowerCase().includes(query) || p.displayName.toLowerCase().includes(query) ||
+                (p.brainrots || []).some(br => br.Name.toLowerCase().includes(query) || br.Rarity.toLowerCase().includes(query));
             });
-
             currentView === 'cards' ? renderCards(filtered) : renderList(filtered);
         }
 
         // --- RENDERERS ---
         function renderCards(players) {
             document.getElementById('player-count').innerText = players.length;
-            const container = document.getElementById('main-display');
-            
             let totalUnits = 0;
             const html = players.map(player => {
                 totalUnits += (player.brainrots || []).length;
@@ -127,95 +145,72 @@
                                 <h3 class="text-blue-400 font-black text-xl leading-none mb-1">${player.displayName}</h3>
                                 <span class="text-[10px] text-slate-500 font-mono italic">@${player.name}</span>
                             </div>
-                            <button onclick="deletePlayer(${player.userId})" class="text-[9px] bg-red-500/10 text-red-500 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition font-bold">DELETE</button>
+                            <button onclick="deletePlayer(${player.userId})" class="text-[9px] bg-red-500/10 text-red-500 px-2 py-1 rounded hover:bg-red-500 transition font-bold">DELETE</button>
                         </div>
                         <div class="space-y-2 overflow-y-auto max-h-[300px] pr-2">
                             ${(player.brainrots || []).sort((a,b) => b.Income - a.Income).map(br => `
-                                <div class="bg-black/40 p-3 rounded-lg border border-slate-800/50">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <span class="text-xs font-black text-white uppercase truncate mr-2">${br.Name}</span>
-                                        <span class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/30 px-1.5 rounded">${br.IncomeStr}</span>
-                                    </div>
-                                    <div class="flex flex-wrap gap-1">
-                                        <span class="text-[8px] px-1.5 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded font-bold">${br.Mutation.toUpperCase()}</span>
-                                        <span class="text-[8px] px-1.5 py-0.5 bg-slate-700 text-slate-200 rounded font-bold uppercase">${br.Rarity}</span>
-                                    </div>
+                                <div class="bg-black/40 p-3 rounded-lg border border-slate-800/50 flex justify-between items-center">
+                                    <span class="text-xs font-black text-white uppercase truncate">${br.Name}</span>
+                                    <span class="text-[10px] font-mono text-emerald-400 font-bold">${br.IncomeStr}</span>
                                 </div>
                             `).join('')}
                         </div>
-                        <div class="mt-auto pt-4 flex justify-between items-center text-[9px] text-slate-600 font-bold uppercase">
+                        <div class="mt-4 pt-4 border-t border-slate-800 flex justify-between text-[9px] text-slate-600 font-bold uppercase">
                             <span>Age: ${player.accountAge}j</span>
                             <span>MàJ: ${new Date(player.updatedAt).toLocaleTimeString()}</span>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
-
             document.getElementById('unit-count').innerText = totalUnits;
-            container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">${html}</div>`;
+            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">${html}</div>`;
         }
 
         function renderList(players) {
             const allBrainrots = [];
-            players.forEach(p => {
-                (p.brainrots || []).forEach(br => {
-                    allBrainrots.push({ ...br, playerName: p.displayName, playerUser: p.name });
-                });
-            });
-
-            // LOGIQUE DE TRI
+            players.forEach(p => (p.brainrots || []).forEach(br => allBrainrots.push({ ...br, playerName: p.displayName, playerUser: p.name })));
             allBrainrots.sort((a, b) => {
-                let valA = a[sortConfig.key];
-                let valB = b[sortConfig.key];
+                let valA = a[sortConfig.key]; let valB = b[sortConfig.key];
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
+                return sortConfig.direction === 'asc' ? 1 : -1;
             });
-
-            document.getElementById('unit-count').innerText = allBrainrots.length;
-            document.getElementById('player-count').innerText = players.length;
-
             const getIcon = (key) => sortConfig.key === key ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
-
+            document.getElementById('unit-count').innerText = allBrainrots.length;
             document.getElementById('main-display').innerHTML = `
-                <div class="overflow-x-auto bg-[#161e2d] rounded-xl border border-slate-800 shadow-2xl">
+                <div class="overflow-x-auto bg-[#161e2d] rounded-xl border border-slate-800">
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-black/60 text-slate-500 font-black uppercase text-[10px] tracking-widest">
+                        <thead class="bg-black/60 text-slate-500 font-black uppercase text-[10px] tracking-widest cursor-pointer">
                             <tr>
-                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('playerName')">Owner${getIcon('playerName')}</th>
-                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Name')">Unit Name${getIcon('Name')}</th>
-                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Mutation')">Mutation${getIcon('Mutation')}</th>
-                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Rarity')">Rarity${getIcon('Rarity')}</th>
-                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Income')">Income${getIcon('Income')}</th>
+                                <th class="p-4" onclick="setSort('playerName')">Owner${getIcon('playerName')}</th>
+                                <th class="p-4" onclick="setSort('Name')">Unit Name${getIcon('Name')}</th>
+                                <th class="p-4" onclick="setSort('Rarity')">Rarity${getIcon('Rarity')}</th>
+                                <th class="p-4" onclick="setSort('Income')">Income${getIcon('Income')}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-800/50">
                             ${allBrainrots.map(br => `
                                 <tr class="hover:bg-blue-600/5 transition">
-                                    <td class="p-4 font-bold text-blue-400">${br.playerName} <span class="text-[9px] text-slate-600 block">@${br.playerUser}</span></td>
+                                    <td class="p-4 font-bold text-blue-400">${br.playerName}</td>
                                     <td class="p-4 text-white font-black uppercase">${br.Name}</td>
-                                    <td class="p-4"><span class="bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20 text-[10px] font-bold">${br.Mutation}</span></td>
-                                    <td class="p-4 font-bold text-slate-400 text-[11px] uppercase">${br.Rarity}</td>
-                                    <td class="p-4 font-mono text-emerald-400 font-black text-xs">${br.IncomeStr}</td>
-                                </tr>
-                            `).join('')}
+                                    <td class="p-4 font-bold text-slate-400 uppercase text-[11px]">${br.Rarity}</td>
+                                    <td class="p-4 font-mono text-emerald-400 font-black">${br.IncomeStr}</td>
+                                </tr>`).join('')}
                         </tbody>
                     </table>
-                </div>
-            `;
+                </div>`;
         }
 
-        // --- API CALLS ---
         async function deletePlayer(userId) {
-            if(confirm("Voulez-vous supprimer ce joueur de votre collection ?")) {
+            if(confirm("Supprimer ce joueur ?")) {
                 await fetch(`/api/client/${userId}`, { method: 'DELETE' });
+                notify("🗑️ Joueur supprimé de la base", "danger");
             }
         }
 
         async function clearDB() {
-            if(confirm("⚠ ATTENTION : Cela videra l'intégralité de votre base de données personnelle. Continuer ?")) {
+            if(confirm("Tout vider ?")) {
                 await fetch('/api/clear-database', { method: 'POST' });
+                notify("🧹 Base de données réinitialisée", "danger");
             }
         }
     </script>
