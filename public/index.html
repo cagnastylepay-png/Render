@@ -6,51 +6,66 @@
     <title>M4GIX Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
         .card { background-color: #161e2d; border: 1px solid #1e293b; transition: all 0.2s; }
-        .card:hover { border-color: #3b82f6; }
+        .card:hover { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.05); }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .search-input:focus { border-color: #3b82f6; outline: none; }
         .view-btn-active { background-color: #3b82f6; color: white; }
-        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        table { border-collapse: separate; border-spacing: 0 4px; }
+        table { border-collapse: separate; border-spacing: 0; }
+        .sort-header:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
     </style>
 </head>
-<body class="p-6">
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+<body class="p-4 md:p-8">
+
+    <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
         <div>
-            <h1 class="text-2xl font-black tracking-tighter text-blue-500 italic">M4GIX <span class="text-white">HUB</span></h1>
-            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Advanced Monitoring System</p>
+            <h1 class="text-3xl font-black tracking-tighter text-blue-500 italic">M4GIX <span class="text-white">HUB</span></h1>
+            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Database & Collection Manager</p>
         </div>
         
-        <div class="flex flex-1 justify-center gap-2">
-            <div class="relative w-full max-w-md">
-                <input type="text" id="global-search" oninput="applyFilter()" placeholder="Rechercher nom, rareté, trait..." 
-                       class="search-input w-full px-4 py-2 rounded text-sm text-slate-200">
+        <div class="flex flex-col md:flex-row flex-1 justify-center items-center gap-4 w-full max-w-3xl">
+            <div class="relative w-full">
+                <input type="text" id="global-search" oninput="applyFilter()" 
+                       placeholder="Rechercher un joueur, une unité, une rareté..." 
+                       class="search-input w-full px-5 py-2.5 rounded text-sm text-slate-200">
+                <span class="absolute right-4 top-3 text-slate-600 font-mono text-[10px]">SEARCH</span>
             </div>
-            <div class="flex border border-slate-700 rounded overflow-hidden p-1 bg-slate-900/50">
-                <button onclick="setView('cards')" id="btn-cards" class="px-3 py-1 text-[10px] font-bold uppercase rounded transition view-btn-active">Cards</button>
-                <button onclick="setView('list')" id="btn-list" class="px-3 py-1 text-[10px] font-bold uppercase rounded transition text-slate-400">List</button>
+
+            <div class="flex border border-slate-700 rounded p-1 bg-slate-900/80 shrink-0">
+                <button onclick="setView('cards')" id="btn-cards" class="px-4 py-1.5 text-[10px] font-black uppercase rounded transition view-btn-active">Cards View</button>
+                <button onclick="setView('list')" id="btn-list" class="px-4 py-1.5 text-[10px] font-black uppercase rounded transition text-slate-400">Global List</button>
             </div>
         </div>
 
-        <button onclick="clearDB()" class="text-[10px] bg-red-600/10 text-red-500 border border-red-600/30 px-4 py-2 rounded hover:bg-red-600 hover:text-white transition font-bold">CLEAR DATABASE</button>
+        <button onclick="clearDB()" class="bg-red-600/10 text-red-500 border border-red-600/30 px-5 py-2 rounded hover:bg-red-600 hover:text-white transition text-[10px] font-black uppercase tracking-wider">
+            Clear Database
+        </button>
     </header>
 
-    <div id="stats-bar" class="mb-6 flex gap-4">
-        <div class="bg-blue-600/10 border border-blue-600/20 px-4 py-2 rounded">
-            <span class="text-[10px] text-slate-500 uppercase block">Players</span>
-            <span id="player-count" class="text-xl font-black text-blue-400">0</span>
+    <div id="stats-bar" class="mb-8 flex flex-wrap gap-4">
+        <div class="bg-blue-600/10 border border-blue-600/20 px-6 py-3 rounded-lg min-w-[140px]">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Total Players</span>
+            <span id="player-count" class="text-2xl font-black text-blue-400">0</span>
+        </div>
+        <div class="bg-emerald-600/10 border border-emerald-600/20 px-6 py-3 rounded-lg min-w-[140px]">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Total Units</span>
+            <span id="unit-count" class="text-2xl font-black text-emerald-400">0</span>
         </div>
     </div>
 
-    <div id="main-display"></div>
+    <main id="main-display">
+        </main>
 
     <script>
         let allPlayers = [];
         let currentView = 'cards';
+        let sortConfig = { key: 'Income', direction: 'desc' };
 
+        // --- WEBSOCKET CONNECTION ---
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const ws = new WebSocket(`${protocol}://${window.location.host}?role=Admin`);
 
@@ -62,10 +77,21 @@
             }
         };
 
+        // --- NAVIGATION & FILTERS ---
         function setView(view) {
             currentView = view;
             document.getElementById('btn-cards').classList.toggle('view-btn-active', view === 'cards');
             document.getElementById('btn-list').classList.toggle('view-btn-active', view === 'list');
+            applyFilter();
+        }
+
+        function setSort(key) {
+            if (sortConfig.key === key) {
+                sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortConfig.key = key;
+                sortConfig.direction = 'desc';
+            }
             applyFilter();
         }
 
@@ -77,7 +103,8 @@
                 const bMatch = (p.brainrots || []).some(br => 
                     br.Name.toLowerCase().includes(query) || 
                     br.Mutation.toLowerCase().includes(query) || 
-                    br.Rarity.toLowerCase().includes(query)
+                    br.Rarity.toLowerCase().includes(query) ||
+                    (br.Traits && br.Traits.some(t => t.toLowerCase().includes(query)))
                 );
                 return pMatch || bMatch;
             });
@@ -85,34 +112,50 @@
             currentView === 'cards' ? renderCards(filtered) : renderList(filtered);
         }
 
+        // --- RENDERERS ---
         function renderCards(players) {
             document.getElementById('player-count').innerText = players.length;
             const container = document.getElementById('main-display');
-            container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">${
-                players.map(player => `
-                    <div class="card p-5 rounded">
-                        <div class="flex justify-between items-start mb-4 border-b border-slate-800 pb-2">
+            
+            let totalUnits = 0;
+            const html = players.map(player => {
+                totalUnits += (player.brainrots || []).length;
+                return `
+                    <div class="card p-6 rounded-xl flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-4 border-b border-slate-800 pb-3">
                             <div>
-                                <h3 class="text-blue-400 font-black text-lg">${player.displayName}</h3>
-                                <span class="text-[9px] text-slate-500 font-mono">@${player.name}</span>
+                                <h3 class="text-blue-400 font-black text-xl leading-none mb-1">${player.displayName}</h3>
+                                <span class="text-[10px] text-slate-500 font-mono italic">@${player.name}</span>
                             </div>
-                            <button onclick="deletePlayer(${player.userId})" class="text-[9px] text-red-500 font-bold hover:underline">DELETE</button>
+                            <button onclick="deletePlayer(${player.userId})" class="text-[9px] bg-red-500/10 text-red-500 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition font-bold">DELETE</button>
                         </div>
-                        <div class="space-y-2">
-                            ${(player.brainrots || []).map(br => `
-                                <div class="bg-black/30 p-2 rounded text-[11px] flex justify-between border border-slate-800/30">
-                                    <span class="font-bold text-white uppercase">${br.Name}</span>
-                                    <span class="text-emerald-400 font-mono">${br.IncomeStr}</span>
+                        <div class="space-y-2 overflow-y-auto max-h-[300px] pr-2">
+                            ${(player.brainrots || []).sort((a,b) => b.Income - a.Income).map(br => `
+                                <div class="bg-black/40 p-3 rounded-lg border border-slate-800/50">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-xs font-black text-white uppercase truncate mr-2">${br.Name}</span>
+                                        <span class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/30 px-1.5 rounded">${br.IncomeStr}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <span class="text-[8px] px-1.5 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded font-bold">${br.Mutation.toUpperCase()}</span>
+                                        <span class="text-[8px] px-1.5 py-0.5 bg-slate-700 text-slate-200 rounded font-bold uppercase">${br.Rarity}</span>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
+                        <div class="mt-auto pt-4 flex justify-between items-center text-[9px] text-slate-600 font-bold uppercase">
+                            <span>Age: ${player.accountAge}j</span>
+                            <span>MàJ: ${new Date(player.updatedAt).toLocaleTimeString()}</span>
+                        </div>
                     </div>
-                `).join('')
-            }</div>`;
+                `;
+            }).join('');
+
+            document.getElementById('unit-count').innerText = totalUnits;
+            container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">${html}</div>`;
         }
 
         function renderList(players) {
-            // Aplatir tous les brainrots dans un seul tableau pour la vue liste
             const allBrainrots = [];
             players.forEach(p => {
                 (p.brainrots || []).forEach(br => {
@@ -120,30 +163,41 @@
                 });
             });
 
-            // Trier par revenu descendant
-            allBrainrots.sort((a,b) => (b.Income || 0) - (a.Income || 0));
+            // LOGIQUE DE TRI
+            allBrainrots.sort((a, b) => {
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
 
-            const container = document.getElementById('main-display');
-            container.innerHTML = `
-                <div class="overflow-x-auto bg-[#161e2d] rounded border border-slate-800">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-black/40 text-slate-400 font-bold uppercase">
+            document.getElementById('unit-count').innerText = allBrainrots.length;
+            document.getElementById('player-count').innerText = players.length;
+
+            const getIcon = (key) => sortConfig.key === key ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
+
+            document.getElementById('main-display').innerHTML = `
+                <div class="overflow-x-auto bg-[#161e2d] rounded-xl border border-slate-800 shadow-2xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-black/60 text-slate-500 font-black uppercase text-[10px] tracking-widest">
                             <tr>
-                                <th class="p-4">Owner</th>
-                                <th class="p-4">Brainrot</th>
-                                <th class="p-4">Mutation</th>
-                                <th class="p-4">Rarity</th>
-                                <th class="p-4">Income</th>
+                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('playerName')">Owner${getIcon('playerName')}</th>
+                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Name')">Unit Name${getIcon('Name')}</th>
+                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Mutation')">Mutation${getIcon('Mutation')}</th>
+                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Rarity')">Rarity${getIcon('Rarity')}</th>
+                                <th class="p-4 sort-header cursor-pointer transition" onclick="setSort('Income')">Income${getIcon('Income')}</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-slate-800/50">
                             ${allBrainrots.map(br => `
-                                <tr class="hover:bg-blue-600/5 transition border-t border-slate-800/50">
-                                    <td class="p-4 font-bold text-blue-400">${br.playerName} <span class="text-[9px] text-slate-500 block">@${br.playerUser}</span></td>
-                                    <td class="p-4 text-white font-bold uppercase">${br.Name}</td>
-                                    <td class="p-4"><span class="bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">${br.Mutation}</span></td>
-                                    <td class="p-4 font-bold text-slate-400">${br.Rarity}</td>
-                                    <td class="p-4 font-mono text-emerald-400 font-bold">${br.IncomeStr}</td>
+                                <tr class="hover:bg-blue-600/5 transition">
+                                    <td class="p-4 font-bold text-blue-400">${br.playerName} <span class="text-[9px] text-slate-600 block">@${br.playerUser}</span></td>
+                                    <td class="p-4 text-white font-black uppercase">${br.Name}</td>
+                                    <td class="p-4"><span class="bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20 text-[10px] font-bold">${br.Mutation}</span></td>
+                                    <td class="p-4 font-bold text-slate-400 text-[11px] uppercase">${br.Rarity}</td>
+                                    <td class="p-4 font-mono text-emerald-400 font-black text-xs">${br.IncomeStr}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -152,12 +206,17 @@
             `;
         }
 
+        // --- API CALLS ---
         async function deletePlayer(userId) {
-            if(confirm("Supprimer ce joueur ?")) await fetch(`/api/client/${userId}`, { method: 'DELETE' });
+            if(confirm("Voulez-vous supprimer ce joueur de votre collection ?")) {
+                await fetch(`/api/client/${userId}`, { method: 'DELETE' });
+            }
         }
 
         async function clearDB() {
-            if(confirm("Vider toute la base ?")) await fetch('/api/clear-database', { method: 'POST' });
+            if(confirm("⚠ ATTENTION : Cela videra l'intégralité de votre base de données personnelle. Continuer ?")) {
+                await fetch('/api/clear-database', { method: 'POST' });
+            }
         }
     </script>
 </body>
