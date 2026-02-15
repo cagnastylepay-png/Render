@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX HUB v2</title>
+    <title>M4GIX HUB v2.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
@@ -11,6 +11,8 @@
         .card { background-color: #111827; border: 1px solid #1f2937; }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .view-btn-active { background-color: #3b82f6; color: white; }
+        .sort-header { cursor: pointer; transition: color 0.2s; }
+        .sort-header:hover { color: #3b82f6; }
         #notification-container { position: fixed; bottom: 15px; right: 15px; z-index: 9999; }
         .toast { background: #1f2937; border-left: 4px solid #3b82f6; padding: 8px 15px; margin-top: 5px; border-radius: 4px; animation: slideIn 0.3s ease; }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -31,7 +33,7 @@
             </div>
         </div>
         
-        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Filter collection..." 
+        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Filter collection (Unit, Rarity, Player...)" 
                class="search-input flex-1 max-w-md px-3 py-1.5 rounded text-xs focus:border-blue-500 outline-none">
 
         <button onclick="clearDB()" class="text-[10px] text-red-500 font-bold hover:bg-red-500/10 px-2 py-1 rounded">CLEAR ALL</button>
@@ -55,13 +57,12 @@
         let currentView = 'cards';
         let sortConfig = { key: 'Income', direction: 'desc' };
 
-        // Formattage Argent
         const fM = (v) => {
             if (v >= 1e12) return (v/1e12).toFixed(1) + "T";
             if (v >= 1e9) return (v/1e9).toFixed(1) + "B";
             if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
             if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
-            return v.toFixed(1);
+            return (v || 0).toFixed(1);
         };
 
         const notify = (m) => {
@@ -90,6 +91,16 @@
             applyFilter();
         }
 
+        function setSort(key) {
+            if (sortConfig.key === key) {
+                sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortConfig.key = key;
+                sortConfig.direction = 'desc';
+            }
+            applyFilter();
+        }
+
         function applyFilter() {
             const q = document.getElementById('global-search').value.toLowerCase();
             const filtered = allPlayers.filter(p => 
@@ -102,39 +113,37 @@
         function renderCards(players) {
             document.getElementById('player-count').innerText = players.length;
             let globalIncome = 0;
-            
             const html = players.map(p => {
                 const pIncome = (p.brainrots || []).reduce((s, b) => s + (b.Income || 0), 0);
                 globalIncome += pIncome;
                 return `
-                <div class="card p-3 rounded-md flex flex-col gap-2 relative overflow-hidden">
+                <div class="card p-3 rounded-md flex flex-col gap-2 relative">
                     <div class="absolute top-0 right-0 p-1 bg-blue-500/10 text-[8px] font-bold text-blue-400">#${(p.brainrots || []).length} UNITS</div>
                     <div class="border-b border-slate-800 pb-2">
                         <div class="font-black text-blue-400 text-sm truncate">${p.displayName}</div>
                         <div class="text-[9px] text-slate-500 flex justify-between">
-                            <span>@${p.name} (${p.accountAge}d)</span>
+                            <span>@${p.name}</span>
                             <span class="text-emerald-500 font-bold">$${fM(pIncome)}/s</span>
                         </div>
                     </div>
                     <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
                         ${(p.brainrots || []).sort((a,b)=>b.Income-a.Income).map(b => `
                             <div class="bg-black/40 p-1.5 rounded text-[10px] border border-slate-800/50">
-                                <div class="flex justify-between font-bold mb-0.5">
+                                <div class="flex justify-between font-bold">
                                     <span class="text-slate-200 uppercase">${b.Name}</span>
                                     <span class="text-emerald-400">$${fM(b.Income)}</span>
                                 </div>
-                                <div class="flex flex-wrap gap-1 items-center">
-                                    <span class="text-[8px] text-purple-400 uppercase font-bold">${b.Mutation}</span>
-                                    <span class="px-1 bg-slate-800 rounded text-[7px] text-slate-400 uppercase">${b.Rarity}</span>
-                                    ${(b.Traits || []).map(t => `<span class="text-[7px] text-blue-300 italic">· ${t}</span>`).join('')}
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    <span class="text-[7px] text-purple-400 font-bold uppercase">${b.Mutation}</span>
+                                    <span class="text-[7px] text-slate-500 uppercase">${b.Rarity}</span>
+                                    ${(b.Traits || []).map(t => `<span class="text-[7px] text-blue-300 italic">${t}</span>`).join('')}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <button onclick="deletePlayer(${p.userId})" class="mt-2 text-[8px] text-slate-600 hover:text-red-500 text-right uppercase font-bold tracking-widest">Delete Profile</button>
+                    <button onclick="deletePlayer(${p.userId})" class="mt-1 text-[8px] text-slate-600 hover:text-red-500 text-right uppercase font-bold">Delete</button>
                 </div>`;
             }).join('');
-            
             document.getElementById('total-income-all').innerText = `$${fM(globalIncome)}/s`;
             document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">${html}</div>`;
         }
@@ -142,15 +151,30 @@
         function renderList(players) {
             const list = [];
             players.forEach(p => (p.brainrots || []).forEach(b => list.push({...b, pName: p.displayName})));
-            list.sort((a,b) => b.Income - a.Income);
             
+            // LOGIQUE DE TRI
+            list.sort((a, b) => {
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            const icon = (k) => sortConfig.key === k ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
+
             document.getElementById('main-display').innerHTML = `
             <div class="overflow-x-auto rounded border border-slate-800 bg-[#111827]">
                 <table class="w-full text-left text-[11px]">
                     <thead class="bg-black/50 text-slate-500 uppercase font-bold">
                         <tr>
-                            <th class="p-2">Owner</th><th class="p-2">Name</th><th class="p-2">Mutation</th>
-                            <th class="p-2">Rarity</th><th class="p-2">Traits</th><th class="p-2">Income</th>
+                            <th class="p-2 sort-header" onclick="setSort('pName')">Owner${icon('pName')}</th>
+                            <th class="p-2 sort-header" onclick="setSort('Name')">Unit${icon('Name')}</th>
+                            <th class="p-2 sort-header" onclick="setSort('Mutation')">Mutation${icon('Mutation')}</th>
+                            <th class="p-2 sort-header" onclick="setSort('Rarity')">Rarity${icon('Rarity')}</th>
+                            <th class="p-2">Traits</th>
+                            <th class="p-2 sort-header" onclick="setSort('Income')">Income${icon('Income')}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
@@ -158,9 +182,9 @@
                             <tr class="hover:bg-blue-600/5">
                                 <td class="p-2 font-bold text-blue-400">${b.pName}</td>
                                 <td class="p-2 text-white uppercase font-bold">${b.Name}</td>
-                                <td class="p-2 text-purple-400">${b.Mutation}</td>
-                                <td class="p-2 text-slate-400 uppercase">${b.Rarity}</td>
-                                <td class="p-2 text-slate-500 italic">${(b.Traits||[]).join(', ')}</td>
+                                <td class="p-2 text-purple-400 text-[10px] uppercase font-bold">${b.Mutation}</td>
+                                <td class="p-2 text-slate-400 text-[10px] uppercase">${b.Rarity}</td>
+                                <td class="p-2 text-slate-500 italic text-[9px]">${(b.Traits||[]).join(', ')}</td>
                                 <td class="p-2 font-mono text-emerald-400 font-bold">$${fM(b.Income)}/s</td>
                             </tr>
                         `).join('')}
@@ -169,8 +193,8 @@
             </div>`;
         }
 
-        async function deletePlayer(id) { if(confirm("Delete?")) await fetch(`/api/client/${id}`, {method:'DELETE'}); }
-        async function clearDB() { if(confirm("Clear?")) await fetch('/api/clear-database', {method:'POST'}); }
+        async function deletePlayer(id) { if(confirm("Delete Player?")) await fetch(`/api/client/${id}`, {method:'DELETE'}); }
+        async function clearDB() { if(confirm("Clear All?")) await fetch('/api/clear-database', {method:'POST'}); }
     </script>
 </body>
 </html>
