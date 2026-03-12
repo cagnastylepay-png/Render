@@ -127,7 +127,7 @@
 
         const getCol = (cat, val) => COLORS[cat][val] || '#94a3b8';
 
-        const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`);
+        const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/?username=dashboard`);
         ws.onmessage = (e) => {
             const p = JSON.parse(e.data);
             if (p.type === 'REFRESH') {
