@@ -8,72 +8,102 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// --- UTILITAIRES DE LOG ---
+const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+
 // --- MONGODB ---
 const MONGO_URI = process.env.MONGO_URI;
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("✅ [DB] MongoDB Connecté"))
-  .catch(err => console.error("❌ [DB] Erreur :", err));
+  .then(() => log("✅ [DB] Connexion établie avec succès"))
+  .catch(err => log(`❌ [DB] ERREUR DE CONNEXION : ${err}`));
 
-const ClientModel = mongoose.model('Client', new mongoose.Schema({
+const ClientSchema = new mongoose.Schema({
     userId: { type: Number, unique: true },
     name: String,
     displayName: String,
     accountAge: Number,
     brainrots: mongoose.Schema.Types.Mixed, 
     updatedAt: { type: Date, default: Date.now }
-}, { strict: false }));
+}, { strict: false });
+
+const ClientModel = mongoose.model('Client', ClientSchema);
 
 // --- GESTION CLIENTS ---
-const activeBots = new Map();     
+const activeBots = new Map();      
 const activeDashboards = new Set(); 
 
 async function broadcastToDashboard() {
+    log(`📡 Diffusion mise à jour vers ${activeDashboards.size} dashboard(s)...`);
     try {
         const allClients = await ClientModel.find({});
         const onlineBots = Array.from(activeBots.keys());
         const payload = JSON.stringify({ type: 'REFRESH', data: allClients, online: onlineBots });
-        activeDashboards.forEach(ws => { if (ws.readyState === WebSocket.OPEN) ws.send(payload); });
-    } catch (e) { console.error(e); }
+        activeDashboards.forEach(ws => { 
+            if (ws.readyState === WebSocket.OPEN) ws.send(payload); 
+        });
+    } catch (e) { log(`❌ [BROADCAST] Erreur : ${e.message}`); }
 }
 
-// --- ROUTES API (TOUT EN GET) ---
+// --- ROUTES API ---
 
-// 1. PING : Garder le serveur éveillé
-app.get('/ping', (req, res) => res.send("Pong !"));
+// 1. PING
+app.get('/ping', (req, res) => {
+    log("🔌 [HTTP] Ping reçu (Keep-alive)");
+    res.send("Pong !");
+});
 
-// 2. GET : Récupérer les données d'un joueur
+// 2. GET
 app.get('/api/get', async (req, res) => {
     const { username } = req.query;
+    log(`🔍 [API] Recherche du joueur : ${username}`);
     try {
         const data = await ClientModel.findOne({ name: username });
+        if (!data) log(`⚠️ [API] Joueur ${username} introuvable en DB`);
         res.json(data || { error: "Non trouvé" });
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        log(`❌ [API] Erreur GET : ${e.message}`);
+        res.status(500).send(e.message); 
+    }
 });
 
-// 3. REMOVE : Supprimer un joueur
+// 3. REMOVE
 app.get('/api/remove', async (req, res) => {
     const { username } = req.query;
+    log(`🗑️ [API] Demande de suppression : ${username}`);
     try {
-        await ClientModel.deleteOne({ name: username });
+        const result = await ClientModel.deleteOne({ name: username });
+        log(`✅ [API] ${result.deletedCount} document supprimé`);
         await broadcastToDashboard();
         res.send(`Joueur ${username} supprimé.`);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        log(`❌ [API] Erreur REMOVE : ${e.message}`);
+        res.status(500).send(e.message); 
+    }
 });
 
-// 4. CLEAR : Vider la DB
+// 4. CLEAR
 app.get('/api/clear', async (req, res) => {
+    log("🧹 [API] Vidage complet de la base de données...");
     try {
-        await ClientModel.deleteMany({});
+        const result = await ClientModel.deleteMany({});
+        log(`✅ [API] Base vidée (${result.deletedCount} entrées)`);
         await broadcastToDashboard();
         res.send("Base de données vidée.");
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        log(`❌ [API] Erreur CLEAR : ${e.message}`);
+        res.status(500).send(e.message); 
+    }
 });
 
-// 5. SEND TRADE : Envoyer l'ordre de trade (Relais WS)
-// Usage: /api/sendtrade?username=NOM_DU_BOT&receiver=NOM_CIBLE
+// 5. SEND TRADE
 app.get('/api/sendtrade', (req, res) => {
     const { username, receiver } = req.query;
-    if (!username || !receiver) return res.send("Erreur: Manque username ou receiver");
+    log(`📤 [TRADE] Tentative d'envoi : ${username} -> ${receiver}`);
+
+    if (!username || !receiver) {
+        log("❌ [TRADE] Paramètres manquants");
+        return res.send("Erreur: Manque username ou receiver");
+    }
 
     const botWs = activeBots.get(username);
     if (botWs && botWs.readyState === WebSocket.OPEN) {
@@ -81,8 +111,10 @@ app.get('/api/sendtrade', (req, res) => {
             Type: "TradeRequest",
             TargetUser: receiver
         }));
+        log(`🚀 [TRADE] Ordre envoyé avec succès au bot ${username}`);
         res.send(`Ordre de trade envoyé de ${username} vers ${receiver}`);
     } else {
+        log(`❌ [TRADE] Bot ${username} non connecté ou déconnecté`);
         res.send(`Erreur: Bot ${username} non connecté.`);
     }
 });
@@ -90,34 +122,65 @@ app.get('/api/sendtrade', (req, res) => {
 // --- WEBSOCKETS ---
 wss.on('connection', async (ws, req) => {
     const parameters = url.parse(req.url, true).query;
-    const username = parameters.username;
+    const username = parameters.username || "Unknown";
 
-    if (username === "dashboard") activeDashboards.add(ws);
-    else if (username) activeBots.set(username, ws);
+    if (username === "dashboard") {
+        activeDashboards.add(ws);
+        log(`🖥️ [WS] Dashboard connecté (${activeDashboards.size} actifs)`);
+    } else {
+        activeBots.set(username, ws);
+        log(`🤖 [WS] Bot connecté : ${username} (Total bots: ${activeBots.size})`);
+    }
 
-    if (username === "dashboard") await broadcastToDashboard();
+    // Mise à jour immédiate au dashboard
+    await broadcastToDashboard();
 
     ws.on('message', async (msg) => {
         try {
             const payload = JSON.parse(msg);
+            
+            if (payload.Type === "Ping") {
+                // Log de ping silencieux ou discret pour éviter de polluer
+                return; 
+            }
+
             if (payload.Method === "PlayerInfos") {
+                log(`💾 [WS] Données reçues pour : ${payload.Data.DisplayName} (@${payload.Data.Name})`);
                 await ClientModel.findOneAndUpdate(
                     { userId: payload.Data.UserId },
                     { ...payload.Data, updatedAt: new Date() },
-                    { upsert: true }
+                    { upsert: true, new: true }
                 );
                 await broadcastToDashboard();
+            } else {
+                log(`✉️ [WS] Message inconnu de ${username}: ${msg}`);
             }
-        } catch (e) { console.log("WS Error"); }
+        } catch (e) { 
+            log(`⚠️ [WS] Erreur de parsing message de ${username}: ${e.message}`); 
+        }
     });
 
     ws.on('close', () => {
-        if (username === "dashboard") activeDashboards.delete(ws);
-        else if (username) activeBots.delete(username);
+        if (username === "dashboard") {
+            activeDashboards.delete(ws);
+            log(`🖥️ [WS] Dashboard déconnecté`);
+        } else {
+            activeBots.delete(username);
+            log(`🤖 [WS] Bot déconnecté : ${username}`);
+        }
         broadcastToDashboard();
+    });
+
+    ws.on('error', (err) => {
+        log(`❌ [WS] Erreur sur la socket ${username}: ${err.message}`);
     });
 });
 
 app.use(express.static('public'));
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 API M4GIX ON PORT ${PORT}`));
+server.listen(PORT, () => {
+    console.log("------------------------------------------");
+    console.log(`🚀 SERVEUR M4GIX DÉMARRÉ SUR LE PORT ${PORT}`);
+    console.log(`📡 WebSocket URL: wss://votre-url.render.com/`);
+    console.log("------------------------------------------");
+});
