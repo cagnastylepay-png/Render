@@ -8,9 +8,12 @@ const { Server } = require("socket.io");
 const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
-const io = new Server(server);
-const server = http.createServer(app);
+// 1. On crée d'abord le serveur HTTP
+const server = http.createServer(app); 
+// 2. Ensuite on peut initialiser Socket.io et WebSocket dessus
+const io = new Server(server); 
 const wss = new WebSocket.Server({ server });
+
 const activeBots = new Map();      
 const MONGO_URI = process.env.MONGO_URI;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -48,6 +51,7 @@ function parseIncome(text) {
 
     return value * (multipliers[unit] || 1);
 }
+
 mongoose.connect(MONGO_URI)
   .then(() => log("✅ [DB] Connexion établie"))
   .catch(err => log(`❌ [DB] ERREUR : ${err}`));
@@ -131,7 +135,8 @@ discordClient.on('messageCreate', async (message) => {
             });
 
             const savedHit = await newHit.save();
-            io.emit('newHit', savedHit); // ENVOI TEMPS RÉEL AU DASHBOARD            log(`💾 [DB] Hit #${hitId} enregistré (${targetUsername}) - Items: ${itemsList.length}`);
+            io.emit('newHit', savedHit); // ENVOI TEMPS RÉEL AU DASHBOARD            
+            log(`💾 [DB] Hit #${hitId} enregistré (${targetUsername}) - Items: ${itemsList.length}`);
         } catch (err) {
             log(`❌ [DB-ERROR] Impossible de sauvegarder le hit: ${err.message}`);
         }
