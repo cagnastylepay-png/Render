@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX HUB - Full Chroma</title>
+    <title>M4GIX HUB - Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 11px; }
-        .card { background-color: #111827; border: 1px solid #1f2937; position: relative; overflow: hidden; }
+        .card { background-color: #111827; border: 1px solid #1f2937; position: relative; overflow: hidden; transition: all 0.2s; }
+        .card:hover { border-color: #3b82f6; transform: translateY(-2px); }
         .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #3b82f6; opacity: 0.5; }
         .search-input { background: #0f172a; border: 1px solid #334155; }
         .toast { background: #1f2937; border-left: 4px solid #3b82f6; padding: 10px; margin-top: 5px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
@@ -57,7 +58,7 @@
         };
 
         const fM = (v) => {
-            if (!v) return "0";
+            if (!v || isNaN(v)) return "0";
             if (v >= 1e12) return (v/1e12).toFixed(2) + "T";
             if (v >= 1e9) return (v/1e9).toFixed(2) + "B";
             if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
@@ -67,33 +68,22 @@
 
         const getCol = (cat, val) => COLORS[cat] && COLORS[cat][val] ? COLORS[cat][val] : '#94a3b8';
 
-        // --- WEBSOCKET CONFIG ---
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const ws = new WebSocket(`${protocol}://${window.location.host}/?username=dashboard`);
 
-        ws.onopen = () => console.log("✅ WebSocket connecté");
-        
         ws.onmessage = (e) => {
             try {
                 const payload = JSON.parse(e.data);
                 if (payload.type === 'REFRESH') {
-                    console.log("💾 Données reçues:", payload.data);
-                    allPlayers = payload.data;
+                    allPlayers = payload.data || [];
                     onlinePlayers = payload.online || [];
                     applyFilter();
                 }
-            } catch (err) {
-                console.error("❌ Erreur message WS:", err);
-            }
-        };
-
-        ws.onclose = () => {
-            console.warn("🔌 Connexion perdue, reconnexion...");
-            setTimeout(() => window.location.reload(), 5000);
+            } catch (err) { console.error("❌ WS Error:", err); }
         };
 
         async function dbAction(type, name = null) {
-            if (type === 'clear' && !confirm("Voulez-vous vraiment VIDER toute la base de données ?")) return;
+            if (type === 'clear' && !confirm("Vider la base de données ?")) return;
             if (type === 'remove' && !confirm(`Supprimer ${name} ?`)) return;
 
             const url = type === 'clear' ? '/api/clear' : `/api/remove?username=${name}`;
@@ -123,43 +113,42 @@
         function applyFilter() {
             const q = document.getElementById('global-search').value.toLowerCase();
             const filtered = allPlayers.filter(p => {
-                const nameMatch = (p.name || "").toLowerCase().includes(q) || (p.displayName || "").toLowerCase().includes(q);
-                const itemMatch = (p.brainrots || []).some(b => 
+                const nameMatch = (p.Name || "").toLowerCase().includes(q) || (p.DisplayName || "").toLowerCase().includes(q);
+                const itemMatch = (p.Brainrots || []).some(b => 
                     (b.Name || "").toLowerCase().includes(q) || 
                     (b.Rarity || "").toLowerCase().includes(q) || 
                     (b.Mutation || "").toLowerCase().includes(q)
                 );
                 return nameMatch || itemMatch;
             });
-            
             currentView === 'cards' ? renderCards(filtered) : renderList(filtered);
         }
 
         function renderCards(players) {
             let gIncome = 0;
             if (players.length === 0) {
-                document.getElementById('main-display').innerHTML = `<div class="text-center py-20 text-slate-600">Aucune donnée trouvée</div>`;
+                document.getElementById('main-display').innerHTML = `<div class="text-center py-20 text-slate-600 uppercase font-black tracking-widest">No data found</div>`;
                 return;
             }
 
             const html = players.map(p => {
-                const brainrots = p.brainrots || [];
-                const pInc = brainrots.reduce((s, b) => s + (b.Income || 0), 0);
-                const isOnline = onlinePlayers.includes(p.name);
+                const brainrots = p.Brainrots || [];
+                const pInc = brainrots.reduce((s, b) => s + (Number(b.Income) || 0), 0);
+                const isOnline = onlinePlayers.includes(p.Name);
                 gIncome += pInc;
 
                 return `
-                <div class="card p-3 rounded flex flex-col gap-2 transition-all ${isOnline ? 'ring-1 ring-emerald-500/50' : 'opacity-80'}">
+                <div class="card p-3 rounded flex flex-col gap-2 ${isOnline ? 'ring-1 ring-emerald-500/50' : 'opacity-80'}">
                     <div class="flex justify-between border-b border-slate-800 pb-2">
                         <div class="max-w-[120px]">
                             <div class="flex items-center gap-1">
                                 <span class="w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}"></span>
-                                <div class="font-black text-blue-400 truncate uppercase">${p.displayName || 'Unknown'}</div>
+                                <div class="font-black text-blue-400 truncate uppercase tracking-tighter">${p.DisplayName || 'Unknown'}</div>
                             </div>
-                            <div class="text-[8px] text-slate-600 font-mono">@${p.name || 'n/a'}</div>
+                            <div class="text-[8px] text-slate-600 font-mono">@${p.Name || 'n/a'}</div>
                         </div>
                         <div class="flex flex-col items-end">
-                             <button onclick="dbAction('remove', '${p.name}')" class="text-slate-600 hover:text-red-500 font-black text-xs">×</button>
+                             <button onclick="dbAction('remove', '${p.Name}')" class="text-slate-600 hover:text-red-500 font-black text-xs leading-none">×</button>
                              <div class="text-emerald-400 font-black">$${fM(pInc)}</div>
                         </div>
                     </div>
@@ -186,8 +175,7 @@
         }
 
         function renderList(players) {
-            // Logique de liste si besoin
-            document.getElementById('main-display').innerHTML = `<div class="p-4 bg-slate-900 rounded text-center">Vue liste en cours de développement...</div>`;
+            document.getElementById('main-display').innerHTML = `<div class="p-8 bg-slate-900/50 border border-slate-800 rounded text-center text-slate-500 font-bold uppercase tracking-widest animate-pulse">Global List View is under construction...</div>`;
         }
     </script>
 </body>
