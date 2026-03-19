@@ -11,7 +11,7 @@ const wss = new WebSocket.Server({ server });
 // Configuration & Connexion DB
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN; // Ta variable Render
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
@@ -31,10 +31,10 @@ const scriptSchema = new mongoose.Schema({
 const Script = mongoose.model('Script', scriptSchema);
 
 const logSchema = new mongoose.Schema({
-    username: String,      // Nom du bot
-    type: String,          // Info, Error, Success, Trade
-    message: String,       // Le contenu du log
-    timestamp: { type: Date, default: Date.now } // Date automatique
+    username: String,
+    type: String,
+    message: String,
+    timestamp: { type: Date, default: Date.now }
 });
 const BotLog = mongoose.model('BotLog', logSchema);
 
@@ -50,8 +50,8 @@ const authAdmin = (req, res, next) => {
     }
 };
 
-// --- ROUTES API SCRIPTS ---
-// Route simple pour vérifier le token depuis le front
+// --- ROUTES API ---
+
 app.get('/api/admin/verify', (req, res) => {
     if (req.query.token === ADMIN_TOKEN) {
         res.json({ success: true });
@@ -72,7 +72,6 @@ app.get('/api/logs', authAdmin, async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-// Admin : Effacer tous les logs
 app.get('/api/logs/clear', authAdmin, async (req, res) => {
     try {
         await BotLog.deleteMany({});
@@ -87,14 +86,12 @@ app.get('/api/scripts', async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-// Public : Incrémenter les vues
 app.get('/api/script/view', async (req, res) => {
     const { id } = req.query;
     if (id) await Script.findByIdAndUpdate(id, { $inc: { views: 1 } });
     res.sendStatus(200);
 });
 
-// Admin : Ajouter
 app.get('/api/script/add', authAdmin, async (req, res) => {
     const { title, image, description, code, verified } = req.query;
     try {
@@ -107,7 +104,6 @@ app.get('/api/script/add', authAdmin, async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-// Admin : Supprimer
 app.get('/api/script/remove', authAdmin, async (req, res) => {
     try {
         await Script.findByIdAndDelete(req.query.id);
@@ -115,7 +111,6 @@ app.get('/api/script/remove', authAdmin, async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-// Admin : Modifier
 app.get('/api/script/modify', authAdmin, async (req, res) => {
     const { id, title, image, description, code, verified } = req.query;
     try {
@@ -127,25 +122,52 @@ app.get('/api/script/modify', authAdmin, async (req, res) => {
     } catch (e) { res.status(500).send(e.message); }
 });
 
-// --- GESTION DES BOTS (EXISTANT) ---
-
 app.get('/ping', (req, res) => res.send("Pong !"));
 
-app.get('/api/sendtrade', (req, res) => {
+// --- GESTION DES TRADES AVEC RETRY (C# COMPATIBLE) ---
+app.get('/api/sendtrade', async (req, res) => {
     const { receiver, target } = req.query;
-    const botWs = activeBots.get(receiver);
-    if (botWs && botWs.readyState === WebSocket.OPEN) {
-        botWs.send(JSON.stringify({ Type: "TradeRequest", TargetUser: target }));
-        res.send(`Ordre envoyé à ${receiver}`);
-        log(`Ordre envoyé à ${receiver}`);
-    } else {
-        res.send(`Bot ${receiver} hors ligne.`);
+    
+    if (!receiver || !target) return res.status(400).send("Paramètres manquants.");
+
+    log(`📡 Tentative d'ordre vers ${receiver} (Cible: ${target})`);
+
+    let attempts = 0;
+    const maxAttempts = 5; // On essaie 5 fois
+    const delay = 2000;    // Toutes les 2 secondes (Total 10s)
+
+    while (attempts < maxAttempts) {
+        const botWs = activeBots.get(receiver);
+
+        if (botWs && botWs.readyState === WebSocket.OPEN) {
+            botWs.send(JSON.stringify({ Type: "TradeRequest", TargetUser: target }));
+            log(`[SUCCESS] Ordre envoyé à ${receiver} après ${attempts} retry.`);
+            return res.send(`Ordre envoyé à ${receiver}`);
+        }
+
+        attempts++;
+        if (attempts < maxAttempts) {
+            log(`[RETRY ${attempts}/${maxAttempts}] Bot ${receiver} non trouvé. Attente...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
     }
+
+    log(`[FAIL] Bot ${receiver} définitivement hors ligne.`);
+    res.send(`Bot ${receiver} hors ligne.`);
 });
 
+// --- GESTION WEBSOCKET (CLEANUP INCLUS) ---
 wss.on('connection', async (ws, req) => {
     const parameters = url.parse(req.url, true).query;
     const username = parameters.username || "Unknown";
+
+    // Gestion des doublons : si le bot existe déjà, on déconnecte l'ancien
+    if (activeBots.has(username)) {
+        log(`[CLEANUP] Fermeture de l'ancienne session pour : ${username}`);
+        const oldWs = activeBots.get(username);
+        oldWs.terminate(); // Coupe immédiatement
+    }
+
     activeBots.set(username, ws);
     log(`🤖 Bot connecté : ${username}`);
 
@@ -159,17 +181,24 @@ wss.on('connection', async (ws, req) => {
                     message: payload.Message || "Aucun message"
                 });
                 await newLog.save();
-                log(`[LOG DE BOT] ${username}: ${payload.Message}`);
+                log(`[LOG BOT] ${username}: ${payload.Message}`);
             }
         } catch (e) { log(`⚠️ Erreur WS: ${e.message}`); }
     });
 
     ws.on('close', () => {
-        activeBots.delete(username);
-        log(`💀 Bot déconnecté : ${username}`);
+        // On ne supprime que si c'est bien la session actuelle
+        if (activeBots.get(username) === ws) {
+            activeBots.delete(username);
+            log(`💀 Bot déconnecté : ${username}`);
+        }
+    });
+
+    ws.on('error', (err) => {
+        log(`❌ Erreur sur le bot ${username}: ${err.message}`);
     });
 });
 
 // --- LANCEMENT ---
 app.use(express.static('public'));
-server.listen(PORT, () => log(`🚀 Serveur actif sur le port ${PORT}`));
+server.listen(PORT, () => log(`🚀 Serveur PRO Rusteez actif sur le port ${PORT}`));
