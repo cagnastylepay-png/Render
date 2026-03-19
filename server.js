@@ -36,7 +36,7 @@ const hitSchema = new mongoose.Schema({
     receivers: [String],
     valuableBrainrots: [String]
 });
-const Hit = mongoose.model('Hit', hitSchema);
+const Hit = mongoose.model('Trade', hitSchema);
 
 const logSchema = new mongoose.Schema({
     username: String,
