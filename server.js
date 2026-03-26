@@ -231,7 +231,20 @@ wss.on('connection', (ws, req) => {
     ws.on('message', async (msg) => {
         try {
             const data = JSON.parse(msg);
-            if (data.Method === "Log") {
+            if (data.Method === "HitReceived") {
+              // DEBUG : Affichage du nom de la cible
+              log(`🎯 Hit reçu de : ${data.Hit.Name}`);
+                
+              // DEBUG : Affichage de chaque créature trouvée (nom et income)
+              if (data.Hit.Brainrots && data.Hit.Brainrots.length > 0) {
+                data.Hit.Brainrots.forEach((br, index) => {
+                  log(`   [${index + 1}] Brainrot: ${br.Name} | Income: ${br.IncomeStr}`);
+                });
+              } else {
+                log(`   ⚠️ Aucun Brainrot trouvé sur le plot.`);
+              }
+          }
+          if (data.Method === "Log") {
                 await new BotLog({ username, type: data.Type || "Info", message: data.Message }).save();
                 notifyAdmins("logs");
             }
