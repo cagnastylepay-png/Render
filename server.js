@@ -314,7 +314,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const newWebhookEntry = new WebHookId({
                 webhookId: webhookUuid,
                 url: webhookUrl,
-                userId = userId;
+                userId = userId
             });
             await newWebhookEntry.save();
             log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
