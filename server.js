@@ -23,41 +23,32 @@ const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`;
 
 async function obfuscateScript(luaCode) {
     try {
-        log("🔍 [OBF] Sending to LuaObfuscator.com API...");
-
         const response = await axios.post('https://luaobfuscator.com/api/obfuscator/newscript', {
             Script: luaCode,
             Minify: true,
             CustomOptions: {
                 "EncryptStrings": true,
                 "RenameVariables": true,
-                "ControlFlow": true,
-                "Virtualize": false // Mets à true si tu veux une sécurité maximale (mais le script sera plus lourd)
+                "ControlFlow": true
             }
         }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': process.env.LUA_OBF_KEY // Ta clé API à mettre dans Render
-            },
-            timeout: 30000
+            headers: { 
+                'apikey': process.env.LUA_OBF_KEY,
+                'Content-Type': 'application/json'
+            }
         });
 
-        // L'API de LuaObfuscator renvoie souvent un objet avec le code dans 'code'
+        // Extraction sécurisée du code
         if (response.data && response.data.code) {
-            log(`✅ [OBF] Success! Received professional obfuscation.`);
-            return response.data.code;
-        } else {
-            // Parfois la réponse est directe ou structurée différemment selon le plan
-            log("⚠️ [OBF] Unexpected response format, trying to parse...");
-            return response.data.obfuscated || response.data;
+            return response.data.code; // C'est ici que se trouve le script final
         }
+        
+        throw new Error("Field 'code' missing in API response");
 
     } catch (error) {
-        log(`❌ [OBF ERROR] ${error.response ? error.response.status : error.message}`);
-        if (error.response && error.response.data) {
-            log(`📦 [OBF DATA] ${JSON.stringify(error.response.data)}`);
-        }
-        return null; // On retourne null pour arrêter le process si l'obfuscation échoue
+        const errorMsg = error.response?.data?.message || error.message;
+        log(`❌ [LUA_OBF ERROR] ${errorMsg}`);
+        return null;
     }
 }
 
