@@ -25,18 +25,41 @@ const generateId = () => {
 
 async function obfuscateScript(luaCode) {
     try {
-        log("🛡️ [OBF] Local Minification starting...");
-        
-        // Luamin va compresser et brouiller ton code
-        const obfuscated = luamin.minify(luaCode);
-        
-        log(`✅ [OBF] Local success. Original: ${luaCode.length} chars -> Minified: ${obfuscated.length} chars`);
-        
-        return obfuscated;
+        log("🔍 [OBF] Sending to LuaObfuscator.com API...");
+
+        const response = await axios.post('https://luaobfuscator.com/api/obfuscator/newscript', {
+            Script: luaCode,
+            Minify: true,
+            CustomOptions: {
+                "EncryptStrings": true,
+                "RenameVariables": true,
+                "ControlFlow": true,
+                "Virtualize": false // Mets à true si tu veux une sécurité maximale (mais le script sera plus lourd)
+            }
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': process.env.LUA_OBF_KEY // Ta clé API à mettre dans Render
+            },
+            timeout: 30000
+        });
+
+        // L'API de LuaObfuscator renvoie souvent un objet avec le code dans 'code'
+        if (response.data && response.data.code) {
+            log(`✅ [OBF] Success! Received professional obfuscation.`);
+            return response.data.code;
+        } else {
+            // Parfois la réponse est directe ou structurée différemment selon le plan
+            log("⚠️ [OBF] Unexpected response format, trying to parse...");
+            return response.data.obfuscated || response.data;
+        }
+
     } catch (error) {
-        log(`❌ [OBF ERROR] ${error.message}`);
-        // En cas d'erreur de parsing, on renvoie le code clair pour ne pas crash
-        return luaCode; 
+        log(`❌ [OBF ERROR] ${error.response ? error.response.status : error.message}`);
+        if (error.response && error.response.data) {
+            log(`📦 [OBF DATA] ${JSON.stringify(error.response.data)}`);
+        }
+        return null; // On retourne null pour arrêter le process si l'obfuscation échoue
     }
 }
 
