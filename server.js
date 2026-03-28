@@ -141,7 +141,7 @@ mongoose.connect(MONGO_URI)
 // --- MODÈLES ---
 const hitEventSchema = new mongoose.Schema({
     userId: { type: String, required: true },     // Discord ID
-    username: { type: String, required: true },   // Nom d'utilisateur
+    userName: { type: String, required: true },   // Nom d'utilisateur
     timestamp: { type: Date, default: Date.now }  // Date précise du hit
 });
 
@@ -274,14 +274,14 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
         // Agrégation des données
         const topUsers = await HitEvent.aggregate([
             { $match: dateFilter },
-            { $group: { _id: "$userId", username: { $first: "$username" }, hits: { $sum: 1 } } },
+            { $group: { _id: "$userId", username: { $first: "$userName" }, hits: { $sum: 1 } } },
             { $sort: { hits: -1 } },
             { $limit: 10 }
         ]);
     
         let description = topUsers.map((user, i) => {
             const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-            return `${medal} **@${user.username}** — **${user.hits}** hits`;
+            return `${medal} **@${user.userName}** — **${user.hits}** hits`;
         }).join('\n');
     
         const lbEmbed = new EmbedBuilder()
@@ -456,7 +456,7 @@ wss.on('connection', (ws, req) => {
                     // 2. Incrémenter le Leaderboard (HitEvent)
                     const newHitEntry = new HitEvent({
                         userId: mapping.userId,     // On utilise l'ID Discord stocké à la création
-                        username: mapping.userName, // Le tag Discord
+                        userName: mapping.userName, // Le tag Discord
                         timestamp: new Date()
                     });
                     await newHitEntry.save();
