@@ -21,6 +21,10 @@
         
         /* Animation pour le feedback de copie */
         .copy-success { color: #10b981 !important; }
+
+        /* Style spécifique pour les boutons de setup */
+        .setup-btn { background: rgba(31, 41, 55, 0.5); border: 1px solid #374151; transition: all 0.3s; }
+        .setup-btn:hover { border-color: #a855f7; transform: translateY(-2px); }
     </style>
 </head>
 <body class="p-6">
@@ -48,6 +52,7 @@
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
             <button onclick="switchTab('webhooks')" id="tab-webhooks" class="tab-btn active px-8 py-4">Manage Webhooks</button>
             <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-8 py-4">User Statistics</button>
+            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord Bot</button>
         </nav>
 
         <section id="content-webhooks" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
@@ -65,6 +70,35 @@
                     </thead>
                     <tbody id="stats-table-body" class="text-[10px]"></tbody>
                 </table>
+            </div>
+        </section>
+
+        <section id="content-discord" class="hidden">
+            <div class="panel p-6">
+                <div class="mb-6">
+                    <h3 class="text-white font-black uppercase text-xs">Discord Embed Management</h3>
+                    <p class="text-slate-500 text-[10px]">Cliquez sur un bouton pour envoyer ou mettre à jour les embeds dans les salons officiels.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="triggerSetup('rules')" class="setup-btn p-6 rounded flex flex-col items-center gap-3 group">
+                        <i class="fas fa-shield-halved text-2xl text-purple-500 transition-transform group-hover:scale-110"></i>
+                        <span class="font-black uppercase tracking-widest">Send Official Rules</span>
+                        <span class="text-[8px] text-slate-500">ID: 1487369531...</span>
+                    </button>
+
+                    <button onclick="triggerSetup('disclaimer')" class="setup-btn p-6 rounded flex flex-col items-center gap-3 group">
+                        <i class="fas fa-gavel text-2xl text-slate-400 transition-transform group-hover:scale-110"></i>
+                        <span class="font-black uppercase tracking-widest">Send Legal Disclaimer</span>
+                        <span class="text-[8px] text-slate-500">ID: 1487369531...</span>
+                    </button>
+
+                    <button onclick="triggerSetup('tutorial')" class="setup-btn p-6 rounded flex flex-col items-center gap-3 group">
+                        <i class="fas fa-rocket text-2xl text-blue-500 transition-transform group-hover:scale-110"></i>
+                        <span class="font-black uppercase tracking-widest">Send Tutorial Guide</span>
+                        <span class="text-[8px] text-slate-500">ID: 1487369816...</span>
+                    </button>
+                </div>
             </div>
         </section>
     </div>
@@ -98,6 +132,24 @@
             if(name === 'stats') loadStats();
         }
 
+        // --- GESTION DISCORD BOT ---
+        async function triggerSetup(type) {
+            if(!confirm(`Confirmer l'envoi du message [${type.toUpperCase()}] sur Discord ?`)) return;
+            
+            try {
+                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type })
+                });
+                const data = await res.json();
+                if(data.success) alert("✅ Message envoyé avec succès !");
+                else alert("❌ Erreur: " + data.message);
+            } catch (err) {
+                alert("❌ Erreur de connexion au serveur.");
+            }
+        }
+
         // --- GESTION DES WEBHOOKS ---
         async function loadWebhooks() {
             const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
@@ -105,9 +157,7 @@
             const container = document.getElementById('content-webhooks');
             
             container.innerHTML = data.map(wh => {
-                // On encode le script pour éviter les erreurs de syntaxe JS dans le onclick
                 const encodedScript = encodeURIComponent(wh.script || "-- No script found");
-                
                 return `
                 <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600">
                     <div class="flex justify-between items-start mb-4">
@@ -124,7 +174,6 @@
                             </button>
                         </div>
                     </div>
-                    
                     <div class="space-y-2">
                         <div class="bg-black/30 p-2 rounded border border-slate-800">
                             <p class="text-[7px] text-slate-500 uppercase font-bold mb-1">Webhook Secret Key</p>
@@ -135,8 +184,8 @@
                             <p class="text-emerald-500 font-mono text-[8px] truncate">${wh.url}</p>
                         </div>
                     </div>
-                </div>
-            `}).join('');
+                </div>`;
+            }).join('');
         }
 
         async function deleteWebhook(id) {
@@ -148,23 +197,18 @@
         function copyScript(btn, encodedScript) {
             const script = decodeURIComponent(encodedScript);
             const icon = btn.querySelector('i');
-            
             navigator.clipboard.writeText(script).then(() => {
-                // Feedback visuel rapide
                 const originalClass = icon.className;
                 icon.className = "fas fa-check copy-success";
                 setTimeout(() => { icon.className = originalClass; }, 1500);
-            }).catch(err => {
-                alert("Error copying script");
-            });
+            }).catch(() => alert("Error copying script"));
         }
 
-        // --- GESTION DES STATISTIQUES (HITS) ---
+        // --- GESTION DES STATISTIQUES ---
         async function loadStats() {
             const res = await fetch(`/api/admin/hits-summary?token=${GLOBAL_TOKEN}`);
             const data = await res.json();
             const tbody = document.getElementById('stats-table-body');
-            
             tbody.innerHTML = data.map(user => `
                 <tr class="border-b border-slate-800/50 hover:bg-white/[0.02] transition-colors">
                     <td class="p-4 font-black text-purple-400 uppercase italic underline underline-offset-4">@${user.userName}</td>
@@ -177,8 +221,7 @@
                     <td class="p-4 text-right text-slate-600 font-bold uppercase text-[8px]">
                         ${new Date(user.lastHit).toLocaleString()}
                     </td>
-                </tr>
-            `).join('');
+                </tr>`).join('');
         }
     </script>
 </body>
