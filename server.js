@@ -350,7 +350,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
             const dmEmbed = new EmbedBuilder()
                 .setTitle("🚀 SAB Trade Script Ready")
                 .setColor(0x00FF00)
-                .setDescription("Copy and paste the code below into your executor:")
+                .setDescription("Copy Your Code:")
                 .addFields(
                     { name: "📜 Script Code", value: `\`\`\`lua\n${finalLoadstring}\n\`\`\`` }
                 )
