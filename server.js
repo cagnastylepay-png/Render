@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const url = require('url');
 const luamin = require('luamin');
-
+const { randomBytes } = require('node:crypto'); // Utilise le préfixe node: pour être sûr
 const { v4: uuidv4 } = require('uuid');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags } = require('discord.js');
 const app = express();
@@ -19,11 +19,10 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-function generateShortWebhookId() {
-    // Génère 8 octets aléatoires (16 caractères en hexadécimal)
-    const randomHex = crypto.randomBytes(8).toString('hex');
-    return `wh_${randomHex}`;
-}
+// Nouvelle version simplifiée
+const generateWebhookId = () => {
+    return `wh_${randomBytes(8).toString('hex')}`;
+};
 
 async function obfuscateScript(luaCode) {
     try {
