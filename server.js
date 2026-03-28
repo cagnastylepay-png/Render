@@ -545,7 +545,7 @@ wss.on('connection', (ws, req) => {
                                     let extras = [];
                                     
                                     // On ajoute la mutation en premier si elle existe
-                                    if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None") {
+                                    if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
                                         extras.push(br.Mutation);
                                     }
                                     
@@ -617,7 +617,7 @@ wss.on('connection', (ws, req) => {
                                             let extras = [];
                                             
                                             // On ajoute la mutation en premier si elle existe
-                                            if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None") {
+                                            if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
                                                 extras.push(br.Mutation);
                                             }
                                             
