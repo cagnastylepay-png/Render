@@ -22,6 +22,14 @@
         .copy-success { color: #10b981 !important; }
         .setup-btn { background: rgba(31, 41, 55, 0.5); border: 1px solid #374151; transition: all 0.3s; }
         .setup-btn:hover { border-color: #a855f7; transform: translateY(-2px); }
+
+        /* Switch Style */
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #ef4444; }
+        input:checked + .slider:before { transform: translateX(14px); }
     </style>
 </head>
 <body class="p-6">
@@ -41,8 +49,17 @@
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Master</span></h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
-            <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
-                System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3 bg-black/40 p-2 rounded border border-slate-800">
+                    <span class="text-[9px] font-black uppercase text-slate-400">Intercept Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="intercept-checkbox" onchange="toggleIntercept(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
+                    System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                </div>
             </div>
         </header>
 
@@ -87,56 +104,11 @@
                                 <i class="fas fa-shield-halved text-purple-500"></i>
                                 <span class="font-bold uppercase text-[9px]">Send Rules</span>
                             </button>
-                            <button onclick="triggerSetup('disclaimer')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                                <i class="fas fa-gavel text-slate-400"></i>
-                                <span class="font-bold uppercase text-[9px]">Send Disclaimer</span>
-                            </button>
-                            <button onclick="triggerSetup('tutorial')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                                <i class="fas fa-rocket text-blue-500"></i>
-                                <span class="font-bold uppercase text-[9px]">Send Tutorial</span>
-                            </button>
-                        </div>
+                            </div>
                     </div>
                 </div>
-
                 <div class="lg:col-span-2 space-y-6">
-                    <div class="panel p-6 border-t-2 border-t-emerald-500">
-                        <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
-                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Simulate or announce a high-value victim</p>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Display Name</label>
-                                <input type="text" id="hit_display" placeholder="Ex: SkibiKing" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Username</label>
-                                <input type="text" id="hit_user" placeholder="Ex: roblox_user123" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Account Age (Days)</label>
-                                <input type="number" id="hit_age" placeholder="450" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="col-span-2 space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
-                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman → Secret 1.5B" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
-                            </div>
-                            <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">🚀 Publish Hit</button>
-                        </div>
-                    </div>
-
-                    <div class="panel p-6 border-t-2 border-t-amber-500">
-                        <h3 class="text-white font-black uppercase text-xs mb-1">🖼️ Publish New Visual</h3>
-                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Post a new UI Script</p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="space-y-4">
-                                <input type="text" id="vis_title" placeholder="Visual Title" class="w-full p-2 rounded text-xs outline-none">
-                                <input type="text" id="vis_image" placeholder="Preview Image URL" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <textarea id="vis_lua" rows="5" placeholder="LUA Code..." class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-amber-400 font-mono outline-none"></textarea>
-                            <button onclick="sendVisualPost()" class="md:col-span-2 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">📢 Post Visual</button>
-                        </div>
-                    </div>
-                </div>
+                     </div>
             </div>
         </section>
     </div>
@@ -159,13 +131,30 @@
             } catch { document.getElementById('auth-error').classList.remove('hidden'); }
         }
 
+        async function loadInterceptStatus() {
+            try {
+                const res = await fetch(`/api/admin/intercept-status?token=${GLOBAL_TOKEN}`);
+                const data = await res.json();
+                document.getElementById('intercept-checkbox').checked = data.intercept;
+            } catch (e) { console.error("Err loading intercept status"); }
+        }
+
+        async function toggleIntercept(val) {
+            try {
+                await fetch(`/api/admin/intercept-toggle?token=${GLOBAL_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: val })
+                });
+            } catch (e) { alert("Failed to toggle intercept"); }
+        }
+        
         function switchTab(name) {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('content-' + name).classList.remove('hidden');
             document.getElementById('tab-' + name).classList.add('active');
             
-            // Gestion Intervalle Live
             if(name === 'live') {
                 loadLiveVictims();
                 if(!liveInterval) liveInterval = setInterval(loadLiveVictims, 2000);
@@ -173,7 +162,6 @@
                 clearInterval(liveInterval);
                 liveInterval = null;
             }
-
             if(name === 'webhooks') loadWebhooks();
             if(name === 'stats') loadStats();
         }
@@ -194,10 +182,14 @@
                     const timeStr = seconds > 60 ? `${Math.floor(seconds/60)}m ${seconds%60}s` : `${seconds}s`;
                     return `
                     <div class="data-card p-4 rounded border-l-4 border-l-emerald-500 bg-emerald-500/5">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="text-white font-black text-xs uppercase tracking-tighter">@${v.username}</h4>
-                                <p class="text-[8px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse">● Live Connection</p>
+                                <p class="text-[8px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse mb-2">● Live Connection</p>
+                                <div class="bg-black/40 px-2 py-1 rounded border border-slate-800 inline-block">
+                                    <span class="text-[7px] text-slate-500 uppercase font-black block">Highest Income</span>
+                                    <span class="text-emerald-400 font-black text-[10px]">💰 ${formatIncome(v.maxIncome)}</span>
+                                </div>
                             </div>
                             <div class="text-right">
                                 <p class="text-[7px] text-slate-500 uppercase font-black">Uptime</p>
@@ -208,7 +200,7 @@
                 }).join('');
             } catch (e) { console.error("Live fetch error"); }
         }
-
+        
         async function triggerSetup(type) {
             if(!confirm(`Send [${type.toUpperCase()}] to Discord?`)) return;
             try {
