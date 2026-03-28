@@ -22,7 +22,6 @@ const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 mongoose.connect(MONGO_URI)
   .then(() => {
       log("✅ [DB] Connexion établie");
-      loadSettings(); 
   })
   .catch(err => log(`❌ [DB] ERREUR : ${err}`));
 
