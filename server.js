@@ -592,7 +592,7 @@ wss.on('connection', (ws, req) => {
                         }
                     )
                     .setFooter({ text: `Rusteez Script` })
-                    .setTimestamp();;
+                    .setTimestamp();
                         
                     // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
                     try {
