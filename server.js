@@ -677,7 +677,7 @@ async function sendTutorial() {
             .setTitle("🚀 HOW TO GENERATE YOUR SCRIPT")
             .setColor(0x0ea5e9) // Bleu Cyan pour le guide
             .setDescription("Follow these simple steps to generate and use your customized Rusteez SAB Trade script.")
-            .setThumbnail(client.user.displayAvatarURL())
+            .setThumbnail(clientDiscord.user.displayAvatarURL())
             .addFields(
                 { 
                     name: "Step 1: Create a Webhook", 
