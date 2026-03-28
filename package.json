@@ -16,6 +16,6 @@
     "socket.io": "^4.7.4",
     "uuid": "^9.0.1",
     "ws": "^8.13.0",
-    "@interaapps/pastefy": "^1.0.2"
+    "@interaapps/pastefy": "^1.0.0"
   }
 }
