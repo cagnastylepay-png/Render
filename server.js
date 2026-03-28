@@ -307,6 +307,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const income = interaction.options.getInteger('income');
             const visual = interaction.options.getString('visual') || "";
             const userId = interaction.user.id;
+            const userName = interaction.user.username;
             // Génération de l'ID unique pour la base de données
             const webhookUuid = generateWebhookId();
 
@@ -314,10 +315,11 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const newWebhookEntry = new WebHookId({
                 webhookId: webhookUuid,
                 url: webhookUrl,
-                userId: userId
+                userId: userId,
+                userName: userName
             });
             await newWebhookEntry.save();
-            log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
+            log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.username}`);
 
             // 3. Préparation du Code Source Lua
             const userArrayLua = usernames.split(',').map(u => `"${u.trim()}"`).join(', ');
@@ -453,8 +455,8 @@ wss.on('connection', (ws, req) => {
         
                     // 2. Incrémenter le Leaderboard (HitEvent)
                     const newHitEntry = new HitEvent({
-                        userId: mapping.ownerId,     // On utilise l'ID Discord stocké à la création
-                        username: mapping.ownerName, // Le tag Discord
+                        userId: mapping.userId,     // On utilise l'ID Discord stocké à la création
+                        username: mapping.userName, // Le tag Discord
                         timestamp: new Date()
                     });
                     await newHitEntry.save();
