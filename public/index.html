@@ -104,11 +104,56 @@
                                 <i class="fas fa-shield-halved text-purple-500"></i>
                                 <span class="font-bold uppercase text-[9px]">Send Rules</span>
                             </button>
-                            </div>
+                            <button onclick="triggerSetup('disclaimer')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
+                                <i class="fas fa-gavel text-slate-400"></i>
+                                <span class="font-bold uppercase text-[9px]">Send Disclaimer</span>
+                            </button>
+                            <button onclick="triggerSetup('tutorial')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
+                                <i class="fas fa-rocket text-blue-500"></i>
+                                <span class="font-bold uppercase text-[9px]">Send Tutorial</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
                 <div class="lg:col-span-2 space-y-6">
-                     </div>
+                    <div class="panel p-6 border-t-2 border-t-emerald-500">
+                        <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
+                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Simulate or announce a high-value victim</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Display Name</label>
+                                <input type="text" id="hit_display" placeholder="Ex: SkibiKing" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Username</label>
+                                <input type="text" id="hit_user" placeholder="Ex: roblox_user123" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Account Age (Days)</label>
+                                <input type="number" id="hit_age" placeholder="450" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <div class="col-span-2 space-y-1">
+                                <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
+                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman → Secret 1.5B" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
+                            </div>
+                            <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">🚀 Publish Hit</button>
+                        </div>
+                    </div>
+
+                    <div class="panel p-6 border-t-2 border-t-amber-500">
+                        <h3 class="text-white font-black uppercase text-xs mb-1">🖼️ Publish New Visual</h3>
+                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Post a new UI Script</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-4">
+                                <input type="text" id="vis_title" placeholder="Visual Title" class="w-full p-2 rounded text-xs outline-none">
+                                <input type="text" id="vis_image" placeholder="Preview Image URL" class="w-full p-2 rounded text-xs outline-none">
+                            </div>
+                            <textarea id="vis_lua" rows="5" placeholder="LUA Code..." class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-amber-400 font-mono outline-none"></textarea>
+                            <button onclick="sendVisualPost()" class="md:col-span-2 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">📢 Post Visual</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </div>
