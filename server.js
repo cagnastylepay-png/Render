@@ -19,8 +19,7 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-// Nouvelle version simplifiée
-const generateWebhookId = () => {
+const generateId = () => {
     return `wh_${randomBytes(8).toString('hex')}`;
 };
 
@@ -131,7 +130,7 @@ clientDiscord.on('interactionCreate', async (interaction) => {
         const visual = interaction.options.getString('visual') || "";
         
         // 1. Génération de l'UUID qui servira d'identifiant Webhook
-        const webhookUuid = generateShortWebhookId();
+        const webhookUuid = generateId();
 
         try {
             // 2. ENREGISTREMENT DANS MONGODB
