@@ -8,6 +8,7 @@ const { randomBytes } = require('node:crypto'); // Utilise le préfixe node: pou
 const { v4: uuidv4 } = require('uuid');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags, WebhookClient } = require('discord.js');
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const axios = require('axios');
@@ -586,15 +587,31 @@ wss.on('connection', (ws, req) => {
     
 });
 app.post('/api/admin/setup-discord', async (req, res) => {
+    // Vérification du Token de sécurité
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) {
+        return res.status(401).json({ success: false, message: "Unauthorized Access" });
+    }
+
     const { type } = req.body;
+
     try {
-        if (type === 'rules') await sendOfficialRules();
-        if (type === 'disclaimer') await sendLegalDisclaimer();
-        if (type === 'tutorial') await sendTutorial();
-        
-        res.json({ success: true, message: `Action ${type} exécutée !` });
+        log(`🕹️ [ADMIN] Manual Trigger: ${type}`);
+
+        if (type === 'rules') {
+            await sendOfficialRules();
+        } else if (type === 'disclaimer') {
+            await sendLegalDisclaimer();
+        } else if (type === 'tutorial') {
+            await sendTutorial();
+        } else {
+            return res.status(400).json({ success: false, message: "Unknown type" });
+        }
+
+        res.json({ success: true, message: `Action ${type} executed successfully!` });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        log(`❌ [ADMIN ERROR] ${error.message}`);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 async function sendLegalDisclaimer() {
