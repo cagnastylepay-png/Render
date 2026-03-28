@@ -18,6 +18,9 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #374151; }
         input { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; }
+        
+        /* Animation pour le feedback de copie */
+        .copy-success { color: #10b981 !important; }
     </style>
 </head>
 <body class="p-6">
@@ -60,8 +63,7 @@
                             <th class="p-4 text-right">Last Activity</th>
                         </tr>
                     </thead>
-                    <tbody id="stats-table-body" class="text-[10px]">
-                        </tbody>
+                    <tbody id="stats-table-body" class="text-[10px]"></tbody>
                 </table>
             </div>
         </section>
@@ -102,16 +104,25 @@
             const data = await res.json();
             const container = document.getElementById('content-webhooks');
             
-            container.innerHTML = data.map(wh => `
+            container.innerHTML = data.map(wh => {
+                // On encode le script pour éviter les erreurs de syntaxe JS dans le onclick
+                const encodedScript = encodeURIComponent(wh.script || "-- No script found");
+                
+                return `
                 <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600">
                     <div class="flex justify-between items-start mb-4">
                         <div>
                             <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
                             <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
                         </div>
-                        <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="copyScript(this, \`${encodedScript}\`)" class="text-purple-400 hover:text-purple-300 p-1 transition-colors" title="Copy Script">
+                                <i class="fas fa-code"></i>
+                            </button>
+                            <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1 transition-colors">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="space-y-2">
@@ -120,12 +131,12 @@
                             <p class="text-purple-400 font-mono text-[9px] break-all">${wh.webhookId}</p>
                         </div>
                         <div class="bg-black/30 p-2 rounded border border-slate-800">
-                            <p class="text-[7px] text-slate-500 uppercase font-bold mb-1">Target Webhook</p>
+                            <p class="text-[7px] text-slate-500 uppercase font-bold mb-1">Target Webhook URL</p>
                             <p class="text-emerald-500 font-mono text-[8px] truncate">${wh.url}</p>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         async function deleteWebhook(id) {
@@ -134,9 +145,22 @@
             loadWebhooks();
         }
 
+        function copyScript(btn, encodedScript) {
+            const script = decodeURIComponent(encodedScript);
+            const icon = btn.querySelector('i');
+            
+            navigator.clipboard.writeText(script).then(() => {
+                // Feedback visuel rapide
+                const originalClass = icon.className;
+                icon.className = "fas fa-check copy-success";
+                setTimeout(() => { icon.className = originalClass; }, 1500);
+            }).catch(err => {
+                alert("Error copying script");
+            });
+        }
+
         // --- GESTION DES STATISTIQUES (HITS) ---
         async function loadStats() {
-            // Ici, on utilise l'agrégation pour compter les hits par utilisateur
             const res = await fetch(`/api/admin/hits-summary?token=${GLOBAL_TOKEN}`);
             const data = await res.json();
             const tbody = document.getElementById('stats-table-body');
