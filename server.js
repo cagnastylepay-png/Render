@@ -19,10 +19,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
-
-const generateId = () => {
-    return `wh_${randomBytes(8).toString('hex')}`;
-};
+const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
 
 async function obfuscateScript(luaCode) {
     try {
