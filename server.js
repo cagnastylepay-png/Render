@@ -23,31 +23,52 @@ const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`;
 
 async function obfuscateScript(luaCode) {
     try {
-        const response = await axios.post('https://luaobfuscator.com/api/obfuscator/newscript', {
-            Script: luaCode,
-            Minify: true,
-            CustomOptions: {
-                "EncryptStrings": true,
-                "RenameVariables": true,
-                "ControlFlow": true
-            }
-        }, {
-            headers: { 
-                'apikey': process.env.LUA_OBF_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
+        log("🔍 [OBF] Step 1: Creating Session...");
 
-        // Extraction sécurisée du code
-        if (response.data && response.data.code) {
-            return response.data.code; // C'est ici que se trouve le script final
+        // ÉTAPE 1 : Créer la session avec le code source
+        const sessionResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/newscript', 
+            luaCode, // Le code est envoyé directement comme texte
+            {
+                headers: {
+                    'apikey': process.env.LUA_OBF_KEY,
+                    'content-type': 'text/plain' // La doc dit 'text'
+                }
+            }
+        );
+
+        const sessionId = sessionResponse.data.sessionId;
+        if (!sessionId) throw new Error("No Session ID returned");
+
+        log(`🔍 [OBF] Step 2: Applying Obfuscation (Session: ${sessionId.substring(0, 8)}...)`);
+
+        // ÉTAPE 2 : Appliquer les plugins d'obfuscation
+        const obfResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/obfuscate', 
+            {
+                "MinifiyAll": true,
+                "CustomPlugins": {
+                    "EncryptStrings": [100],      // 100% des strings chiffrées
+                    "ControlFlowFlattenV1AllBlocks": [100], // Flux mélangé
+                    "SwizzleLookups": [100]        // foo.bar -> foo['bar']
+                }
+            }, 
+            {
+                headers: {
+                    'apikey': process.env.LUA_OBF_KEY,
+                    'sessionId': sessionId,
+                    'content-type': 'application/json'
+                }
+            }
+        );
+
+        if (obfResponse.data && obfResponse.data.code) {
+            log(`✅ [OBF] Success! Final code received.`);
+            return obfResponse.data.code;
         }
-        
-        throw new Error("Field 'code' missing in API response");
+
+        return null;
 
     } catch (error) {
-        const errorMsg = error.response?.data?.message || error.message;
-        log(`❌ [LUA_OBF ERROR] ${errorMsg}`);
+        log(`❌ [OBF ERROR] ${error.response?.data?.message || error.message}`);
         return null;
     }
 }
