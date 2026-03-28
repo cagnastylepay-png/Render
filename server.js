@@ -3,9 +3,10 @@ const mongoose = require('mongoose');
 const WebSocket = require('ws');
 const http = require('http');
 const url = require('url');
+const luamin = require('luamin');
 
 const { v4: uuidv4 } = require('uuid');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags } = require('discord.js');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -18,6 +19,29 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
+function generateShortWebhookId() {
+    // Génère 8 octets aléatoires (16 caractères en hexadécimal)
+    const randomHex = crypto.randomBytes(8).toString('hex');
+    return `wh_${randomHex}`;
+}
+
+async function obfuscateScript(luaCode) {
+    try {
+        log("🛡️ [OBF] Local Minification starting...");
+        
+        // Luamin va compresser et brouiller ton code
+        const obfuscated = luamin.minify(luaCode);
+        
+        log(`✅ [OBF] Local success. Original: ${luaCode.length} chars -> Minified: ${obfuscated.length} chars`);
+        
+        return obfuscated;
+    } catch (error) {
+        log(`❌ [OBF ERROR] ${error.message}`);
+        // En cas d'erreur de parsing, on renvoie le code clair pour ne pas crash
+        return luaCode; 
+    }
+}
+
 // --- CONNEXION DB ---
 mongoose.connect(MONGO_URI)
   .then(() => {
@@ -29,8 +53,7 @@ mongoose.connect(MONGO_URI)
 const WebHookIdSchema = new mongoose.Schema({
     webhookId: {
         type: String,
-        unique: true,
-        default: uuidv4
+        unique: true
     },
     url: {
         type: String,
@@ -84,7 +107,7 @@ const commands = [
                 .setRequired(false)) // Paramètre optionnel
 ].map(cmd => cmd.toJSON());
 
-clientDiscord.once('ready', async () => {
+clientDiscord.once(Events.ClientReady, async () => {
     log(`🤖 Bot Discord connecté : ${clientDiscord.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
     try {
@@ -109,7 +132,7 @@ clientDiscord.on('interactionCreate', async (interaction) => {
         const visual = interaction.options.getString('visual') || "";
         
         // 1. Génération de l'UUID qui servira d'identifiant Webhook
-        const webhookUuid = uuidv4();
+        const webhookUuid = generateShortWebhookId();
 
         try {
             // 2. ENREGISTREMENT DANS MONGODB
@@ -149,7 +172,10 @@ local var3 = var2()`;
                 )
                 .setFooter({ text: "Database entry created successfully." });
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ 
+			    embeds: [embed], 
+			    flags: [MessageFlags.Ephemeral] 
+			});
 
             // TODO: Étape suivante -> Obfuscation API
             
