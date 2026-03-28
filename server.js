@@ -387,7 +387,58 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
     }
 });
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
+// 1. Récupérer tous les webhooks
+app.get('/api/admin/hits-summary', async (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Unauthorized" });
 
+    try {
+        // Cette requête groupe tous les événements de hits par utilisateur
+        const summary = await HitEvent.aggregate([
+            {
+                $group: {
+                    _id: "$userId", // Groupé par ID Discord
+                    userName: { $first: "$userName" }, // Récupère le nom
+                    totalHits: { $sum: 1 }, // Compte le nombre total
+                    lastHit: { $max: "$timestamp" } // Date du hit le plus récent
+                }
+            },
+            { $sort: { totalHits: -1 } } // Trie par le plus performant
+        ]);
+        res.json(summary);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+app.get('/api/admin/webhooks', async (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Access Denied" });
+
+    try {
+        const webhooks = await WebHookId.find().sort({ createdAt: -1 });
+        res.json(webhooks);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Supprimer un webhook par son ID MongoDB
+app.delete('/api/admin/webhooks/:id', async (req, res) => {
+    const token = req.query.token;
+    if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Access Denied" });
+
+    try {
+        await WebHookId.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Route de vérification (si tu ne l'avais pas encore)
+app.get('/api/admin/verify', (req, res) => {
+    res.json({ success: req.query.token === ADMIN_TOKEN });
+});
 // --- GESTION WEBSOCKET ---
 wss.on('connection', (ws, req) => {
     const params = new URLSearchParams(url.parse(req.url, true).query);
