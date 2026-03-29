@@ -50,7 +50,7 @@ async function uploadToPastefy(code, webhookId) {
     }
 }
 
-async function obfuscateScript(luaCode) {
+async function obfuscateScriptv2(luaCode) {
     try {
         log("🔍 [OBF] Requesting WeAreDevs Obfuscator...");
 
@@ -82,7 +82,7 @@ async function obfuscateScript(luaCode) {
         return null;
     }
 }
-async function obfuscateScriptv2(luaCode) {
+async function obfuscateScript(luaCode) {
     try {
         log("🔍 [OBF] Step 1: Creating Session...");
 
