@@ -318,26 +318,49 @@
         }
 
         async function loadWebhooks() {
-            const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
-            const data = await res.json();
-            document.getElementById('content-webhooks').innerHTML = data.map(wh => `
-                <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
-                            <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="copyScript(this, \`${encodeURIComponent(wh.script || "")}\`)" class="text-purple-400 hover:text-purple-300 p-1"><i class="fas fa-code"></i></button>
-                            <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1"><i class="fas fa-trash-alt"></i></button>
-                        </div>
+    const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
+    const data = await res.json();
+    
+    document.getElementById('content-webhooks').innerHTML = data.map(wh => {
+        // On joint tous les scripts avec un saut de ligne
+        const allScripts = wh.script && wh.script.length > 0 
+            ? wh.script.join('\n') 
+            : "-- No scripts generated --";
+
+        return `
+            <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600 flex flex-col h-full">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
+                        <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
                     </div>
-                    <p class="text-[7px] text-slate-500 uppercase font-bold mb-1">Secret Key</p>
-                    <p class="text-purple-400 font-mono text-[9px] break-all bg-black/30 p-1 rounded border border-slate-800 mb-2">${wh.webhookId}</p>
-                    <p class="text-[7px] text-slate-500 uppercase font-bold mb-1">URL</p>
-                    <p class="text-emerald-500 font-mono text-[8px] truncate bg-black/30 p-1 rounded border border-slate-800">${wh.url}</p>
-                </div>`).join('');
-        }
+                    <div class="flex gap-2">
+                        <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Secret Key</p>
+                    <p class="text-purple-400 font-mono text-[9px] break-all bg-black/30 p-1.5 rounded border border-slate-800">${wh.webhookId}</p>
+                </div>
+
+                <div class="mb-3">
+                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Webhook URL</p>
+                    <p class="text-emerald-500 font-mono text-[8px] truncate bg-black/30 p-1.5 rounded border border-slate-800">${wh.url}</p>
+                </div>
+
+                <div class="flex-grow">
+                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1 flex justify-between">
+                        <span><i class="fas fa-code text-[6px] mr-1"></i> Scripts History</span>
+                        <span class="text-purple-500">${wh.script ? wh.script.length : 0} total</span>
+                    </p>
+                    <textarea readonly class="w-full h-32 bg-black/40 border border-slate-800 rounded p-2 text-[9px] text-slate-400 font-mono outline-none resize-none overflow-y-auto">${allScripts}</textarea>
+                </div>
+            </div>`;
+    }).join('');
+}
 
         async function deleteWebhook(id) {
             if(confirm("⚠️ Delete this user?")) {
