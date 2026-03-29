@@ -149,22 +149,11 @@ const hitEventSchema = new mongoose.Schema({
 });
 
 const WebHookIdSchema = new mongoose.Schema({
-    webhookId: {
-        type: String,
-        unique: true
-    },
-    url: {
-        type: String,
-        required: true,
-        trim: true
-    },
-    userId: {
-        type: String,
-        required: true,
-        trim: true
-    },
+    webhookId: { type: String, unique: true},
+    url: {type: String, required: true,trim: true },
+    userId: {type: String, required: true, trim: true},
     userName: { type: String, required: true },
-    script: { type: String, required: true }
+    script: { type: [String], default: [] }
 }, {
     timestamps: true
 });
