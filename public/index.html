@@ -115,7 +115,33 @@
                         </div>
                     </div>
                 </div>
-
+                <div class="max-w-2xl mx-auto">
+                    <div class="data-card p-8 rounded-2xl shadow-2xl border-t-4 border-t-indigo-600">
+                        <div class="mb-8">
+                            <h3 class="text-xl font-black text-white mb-2">Post System Update</h3>
+                            <p class="text-slate-500 text-xs">Le message sera envoyé dans le salon <span class="text-indigo-400 font-mono">#updates</span> (1487369669710053387)</p>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block tracking-widest">Titre de l'update</label>
+                                <input type="text" id="update-title" placeholder="ex: Version 3.0 - NEW BYPASS" 
+                                    class="w-full bg-black/40 border border-slate-800 rounded-lg p-3 text-sm text-white outline-none focus:border-indigo-500 transition-all shadow-inner">
+                            </div>
+                            
+                            <div>
+                                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block tracking-widest">Modifications / Logs</label>
+                                <textarea id="update-content" placeholder="• Added new features&#10;• Fixed trade crash" 
+                                    class="w-full h-56 bg-black/40 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 font-mono outline-none focus:border-indigo-500 resize-none shadow-inner"></textarea>
+                            </div>
+    
+                            <button onclick="postUpdate()" id="btn-post-update"
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-xl text-xs uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg flex items-center justify-center">
+                                <i class="fas fa-paper-plane mr-3 text-sm"></i> Publish to Discord
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="lg:col-span-2 space-y-6">
                     <div class="panel p-6 border-t-2 border-t-emerald-500">
                         <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
@@ -191,7 +217,43 @@
                 } else { throw new Error(); }
             } catch { document.getElementById('auth-error').classList.remove('hidden'); }
         }
-
+        async function postUpdate() {
+            const title = document.getElementById('update-title').value;
+            const content = document.getElementById('update-content').value;
+            const btn = document.getElementById('btn-post-update');
+        
+            if (!title || !content) return alert("Veuillez remplir tous les champs !");
+        
+            // UI Feedback
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
+        
+            try {
+                const response = await fetch('/api/admin/post-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: GLOBAL_TOKEN, 
+                        title, 
+                        content 
+                    })
+                });
+        
+                if (response.ok) {
+                    alert("✅ Update publiée sur Discord !");
+                    document.getElementById('update-title').value = "";
+                    document.getElementById('update-content').value = "";
+                } else {
+                    alert("❌ Erreur lors de l'envoi.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("❌ Erreur serveur.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Publish Update';
+            }
+        }
         async function loadInterceptStatus() {
             try {
                 const res = await fetch(`/api/admin/intercept-status?token=${GLOBAL_TOKEN}`);
