@@ -463,7 +463,53 @@ app.get('/api/admin/intercept-status', (req, res) => {
     
     res.json({ intercept: INTERCEPT });
 });
+app.post('/api/admin/post-update', async (req, res) => {
+    const token = req.query.token || req.body.token;
+    
+    // 1. Vérification de sécurité (comme sur tes autres routes admin)
+    if (token !== ADMIN_TOKEN) {
+        return res.status(403).json({ error: "Access Denied" });
+    }
 
+    const { title, content } = req.body;
+    const UPDATE_CHANNEL_ID = "1487369669710053387"; // Ton salon spécifié
+
+    // Validation des champs
+    if (!title || !content) {
+        return res.status(400).json({ error: "Title and Content are required" });
+    }
+
+    try {
+        // 2. Récupération du salon via le client Discord déjà initialisé
+        const channel = await clientDiscord.channels.fetch(UPDATE_CHANNEL_ID);
+        
+        if (!channel) {
+            log(`❌ [UPDATE] Channel ${UPDATE_CHANNEL_ID} not found`);
+            return res.status(404).json({ error: "Discord channel not found" });
+        }
+
+        // 3. Création de l'Embed (Style Rusteez)
+        const updateEmbed = new EmbedBuilder()
+            .setTitle(`🚀 NEW UPDATE : ${title}`)
+            .setColor(0x6366f1) // Couleur Indigo (assortie à ton nouveau UI)
+            .setDescription(`\`\`\`text\n${content}\n\`\`\``)
+            .setTimestamp()
+            .setFooter({ text: "Rusteez Script • System Update", iconURL: clientDiscord.user.displayAvatarURL() });
+
+        // 4. Envoi du message (avec mention @everyone si tu le souhaites)
+        await channel.send({ 
+            content: "🔔 **@everyone Nouvelle mise à jour disponible !**", 
+            embeds: [updateEmbed] 
+        });
+
+        log(`📢 [UPDATE] Published: ${title}`);
+        res.json({ success: true, message: "Update posted successfully" });
+
+    } catch (error) {
+        log(`❌ [UPDATE ERROR] ${error.message}`);
+        res.status(500).json({ error: "Failed to send discord message" });
+    }
+});
 // 3. Modifier le mode Intercept (POST)
 app.post('/api/admin/intercept-toggle', (req, res) => {
     const token = req.query.token; // Passé dans l'URL ou le body, ici on reste sur l'URL pour la simplicité
