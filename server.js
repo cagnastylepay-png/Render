@@ -498,7 +498,7 @@ app.post('/api/admin/post-update', async (req, res) => {
 
         // 4. Envoi du message (avec mention @everyone si tu le souhaites)
         await channel.send({ 
-            content: "🔔 **@everyone Nouvelle mise à jour disponible !**", 
+            content: "🔔 **@everyone**", 
             embeds: [updateEmbed] 
         });
 
