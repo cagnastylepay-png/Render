@@ -480,20 +480,7 @@ app.delete('/api/admin/webhooks/:id', async (req, res) => {
 app.get('/api/admin/verify', (req, res) => {
     res.json({ success: req.query.token === ADMIN_TOKEN });
 });
-app.get('/api/admin/active-victims', (req, res) => {
-    const token = req.query.token;
-    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
 
-    const list = [];
-    activeVictims.forEach((data, username) => {
-        list.push({
-            username: username,
-            maxIncome : data.maxIncome,
-            uptime: Date.now() - data.connectedAt // Temps écoulé en ms
-        });
-    });
-    res.json(list);
-});
 app.post('/api/admin/post-update', async (req, res) => {
     const token = req.query.token || req.body.token;
     
