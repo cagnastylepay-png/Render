@@ -620,7 +620,7 @@ async function PostOnPrivateWebHook(whurl, hitInfo) {
                         {
                             name: "🧠 Brainrots",
                             value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                ? hitInfo.Brainrots.map(br => {
+                                ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
                                     // 1. Préparation des éléments (Mutation + Traits)
                                     let extras = [];
                                     
@@ -678,7 +678,7 @@ async function PostOnPublicWebHook(hitInfo) {
                                 {
                                     name: "🧠 Brainrots",
                                     value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
-                                        ? hitInfo.Brainrots.map(br => {
+                                        ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
                                             // 1. Préparation des éléments (Mutation + Traits)
                                             let extras = [];
                                             
