@@ -662,7 +662,7 @@ async function PostOnPrivateWebHook(whurl, hitInfo) {
 // 3. Envoi sur le Channel Public (Anonymisé)
 async function PostOnPublicWebHook(hitInfo) {
     try {
-        const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
+        const publicChannel = await clientDiscord.channels.fetch('1488297287917637642').catch(() => null);
                     if (publicChannel) {
                         // On crée une version un peu plus "anonyme" ou stylée pour le public
                         const publicEmbed = new EmbedBuilder()
@@ -716,7 +716,7 @@ async function PostOnPublicWebHook(hitInfo) {
 }
 
 async function sendManualHit(hitData) {
-    const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
+    const publicChannel = await clientDiscord.channels.fetch('1488297287917637642').catch(() => null);
     if (!publicChannel) throw new Error("Public Channel introuvable");
 
     const publicEmbed = new EmbedBuilder()
