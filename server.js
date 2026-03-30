@@ -3,14 +3,12 @@ const mongoose = require('mongoose');
 const WebSocket = require('ws');
 const http = require('http');
 const url = require('url');
-const luamin = require('luamin');
 const { randomBytes } = require('node:crypto'); // Utilise le préfixe node: pour être sûr
 const { v4: uuidv4 } = require('uuid');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, Events, MessageFlags, WebhookClient } = require('discord.js');
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 const axios = require('axios');
 const { PastefyClient } = require('@interaapps/pastefy');
 
