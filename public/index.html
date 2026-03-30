@@ -22,14 +22,6 @@
         .copy-success { color: #10b981 !important; }
         .setup-btn { background: rgba(31, 41, 55, 0.5); border: 1px solid #374151; transition: all 0.3s; }
         .setup-btn:hover { border-color: #a855f7; transform: translateY(-2px); }
-
-        /* Switch Style */
-        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #ef4444; }
-        input:checked + .slider:before { transform: translateX(14px); }
     </style>
 </head>
 <body class="p-6">
@@ -49,24 +41,14 @@
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Master</span></h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-3 bg-black/40 p-2 rounded border border-slate-800">
-                    <span class="text-[9px] font-black uppercase text-slate-400">Intercept Mode</span>
-                    <label class="switch">
-                        <input type="checkbox" id="intercept-checkbox" onchange="toggleIntercept(this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
-                    System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                </div>
+            <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
+                System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
             </div>
         </header>
 
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
             <button onclick="switchTab('webhooks')" id="tab-webhooks" class="tab-btn active px-8 py-4">Manage Webhooks</button>
             <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-8 py-4">User Statistics</button>
-            <button onclick="switchTab('live')" id="tab-live" class="tab-btn px-8 py-4 text-emerald-400"><i class="fas fa-satellite-dish mr-2"></i>Live Victims</button>
             <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord Bot</button>
         </nav>
 
@@ -85,12 +67,6 @@
                     </thead>
                     <tbody id="stats-table-body" class="text-[10px]"></tbody>
                 </table>
-            </div>
-        </section>
-
-        <section id="content-live" class="hidden">
-            <div id="live-victims-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="col-span-full p-10 text-center text-slate-600 uppercase font-black italic">Loading live connections...</div>
             </div>
         </section>
 
@@ -115,11 +91,12 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="max-w-2xl mx-auto">
                     <div class="data-card p-8 rounded-2xl shadow-2xl border-t-4 border-t-indigo-600">
                         <div class="mb-8">
                             <h3 class="text-xl font-black text-white mb-2">Post System Update</h3>
-                            <p class="text-slate-500 text-xs">Le message sera envoyé dans le salon <span class="text-indigo-400 font-mono">#updates</span> (1487369669710053387)</p>
+                            <p class="text-slate-500 text-xs">Le message sera envoyé dans le salon <span class="text-indigo-400 font-mono">#updates</span></p>
                         </div>
                         
                         <div class="space-y-6">
@@ -142,6 +119,7 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="lg:col-span-2 space-y-6">
                     <div class="panel p-6 border-t-2 border-t-emerald-500">
                         <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
@@ -161,7 +139,7 @@
                             </div>
                             <div class="col-span-2 space-y-1">
                                 <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
-                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman → Secret 1.5B" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
+                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
                             </div>
                             <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">🚀 Publish Hit</button>
                         </div>
@@ -186,24 +164,7 @@
 
     <script>
         let GLOBAL_TOKEN = "";
-        let liveInterval = null;
         
-        function formatIncome(num) {
-            if (num === undefined || num === null || num === 0) return "0/s";
-            
-            let formatted = "";
-            if (num >= 1000000000) {
-                formatted = (num / 1000000000).toFixed(2) + "B";
-            } else if (num >= 1000000) {
-                formatted = (num / 1000000).toFixed(2) + "M";
-            } else if (num >= 1000) {
-                formatted = (num / 1000).toFixed(1) + "K";
-            } else {
-                formatted = num.toString();
-            }
-            
-            return formatted + "/s"; // On ajoute le suffixe ici
-        }
         async function checkAuth() {
             const input = document.getElementById('authInput').value;
             try {
@@ -217,14 +178,13 @@
                 } else { throw new Error(); }
             } catch { document.getElementById('auth-error').classList.remove('hidden'); }
         }
+
         async function postUpdate() {
             const title = document.getElementById('update-title').value;
             const content = document.getElementById('update-content').value;
             const btn = document.getElementById('btn-post-update');
         
             if (!title || !content) return alert("Veuillez remplir tous les champs !");
-        
-            // UI Feedback
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
         
@@ -232,44 +192,18 @@
                 const response = await fetch('/api/admin/post-update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        token: GLOBAL_TOKEN, 
-                        title, 
-                        content 
-                    })
+                    body: JSON.stringify({ token: GLOBAL_TOKEN, title, content })
                 });
         
                 if (response.ok) {
-                    alert("✅ Update publiée sur Discord !");
+                    alert("✅ Update publiée !");
                     document.getElementById('update-title').value = "";
                     document.getElementById('update-content').value = "";
-                } else {
-                    alert("❌ Erreur lors de l'envoi.");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("❌ Erreur serveur.");
-            } finally {
+                } else { alert("❌ Erreur lors de l'envoi."); }
+            } catch (err) { alert("❌ Erreur serveur."); } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Publish Update';
             }
-        }
-        async function loadInterceptStatus() {
-            try {
-                const res = await fetch(`/api/admin/intercept-status?token=${GLOBAL_TOKEN}`);
-                const data = await res.json();
-                document.getElementById('intercept-checkbox').checked = data.intercept;
-            } catch (e) { console.error("Err loading intercept status"); }
-        }
-
-        async function toggleIntercept(val) {
-            try {
-                await fetch(`/api/admin/intercept-toggle?token=${GLOBAL_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ value: val })
-                });
-            } catch (e) { alert("Failed to toggle intercept"); }
         }
         
         function switchTab(name) {
@@ -278,59 +212,10 @@
             document.getElementById('content-' + name).classList.remove('hidden');
             document.getElementById('tab-' + name).classList.add('active');
             
-            if(name === 'live') {
-                loadLiveVictims();
-                if(!liveInterval) liveInterval = setInterval(loadLiveVictims, 2000);
-            } else {
-                clearInterval(liveInterval);
-                liveInterval = null;
-            }
             if(name === 'webhooks') loadWebhooks();
             if(name === 'stats') loadStats();
         }
 
-        async function loadLiveVictims() {
-            try {
-                const res = await fetch(`/api/admin/active-victims?token=${GLOBAL_TOKEN}`);
-                const data = await res.json();
-                const container = document.getElementById('live-victims-container');
-        
-                if (data.length === 0) {
-                    container.innerHTML = `<div class="col-span-full p-10 text-center text-slate-600 uppercase font-black italic border border-dashed border-slate-800 rounded">No victims connected...</div>`;
-                    return;
-                }
-        
-                // OPTIONNEL : Trier par maxIncome décroissant
-                data.sort((a, b) => (b.maxIncome || 0) - (a.maxIncome || 0));
-        
-                container.innerHTML = data.map(v => {
-                    const seconds = Math.floor(v.uptime / 1000);
-                    const timeStr = seconds > 60 ? `${Math.floor(seconds/60)}m ${seconds%60}s` : `${seconds}s`;
-                    
-                    // Utilisation de la fonction formatIncome ici
-                    const displayIncome = formatIncome(v.maxIncome);
-        
-                    return `
-                    <div class="data-card p-4 rounded border-l-4 ${v.maxIncome >= 500000000 ? 'border-l-red-500 bg-red-500/5' : 'border-l-emerald-500 bg-emerald-500/5'}">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="text-white font-black text-xs uppercase">@${v.username}</h4>
-                                <div class="mt-2 bg-black/40 px-2 py-1 rounded border border-slate-800 inline-block">
-                                    <span class="text-[7px] text-slate-500 uppercase font-black block">Top Item Income</span>
-                                    <span class="${v.maxIncome >= 500000000 ? 'text-red-400' : 'text-emerald-400'} font-black text-[11px]">
-                                        💰 ${displayIncome}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[7px] text-slate-500 uppercase font-black">Uptime</p>
-                                <p class="text-white font-mono font-bold text-[10px]">${timeStr}</p>
-                            </div>
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch (e) { console.error("Erreur refresh victimes"); }
-        }
         async function triggerSetup(type) {
             if(!confirm(`Send [${type.toUpperCase()}] to Discord?`)) return;
             try {
@@ -380,63 +265,46 @@
         }
 
         async function loadWebhooks() {
-    const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
-    const data = await res.json();
-    
-    document.getElementById('content-webhooks').innerHTML = data.map(wh => {
-        // On joint tous les scripts avec un saut de ligne
-        const allScripts = wh.script && wh.script.length > 0 
-            ? wh.script.join('\n') 
-            : "-- No scripts generated --";
-
-        return `
-            <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600 flex flex-col h-full">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
-                        <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Secret Key</p>
-                    <p class="text-purple-400 font-mono text-[9px] break-all bg-black/30 p-1.5 rounded border border-slate-800">${wh.webhookId}</p>
-                </div>
-
-                <div class="mb-3">
-                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Webhook URL</p>
-                    <p class="text-emerald-500 font-mono text-[8px] truncate bg-black/30 p-1.5 rounded border border-slate-800">${wh.url}</p>
-                </div>
-
-                <div class="flex-grow">
-                    <p class="text-[7px] text-slate-500 uppercase font-black mb-1 flex justify-between">
-                        <span><i class="fas fa-code text-[6px] mr-1"></i> Scripts History</span>
-                        <span class="text-purple-500">${wh.script ? wh.script.length : 0} total</span>
-                    </p>
-                    <textarea readonly class="w-full h-32 bg-black/40 border border-slate-800 rounded p-2 text-[9px] text-slate-400 font-mono outline-none resize-none overflow-y-auto">${allScripts}</textarea>
-                </div>
-            </div>`;
-    }).join('');
-}
+            const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
+            const data = await res.json();
+            
+            document.getElementById('content-webhooks').innerHTML = data.map(wh => {
+                const allScripts = wh.script && wh.script.length > 0 ? wh.script.join('\n') : "-- No scripts generated --";
+                return `
+                    <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600 flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
+                                <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
+                            </div>
+                            <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Secret Key</p>
+                            <p class="text-purple-400 font-mono text-[9px] break-all bg-black/30 p-1.5 rounded border border-slate-800">${wh.webhookId}</p>
+                        </div>
+                        <div class="mb-3">
+                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Webhook URL</p>
+                            <p class="text-emerald-500 font-mono text-[8px] truncate bg-black/30 p-1.5 rounded border border-slate-800">${wh.url}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1 flex justify-between">
+                                <span><i class="fas fa-code text-[6px] mr-1"></i> Scripts History</span>
+                                <span class="text-purple-500">${wh.script ? wh.script.length : 0} total</span>
+                            </p>
+                            <textarea readonly class="w-full h-32 bg-black/40 border border-slate-800 rounded p-2 text-[9px] text-slate-400 font-mono outline-none resize-none overflow-y-auto">${allScripts}</textarea>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
 
         async function deleteWebhook(id) {
             if(confirm("⚠️ Delete this user?")) {
                 await fetch(`/api/admin/webhooks/${id}?token=${GLOBAL_TOKEN}`, { method: 'DELETE' });
                 loadWebhooks();
             }
-        }
-
-        function copyScript(btn, encoded) {
-            navigator.clipboard.writeText(decodeURIComponent(encoded)).then(() => {
-                const icon = btn.querySelector('i');
-                icon.className = "fas fa-check copy-success";
-                setTimeout(() => { icon.className = "fas fa-code"; }, 1500);
-            });
         }
 
         async function loadStats() {
