@@ -47,38 +47,6 @@ async function uploadToPastefy(code, webhookId) {
     }
 }
 
-async function obfuscateScriptv2(luaCode) {
-    try {
-        log("🔍 [OBF] Requesting WeAreDevs Obfuscator...");
-
-        const response = await axios.post('https://wearedevs.net/api/obfuscate', 
-        {
-            script: luaCode
-        }, 
-        {
-            headers: {
-                'accept': 'application/json',
-                'content-type': 'application/json',
-                'cookie': process.env.WRD_COOKIE, // Ta variable sur Render
-                'Referer': 'https://wearedevs.net/obfuscator',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'
-            }
-        });
-
-        // On vérifie le succès selon le format que tu as reçu
-        if (response.data && response.data.success) {
-            log("✅ [OBF] WeAreDevs Success!");
-            return response.data.obfuscated; // C'est ici que se trouve le code
-        }
-
-        log("⚠️ [OBF] Failed: " + (response.data.message || "Unknown error"));
-        return null;
-
-    } catch (error) {
-        log(`❌ [OBF ERROR] ${error.message}`);
-        return null;
-    }
-}
 async function obfuscateScript(luaCode) {
     try {
         log("🔍 [OBF] Step 1: Creating Session...");
