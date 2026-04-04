@@ -71,28 +71,7 @@
         </section>
 
         <section id="content-discord" class="hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 space-y-4">
-                    <div class="panel p-4">
-                        <h3 class="text-white font-black uppercase text-[9px] mb-4 text-purple-500">Fast Setup</h3>
-                        <div class="flex flex-col gap-2">
-                            <button onclick="triggerSetup('rules')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                                <i class="fas fa-shield-halved text-purple-500"></i>
-                                <span class="font-bold uppercase text-[9px]">Send Rules</span>
-                            </button>
-                            <button onclick="triggerSetup('disclaimer')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                                <i class="fas fa-gavel text-slate-400"></i>
-                                <span class="font-bold uppercase text-[9px]">Send Disclaimer</span>
-                            </button>
-                            <button onclick="triggerSetup('tutorial')" class="setup-btn p-3 rounded flex items-center gap-3 group text-left">
-                                <i class="fas fa-rocket text-blue-500"></i>
-                                <span class="font-bold uppercase text-[9px]">Send Tutorial</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="max-w-2xl mx-auto">
+                <div class="col-span-full max-w-2xl mx-auto">
                     <div class="data-card p-8 rounded-2xl shadow-2xl border-t-4 border-t-indigo-600">
                         <div class="mb-8">
                             <h3 class="text-xl font-black text-white mb-2">Post System Update</h3>
@@ -214,19 +193,6 @@
             
             if(name === 'webhooks') loadWebhooks();
             if(name === 'stats') loadStats();
-        }
-
-        async function triggerSetup(type) {
-            if(!confirm(`Send [${type.toUpperCase()}] to Discord?`)) return;
-            try {
-                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type })
-                });
-                const data = await res.json();
-                alert(data.success ? "✅ Success!" : "❌ Error: " + data.message);
-            } catch (err) { alert("❌ Server connection error."); }
         }
 
         async function sendManualHit() {
