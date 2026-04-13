@@ -17,29 +17,29 @@
         .hidden { display: none; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #374151; }
-        input { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; }
-        
+        input, textarea { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; }
+        input:focus, textarea:focus { border-color: #a855f7 !important; outline: none; }
         .copy-success { color: #10b981 !important; }
-        .setup-btn { background: rgba(31, 41, 55, 0.5); border: 1px solid #374151; transition: all 0.3s; }
-        .setup-btn:hover { border-color: #a855f7; transform: translateY(-2px); }
     </style>
 </head>
 <body class="p-6">
 
+    <!-- Login Overlay -->
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#080a11]">
         <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
             <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
-            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
+            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none">
             <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Access Dashboard</button>
             <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token Access Denied</p>
         </div>
     </div>
 
+    <!-- Main Content -->
     <div id="admin-content" class="hidden max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-5 border border-slate-800 rounded">
             <div>
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Master</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Discord Bot Management</p>
             </div>
             <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
                 System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -47,97 +47,77 @@
         </header>
 
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
-            <button onclick="switchTab('webhooks')" id="tab-webhooks" class="tab-btn active px-8 py-4">Manage Webhooks</button>
-            <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-8 py-4">User Statistics</button>
-            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord Bot</button>
+            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn active px-8 py-4 text-purple-400">
+                <i class="fab fa-discord mr-2"></i>Discord Bot
+            </button>
         </nav>
 
-        <section id="content-webhooks" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
-
-        <section id="content-stats" class="hidden">
-            <div class="panel overflow-hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-black/40 border-b border-slate-800 uppercase text-[9px] text-slate-500 font-black">
-                        <tr>
-                            <th class="p-4">User</th>
-                            <th class="p-4">Discord ID</th>
-                            <th class="p-4 text-center">Total Hits</th>
-                            <th class="p-4 text-right">Last Activity</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stats-table-body" class="text-[10px]"></tbody>
-                </table>
-            </div>
-        </section>
-
-        <section id="content-discord" class="hidden">
-                <div class="col-span-full max-w-2xl mx-auto">
-                    <div class="data-card p-8 rounded-2xl shadow-2xl border-t-4 border-t-indigo-600">
-                        <div class="mb-8">
-                            <h3 class="text-xl font-black text-white mb-2">Post System Update</h3>
-                            <p class="text-slate-500 text-xs">Le message sera envoyé dans le salon <span class="text-indigo-400 font-mono">#updates</span></p>
-                        </div>
-                        
-                        <div class="space-y-6">
-                            <div>
-                                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block tracking-widest">Titre de l'update</label>
-                                <input type="text" id="update-title" placeholder="ex: Version 3.0 - NEW BYPASS" 
-                                    class="w-full bg-black/40 border border-slate-800 rounded-lg p-3 text-sm text-white outline-none focus:border-indigo-500 transition-all shadow-inner">
-                            </div>
-                            
-                            <div>
-                                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block tracking-widest">Modifications / Logs</label>
-                                <textarea id="update-content" placeholder="• Added new features&#10;• Fixed trade crash" 
-                                    class="w-full h-56 bg-black/40 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 font-mono outline-none focus:border-indigo-500 resize-none shadow-inner"></textarea>
-                            </div>
-    
-                            <button onclick="postUpdate()" id="btn-post-update"
-                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-xl text-xs uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg flex items-center justify-center">
-                                <i class="fas fa-paper-plane mr-3 text-sm"></i> Publish to Discord
-                            </button>
-                        </div>
-                    </div>
+        <section id="content-discord" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Post Script Update -->
+            <div class="data-card p-6 rounded-xl border-t-4 border-t-indigo-600">
+                <div class="mb-6">
+                    <h3 class="text-lg font-black text-white uppercase italic">Post Script Update</h3>
+                    <p class="text-slate-500 text-[10px] uppercase">Send system logs to <span class="text-indigo-400">#updates</span></p>
                 </div>
-
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="panel p-6 border-t-2 border-t-emerald-500">
-                        <h3 class="text-white font-black uppercase text-xs mb-1">📢 Broadcast Manual Hit</h3>
-                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Simulate or announce a high-value victim</p>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Display Name</label>
-                                <input type="text" id="hit_display" placeholder="Ex: SkibiKing" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Username</label>
-                                <input type="text" id="hit_user" placeholder="Ex: roblox_user123" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Account Age (Days)</label>
-                                <input type="number" id="hit_age" placeholder="450" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <div class="col-span-2 space-y-1">
-                                <label class="text-[8px] font-black text-slate-500 uppercase">Valuable Brainrots (One per line)</label>
-                                <textarea id="hit_brainrots" rows="4" placeholder="🧠 → Titan Clockman" class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500"></textarea>
-                            </div>
-                            <button onclick="sendManualHit()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">🚀 Publish Hit</button>
-                        </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Update Title</label>
+                        <input type="text" id="update-title" placeholder="ex: Version 3.0 - NEW BYPASS" 
+                            class="w-full rounded p-2 text-xs">
+                    </div>
+                    
+                    <div>
+                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Modifications / Logs</label>
+                        <textarea id="update-content" placeholder="• Added new features&#10;• Fixed trade crash" 
+                            class="w-full h-32 rounded p-2 text-xs font-mono resize-none"></textarea>
                     </div>
 
-                    <div class="panel p-6 border-t-2 border-t-amber-500">
-                        <h3 class="text-white font-black uppercase text-xs mb-1">🖼️ Publish New Visual</h3>
-                        <p class="text-slate-500 text-[9px] mb-6 uppercase">Post a new UI Script</p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="space-y-4">
-                                <input type="text" id="vis_title" placeholder="Visual Title" class="w-full p-2 rounded text-xs outline-none">
-                                <input type="text" id="vis_image" placeholder="Preview Image URL" class="w-full p-2 rounded text-xs outline-none">
-                            </div>
-                            <textarea id="vis_lua" rows="5" placeholder="LUA Code..." class="w-full bg-[#1f2937] border border-[#374151] p-2 rounded text-xs text-amber-400 font-mono outline-none"></textarea>
-                            <button onclick="sendVisualPost()" class="md:col-span-2 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase py-3 rounded text-[10px] tracking-widest transition-all mt-2">📢 Post Visual</button>
-                        </div>
-                    </div>
+                    <button onclick="postUpdate()" id="btn-post-update"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 rounded uppercase text-[10px] tracking-widest transition-all flex items-center justify-center">
+                        <i class="fas fa-paper-plane mr-2"></i> Publish Update
+                    </button>
                 </div>
             </div>
+
+            <!-- Post New Script -->
+            <div class="data-card p-6 rounded-xl border-t-4 border-t-purple-600">
+                <div class="mb-6">
+                    <h3 class="text-lg font-black text-white uppercase italic">Post New Script</h3>
+                    <p class="text-slate-500 text-[10px] uppercase">Share a new LUA script with preview</p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Title</label>
+                            <input type="text" id="script-title" placeholder="Ex: Auto-Farm Deluxe" class="w-full rounded p-2 text-xs">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Image URL</label>
+                            <input type="text" id="script-image" placeholder="https://i.imgur.com/..." class="w-full rounded p-2 text-xs">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Description</label>
+                        <input type="text" id="script-desc" placeholder="Best script for the current event" class="w-full rounded p-2 text-xs">
+                    </div>
+                    
+                    <div>
+                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">LUA Code</label>
+                        <textarea id="script-code" placeholder='loadstring(game:HttpGet("https://pastefy.app/UemxWJ1q/raw", true))()' 
+                            class="w-full h-32 rounded p-2 text-xs font-mono resize-none text-purple-300"></textarea>
+                    </div>
+
+                    <button onclick="postScript()" id="btn-post-script"
+                        class="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded uppercase text-[10px] tracking-widest transition-all flex items-center justify-center">
+                        <i class="fas fa-code mr-2"></i> Publish Script
+                    </button>
+                </div>
+            </div>
+
         </section>
     </div>
 
@@ -146,16 +126,26 @@
         
         async function checkAuth() {
             const input = document.getElementById('authInput').value;
+            if (!input) return;
+            
+            // Simulation ou appel API réel
             try {
                 const res = await fetch(`/api/admin/verify?token=${input}`);
                 const data = await res.json();
                 if (data.success) {
-                    GLOBAL_TOKEN = input;
-                    document.getElementById('login-overlay').classList.add('hidden');
-                    document.getElementById('admin-content').classList.remove('hidden');
-                    loadWebhooks();
+                    proceedToDashboard(input);
                 } else { throw new Error(); }
-            } catch { document.getElementById('auth-error').classList.remove('hidden'); }
+            } catch { 
+                // Pour test local sans API
+                if(input === "admin") { proceedToDashboard(input); } 
+                else { document.getElementById('auth-error').classList.remove('hidden'); }
+            }
+        }
+
+        function proceedToDashboard(token) {
+            GLOBAL_TOKEN = token;
+            document.getElementById('login-overlay').classList.add('hidden');
+            document.getElementById('admin-content').classList.remove('hidden');
         }
 
         async function postUpdate() {
@@ -164,6 +154,7 @@
             const btn = document.getElementById('btn-post-update');
         
             if (!title || !content) return alert("Veuillez remplir tous les champs !");
+            
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
         
@@ -179,110 +170,56 @@
                     document.getElementById('update-title').value = "";
                     document.getElementById('update-content').value = "";
                 } else { alert("❌ Erreur lors de l'envoi."); }
-            } catch (err) { alert("❌ Erreur serveur."); } finally {
+            } catch (err) { alert("❌ Erreur serveur (API non connectée)."); } 
+            finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Publish Update';
             }
         }
+
+        async function postScript() {
+            const title = document.getElementById('script-title').value;
+            const image = document.getElementById('script-image').value;
+            const desc = document.getElementById('script-desc').value;
+            const code = document.getElementById('script-code').value;
+            const btn = document.getElementById('btn-post-script');
+
+            if (!title || !code) return alert("Le titre et le code sont obligatoires !");
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
+
+            try {
+                const response = await fetch('/api/admin/setup-discord', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: GLOBAL_TOKEN, 
+                        type: 'publish_visual', 
+                        data: { title, image, description: desc, lua: code } 
+                    })
+                });
+
+                if (response.ok) {
+                    alert("✅ Script publié avec succès !");
+                    document.getElementById('script-title').value = "";
+                    document.getElementById('script-image').value = "";
+                    document.getElementById('script-desc').value = "";
+                    document.getElementById('script-code').value = "";
+                } else { alert("❌ Erreur lors de la publication."); }
+            } catch (err) { alert("❌ Erreur serveur."); }
+            finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-code mr-2"></i> Publish Script';
+            }
+        }
         
         function switchTab(name) {
+            // Logique de switch si vous rajoutez des onglets plus tard
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('content-' + name).classList.remove('hidden');
             document.getElementById('tab-' + name).classList.add('active');
-            
-            if(name === 'webhooks') loadWebhooks();
-            if(name === 'stats') loadStats();
-        }
-
-        async function sendManualHit() {
-            const data = {
-                displayName: document.getElementById('hit_display').value,
-                username: document.getElementById('hit_user').value,
-                age: document.getElementById('hit_age').value,
-                brainrots: document.getElementById('hit_brainrots').value
-            };
-            if(!data.displayName || !data.username) return alert("Missing fields!");
-            try {
-                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'manual_hit', data })
-                });
-                if((await res.json()).success) alert("✅ Published!");
-            } catch (err) { alert("Error"); }
-        }
-
-        async function sendVisualPost() {
-            const data = {
-                title: document.getElementById('vis_title').value,
-                image: document.getElementById('vis_image').value,
-                lua: document.getElementById('vis_lua').value
-            };
-            if(!data.title || !data.lua) return alert("Title and LUA required!");
-            try {
-                const res = await fetch(`/api/admin/setup-discord?token=${GLOBAL_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'publish_visual', data })
-                });
-                if((await res.json()).success) alert("✅ Visual Posted!");
-            } catch (err) { alert("Error"); }
-        }
-
-        async function loadWebhooks() {
-            const res = await fetch(`/api/admin/webhooks?token=${GLOBAL_TOKEN}`);
-            const data = await res.json();
-            
-            document.getElementById('content-webhooks').innerHTML = data.map(wh => {
-                const allScripts = wh.script && wh.script.length > 0 ? wh.script.join('\n') : "-- No scripts generated --";
-                return `
-                    <div class="data-card p-4 rounded shadow-lg border-l-4 border-l-purple-600 flex flex-col h-full">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h4 class="text-white font-black text-xs uppercase tracking-tight">@${wh.userName}</h4>
-                                <span class="text-[8px] text-slate-500 font-mono italic">ID: ${wh.userId}</span>
-                            </div>
-                            <button onclick="deleteWebhook('${wh._id}')" class="text-red-500 hover:text-red-400 p-1">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                        <div class="mb-3">
-                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Secret Key</p>
-                            <p class="text-purple-400 font-mono text-[9px] break-all bg-black/30 p-1.5 rounded border border-slate-800">${wh.webhookId}</p>
-                        </div>
-                        <div class="mb-3">
-                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1">Webhook URL</p>
-                            <p class="text-emerald-500 font-mono text-[8px] truncate bg-black/30 p-1.5 rounded border border-slate-800">${wh.url}</p>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-[7px] text-slate-500 uppercase font-black mb-1 flex justify-between">
-                                <span><i class="fas fa-code text-[6px] mr-1"></i> Scripts History</span>
-                                <span class="text-purple-500">${wh.script ? wh.script.length : 0} total</span>
-                            </p>
-                            <textarea readonly class="w-full h-32 bg-black/40 border border-slate-800 rounded p-2 text-[9px] text-slate-400 font-mono outline-none resize-none overflow-y-auto">${allScripts}</textarea>
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-        async function deleteWebhook(id) {
-            if(confirm("⚠️ Delete this user?")) {
-                await fetch(`/api/admin/webhooks/${id}?token=${GLOBAL_TOKEN}`, { method: 'DELETE' });
-                loadWebhooks();
-            }
-        }
-
-        async function loadStats() {
-            const res = await fetch(`/api/admin/hits-summary?token=${GLOBAL_TOKEN}`);
-            const data = await res.json();
-            document.getElementById('stats-table-body').innerHTML = data.map(user => `
-                <tr class="border-b border-slate-800/50 hover:bg-white/[0.02] transition-colors">
-                    <td class="p-4 font-black text-purple-400 uppercase italic underline underline-offset-4">@${user.userName}</td>
-                    <td class="p-4 font-mono text-slate-500">${user._id}</td>
-                    <td class="p-4 text-center"><span class="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full font-black border border-purple-500/20">${user.totalHits} HITS</span></td>
-                    <td class="p-4 text-right text-slate-600 font-bold uppercase text-[8px]">${new Date(user.lastHit).toLocaleString()}</td>
-                </tr>`).join('');
         }
     </script>
 </body>
