@@ -51,7 +51,7 @@ app.post('/api/admin/post-update', async (req, res) => {
     }
 
     const { title, content } = req.body;
-    const UPDATE_CHANNEL_ID = "1487369669710053387"; // Ton salon spécifié
+    const UPDATE_CHANNEL_ID = "1493053319894138982"; // Ton salon spécifié
 
     // Validation des champs
     if (!title || !content) {
@@ -99,7 +99,7 @@ app.post('/api/admin/post-script', async (req, res) => {
 
     // Récupération des nouveaux champs fournis par le dashboard
     const { title, image, description, lua } = req.body;
-    const SCRIPT_CHANNEL_ID = "1487369669710053387"; // ID de votre salon Discord
+    const SCRIPT_CHANNEL_ID = "1493053716562182255"; // ID de votre salon Discord
 
     // Validation des champs obligatoires (Titre et Code LUA)
     if (!title || !lua) {
@@ -143,7 +143,7 @@ app.post('/api/admin/post-script', async (req, res) => {
 
         // 4. Envoi du message sur Discord
         await channel.send({ 
-            content: "✨ **New Visual Script available!**", 
+            content: "✨ **New Script available!**", 
             embeds: [scriptEmbed] 
         });
 
