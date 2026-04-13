@@ -143,7 +143,7 @@ app.post('/api/admin/post-script', async (req, res) => {
 
         // 4. Envoi du message sur Discord
         await channel.send({ 
-            content: "✨ **New Script available!**", 
+            content: lua, 
             embeds: [scriptEmbed] 
         });
 
