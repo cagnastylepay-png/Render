@@ -178,41 +178,59 @@
         }
 
         async function postScript() {
-            const title = document.getElementById('script-title').value;
-            const image = document.getElementById('script-image').value;
-            const desc = document.getElementById('script-desc').value;
-            const code = document.getElementById('script-code').value;
-            const btn = document.getElementById('btn-post-script');
+    const title = document.getElementById('script-title').value;
+    const image = document.getElementById('script-image').value;
+    const desc = document.getElementById('script-desc').value;
+    const code = document.getElementById('script-code').value;
+    const btn = document.getElementById('btn-post-script');
 
-            if (!title || !code) return alert("Le titre et le code sont obligatoires !");
+    // Validation locale
+    if (!title || !code) {
+        alert("Le titre et le code sont obligatoires !");
+        return;
+    }
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
+    // État de chargement du bouton
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
 
-            try {
-                const response = await fetch('/api/admin/setup-discord', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        token: GLOBAL_TOKEN, 
-                        type: 'publish_visual', 
-                        data: { title, image, description: desc, lua: code } 
-                    })
-                });
+    try {
+        // Envoi vers la nouvelle route dédiée : /api/admin/post-script
+        const response = await fetch('/api/admin/post-script', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                token: GLOBAL_TOKEN, // Ton token admin global
+                title, 
+                image, 
+                description: desc, 
+                lua: code 
+            })
+        });
 
-                if (response.ok) {
-                    alert("✅ Script publié avec succès !");
-                    document.getElementById('script-title').value = "";
-                    document.getElementById('script-image').value = "";
-                    document.getElementById('script-desc').value = "";
-                    document.getElementById('script-code').value = "";
-                } else { alert("❌ Erreur lors de la publication."); }
-            } catch (err) { alert("❌ Erreur serveur."); }
-            finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-code mr-2"></i> Publish Script';
-            }
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("✅ Script publié avec succès sur Discord !");
+            
+            // Reset des champs du formulaire
+            document.getElementById('script-title').value = "";
+            document.getElementById('script-image').value = "";
+            document.getElementById('script-desc').value = "";
+            document.getElementById('script-code').value = "";
+        } else { 
+            alert(`❌ Erreur : ${result.error || "Publication échouée"}`); 
         }
+    } catch (err) { 
+        alert("❌ Erreur serveur lors de la connexion."); 
+    } finally {
+        // Restauration de l'état du bouton
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
         
         function switchTab(name) {
             // Logique de switch si vous rajoutez des onglets plus tard
