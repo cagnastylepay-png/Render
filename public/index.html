@@ -8,38 +8,100 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background-color: #080a11; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 11px; }
-        .panel { background: #111827; border: 1px solid #1f2937; border-radius: 4px; }
-        .tab-btn { border-bottom: 2px solid transparent; transition: all 0.2s; color: #64748b; text-transform: uppercase; font-weight: 900; font-size: 10px; letter-spacing: 0.05em; }
-        .tab-btn.active { border-color: #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.05); }
-        .data-card { background: #111827; border: 1px solid #1f2937; transition: all 0.3s; position: relative; }
-        .data-card:hover { border-color: #a855f7; }
-        .hidden { display: none; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #374151; }
-        input, textarea { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; }
-        input:focus, textarea:focus { border-color: #a855f7 !important; outline: none; }
-        .copy-success { color: #10b981 !important; }
+
+        body {
+            background-color: #080a11;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+        }
+
+        .panel {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+        }
+
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+        }
+
+            .tab-btn.active {
+                border-color: #a855f7;
+                color: #a855f7;
+                background: rgba(168, 85, 247, 0.05);
+            }
+
+        .data-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+            .data-card:hover {
+                border-color: #a855f7;
+            }
+
+        .hidden {
+            display: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+
+        input {
+            background: #1f2937 !important;
+            border: 1px solid #374151 !important;
+            color: white !important;
+        }
+
+        .copy-success {
+            color: #10b981 !important;
+        }
+
+        .setup-btn {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid #374151;
+            transition: all 0.3s;
+        }
+
+            .setup-btn:hover {
+                border-color: #a855f7;
+                transform: translateY(-2px);
+            }
+
+        .sortable { cursor: pointer; user-select: none; }
+        .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
     </style>
 </head>
 <body class="p-6">
 
-    <!-- Login Overlay -->
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#080a11]">
         <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
             <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
-            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none">
+            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
             <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Access Dashboard</button>
             <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token Access Denied</p>
         </div>
     </div>
 
-    <!-- Main Content -->
     <div id="admin-content" class="hidden max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-5 border border-slate-800 rounded">
             <div>
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Master</span></h1>
-                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Discord Bot Management</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
             <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
                 System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -47,198 +109,225 @@
         </header>
 
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
-            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn active px-8 py-4 text-purple-400">
-                <i class="fab fa-discord mr-2"></i>Discord Bot
-            </button>
+            <button onclick="switchTab('collection')" id="tab-webhooks" class="tab-btn active px-8 py-4">Manage Webhooks</button>
+            <button onclick="switchTab('hits')" id="tab-stats" class="tab-btn px-8 py-4">User Statistics</button>
+            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord Bot</button>
         </nav>
 
-        <section id="content-discord" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Controls: search + group -->
+        <div class="flex gap-3 items-center mb-4">
+            <input id="searchInput" type="text" placeholder="Recherche (BaseName, Name, Rarity, Mutation, Traits)..." class="p-2 rounded flex-1" />
+            <select id="groupSelect" class="p-2 rounded">
+                <option value="none">Pas de groupement</option>
+                <option value="BaseName">Group by BaseInfo.Name</option>
+                <option value="Name">Group by Name</option>
+                <option value="Rarity">Group by Rarity</option>
+                <option value="Mutation">Group by Mutation</option>
+            </select>
+            <button id="refreshBtn" class="px-4 py-2 rounded bg-purple-600 hover:bg-purple-500">Refresh</button>
+        </div>
+
+        <section id="content-collection" class="mb-6">
+            <div id="gridContainer" class="data-card p-4 overflow-auto max-h-[60vh]">
+                <!-- Table / grouped content injected here -->
+                <div id="gridToolbar" class="mb-2 text-[10px] text-slate-400">Chargement...</div>
+                <div id="gridArea"></div>
+            </div>
+        </section>
+
+        <section id="content-hits" class="hidden">
+        </section>
+
+        <section id="content-discord" class="hidden">
             
-            <!-- Post Script Update -->
-            <div class="data-card p-6 rounded-xl border-t-4 border-t-indigo-600">
-                <div class="mb-6">
-                    <h3 class="text-lg font-black text-white uppercase italic">Post Script Update</h3>
-                    <p class="text-slate-500 text-[10px] uppercase">Send system logs to <span class="text-indigo-400">#updates</span></p>
-                </div>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Update Title</label>
-                        <input type="text" id="update-title" placeholder="ex: Version 3.0 - NEW BYPASS" 
-                            class="w-full rounded p-2 text-xs">
-                    </div>
-                    
-                    <div>
-                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Modifications / Logs</label>
-                        <textarea id="update-content" placeholder="• Added new features&#10;• Fixed trade crash" 
-                            class="w-full h-32 rounded p-2 text-xs font-mono resize-none"></textarea>
-                    </div>
-
-                    <button onclick="postUpdate()" id="btn-post-update"
-                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 rounded uppercase text-[10px] tracking-widest transition-all flex items-center justify-center">
-                        <i class="fas fa-paper-plane mr-2"></i> Publish Update
-                    </button>
-                </div>
-            </div>
-
-            <!-- Post New Script -->
-            <div class="data-card p-6 rounded-xl border-t-4 border-t-purple-600">
-                <div class="mb-6">
-                    <h3 class="text-lg font-black text-white uppercase italic">Post New Script</h3>
-                    <p class="text-slate-500 text-[10px] uppercase">Share a new LUA script with preview</p>
-                </div>
-                
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Title</label>
-                            <input type="text" id="script-title" placeholder="Ex: Auto-Farm Deluxe" class="w-full rounded p-2 text-xs">
-                        </div>
-                        <div>
-                            <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Image URL</label>
-                            <input type="text" id="script-image" placeholder="https://i.imgur.com/..." class="w-full rounded p-2 text-xs">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">Script Description</label>
-                        <input type="text" id="script-desc" placeholder="Best script for the current event" class="w-full rounded p-2 text-xs">
-                    </div>
-                    
-                    <div>
-                        <label class="text-[9px] text-slate-400 uppercase font-black mb-1 block">LUA Code</label>
-                        <textarea id="script-code" placeholder='loadstring(game:HttpGet("https://pastefy.app/UemxWJ1q/raw", true))()' 
-                            class="w-full h-32 rounded p-2 text-xs font-mono resize-none text-purple-300"></textarea>
-                    </div>
-
-                    <button onclick="postScript()" id="btn-post-script"
-                        class="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded uppercase text-[10px] tracking-widest transition-all flex items-center justify-center">
-                        <i class="fas fa-code mr-2"></i> Publish Script
-                    </button>
-                </div>
-            </div>
-
         </section>
     </div>
 
     <script>
         let GLOBAL_TOKEN = "";
-        
+        let ALL_ITEMS = [];
+        let SORT = { key: 'Income', dir: 'desc' }; // default sort by income desc
+        let DEBOUNCE_TIMER = null;
+
         async function checkAuth() {
             const input = document.getElementById('authInput').value;
-            if (!input) return;
-            
-            // Simulation ou appel API réel
             try {
                 const res = await fetch(`/api/admin/verify?token=${input}`);
                 const data = await res.json();
                 if (data.success) {
-                    proceedToDashboard(input);
+                    GLOBAL_TOKEN = input;
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    document.getElementById('admin-content').classList.remove('hidden');
+                    loadCollection();
                 } else { throw new Error(); }
-            } catch { 
-                // Pour test local sans API
-                if(input === "admin") { proceedToDashboard(input); } 
-                else { document.getElementById('auth-error').classList.remove('hidden'); }
-            }
+            } catch { document.getElementById('auth-error').classList.remove('hidden'); }
         }
 
-        function proceedToDashboard(token) {
-            GLOBAL_TOKEN = token;
-            document.getElementById('login-overlay').classList.add('hidden');
-            document.getElementById('admin-content').classList.remove('hidden');
-        }
-
-        async function postUpdate() {
-            const title = document.getElementById('update-title').value;
-            const content = document.getElementById('update-content').value;
-            const btn = document.getElementById('btn-post-update');
-        
-            if (!title || !content) return alert("Veuillez remplir tous les champs !");
-            
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
-        
-            try {
-                const response = await fetch('/api/admin/post-update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: GLOBAL_TOKEN, title, content })
-                });
-        
-                if (response.ok) {
-                    alert("✅ Update publiée !");
-                    document.getElementById('update-title').value = "";
-                    document.getElementById('update-content').value = "";
-                } else { alert("❌ Erreur lors de l'envoi."); }
-            } catch (err) { alert("❌ Erreur serveur (API non connectée)."); } 
-            finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i> Publish Update';
-            }
-        }
-
-        async function postScript() {
-    const title = document.getElementById('script-title').value;
-    const image = document.getElementById('script-image').value;
-    const desc = document.getElementById('script-desc').value;
-    const code = document.getElementById('script-code').value;
-    const btn = document.getElementById('btn-post-script');
-
-    // Validation locale
-    if (!title || !code) {
-        alert("Le titre et le code sont obligatoires !");
-        return;
-    }
-
-    // État de chargement du bouton
-    btn.disabled = true;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-circle-notch animate-spin mr-2"></i> Sending...';
-
-    try {
-        // Envoi vers la nouvelle route dédiée : /api/admin/post-script
-        const response = await fetch('/api/admin/post-script', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                token: GLOBAL_TOKEN, // Ton token admin global
-                title, 
-                image, 
-                description: desc, 
-                lua: code 
-            })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert("✅ Script publié avec succès sur Discord !");
-            
-            // Reset des champs du formulaire
-            document.getElementById('script-title').value = "";
-            document.getElementById('script-image').value = "";
-            document.getElementById('script-desc').value = "";
-            document.getElementById('script-code').value = "";
-        } else { 
-            alert(`❌ Erreur : ${result.error || "Publication échouée"}`); 
-        }
-    } catch (err) { 
-        alert("❌ Erreur serveur lors de la connexion."); 
-    } finally {
-        // Restauration de l'état du bouton
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
-}
-
-        
         function switchTab(name) {
-            // Logique de switch si vous rajoutez des onglets plus tard
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('content-' + name).classList.remove('hidden');
             document.getElementById('tab-' + name).classList.add('active');
+
+            if (name === 'collection') loadCollection();
+            if (name === 'hits') loadHits();
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', () => loadCollection(true));
+        document.getElementById('groupSelect').addEventListener('change', () => renderGrid());
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(DEBOUNCE_TIMER);
+            DEBOUNCE_TIMER = setTimeout(() => renderGrid(), 250);
+        });
+
+        function compare(a, b, key) {
+            if (key === 'Income') {
+                return (a.Income || 0) - (b.Income || 0);
+            }
+            const va = (a[key] || '').toString().toLowerCase();
+            const vb = (b[key] || '').toString().toLowerCase();
+            if (va < vb) return -1;
+            if (va > vb) return 1;
+            return 0;
+        }
+
+        function renderHeader() {
+            const toolbar = document.getElementById('gridToolbar');
+            toolbar.innerHTML = '';
+            const header = document.createElement('div');
+            header.className = 'w-full overflow-x-auto';
+            header.innerHTML = `
+                <table class="w-full text-[12px]">
+                    <thead>
+                        <tr class="text-slate-400 text-left">
+                            <th class="p-2 sortable" data-key="BaseName">Base</th>
+                            <th class="p-2 sortable" data-key="Name">Name</th>
+                            <th class="p-2 sortable" data-key="Income">Income</th>
+                            <th class="p-2 sortable" data-key="Rarity">Rarity</th>
+                            <th class="p-2 sortable" data-key="Mutation">Mutation</th>
+                            <th class="p-2">Traits</th>
+                        </tr>
+                    </thead>
+                </table>
+            `;
+            toolbar.appendChild(header);
+            header.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-key');
+                    if (SORT.key === key) SORT.dir = SORT.dir === 'asc' ? 'desc' : 'asc';
+                    else { SORT.key = key; SORT.dir = 'asc'; }
+                    renderGrid();
+                });
+            });
+        }
+
+        function matchesFilter(item, q) {
+            if (!q) return true;
+            q = q.toLowerCase();
+            if ((item.BaseName || '').toString().toLowerCase().includes(q)) return true;
+            if ((item.Name || '').toString().toLowerCase().includes(q)) return true;
+            if ((item.Rarity || '').toString().toLowerCase().includes(q)) return true;
+            if ((item.Mutation || '').toString().toLowerCase().includes(q)) return true;
+            if (Array.isArray(item.Traits) && item.Traits.join(' ').toLowerCase().includes(q)) return true;
+            return false;
+        }
+
+        function renderGrid() {
+            renderHeader();
+            const grid = document.getElementById('gridArea');
+            grid.innerHTML = '';
+            const q = document.getElementById('searchInput').value || '';
+            // Filter
+            let items = ALL_ITEMS.filter(i => matchesFilter(i, q));
+            // Sort
+            items.sort((a, b) => {
+                const c = compare(a, b, SORT.key);
+                return SORT.dir === 'asc' ? c : -c;
+            });
+
+            const groupBy = document.getElementById('groupSelect').value;
+            if (groupBy && groupBy !== 'none') {
+                const groups = {};
+                for (const it of items) {
+                    const key = (it[groupBy] || '—').toString();
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(it);
+                }
+                for (const g of Object.keys(groups).sort()) {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.innerHTML = `<div class="group-header">${g} <span class="text-slate-400 text-[10px] ml-2">(${groups[g].length})</span></div>`;
+                    const table = buildTable(groups[g]);
+                    groupDiv.appendChild(table);
+                    grid.appendChild(groupDiv);
+                }
+            } else {
+                const table = buildTable(items);
+                grid.appendChild(table);
+            }
+
+            document.getElementById('gridToolbar').innerText = `Résultats: ${items.length}`;
+        }
+
+        function buildTable(items) {
+            const tbl = document.createElement('div');
+            tbl.className = 'w-full overflow-x-auto';
+            const rows = items.map(it => {
+                const traits = Array.isArray(it.Traits) ? it.Traits.join(', ') : '';
+                return `
+                    <tr class="border-t border-slate-800 hover:bg-slate-900">
+                        <td class="p-2 align-top">${escapeHtml(it.BaseName)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.Name)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.IncomeStr)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.Rarity)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.Mutation)}</td>
+                        <td class="p-2 align-top text-slate-400">${escapeHtml(traits)}</td>
+                    </tr>
+                `;
+            }).join('');
+            tbl.innerHTML = `
+                <table class="w-full text-[12px]">
+                    <tbody>
+                        ${rows || '<tr><td class="p-2 text-slate-500">Aucun résultat</td></tr>'}
+                    </tbody>
+                </table>
+            `;
+            return tbl;
+        }
+
+        function escapeHtml(s) {
+            if (!s && s !== 0) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function loadCollection(force = false) {
+            try {
+                document.getElementById('gridToolbar').innerText = 'Chargement...';
+                const res = await fetch('/api/base-infos');
+                const json = await res.json();
+                if (json && json.success && Array.isArray(json.data)) {
+                    ALL_ITEMS = json.data;
+                    renderGrid();
+                } else {
+                    document.getElementById('gridArea').innerText = 'Erreur: impossible de charger les données.';
+                }
+            } catch (err) {
+                document.getElementById('gridArea').innerText = 'Erreur de connexion au serveur.';
+            }
+        }
+
+        async function loadHits() {
+        }
+
+        // initial bindings if already authenticated
+        if (!document.getElementById('login-overlay').classList.contains('hidden')) {
+            // waiting for login
+        } else {
+            loadCollection();
         }
     </script>
 </body>
-</html>
