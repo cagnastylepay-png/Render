@@ -84,6 +84,14 @@
 
         .sortable { cursor: pointer; user-select: none; }
         .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
+
+        /* sticky header for table */
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #0b1220;
+            z-index: 2;
+        }
     </style>
 </head>
 <body class="p-6">
@@ -109,9 +117,10 @@
         </header>
 
         <nav class="flex gap-1 mb-6 border-b border-slate-800">
-            <button onclick="switchTab('collection')" id="tab-webhooks" class="tab-btn active px-8 py-4">Manage Webhooks</button>
-            <button onclick="switchTab('hits')" id="tab-stats" class="tab-btn px-8 py-4">User Statistics</button>
-            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord Bot</button>
+            <button onclick="switchTab('collection')" id="tab-collection" class="tab-btn active px-8 py-4">Collection</button>
+            <button onclick="switchTab('bases')" id="tab-bases" class="tab-btn px-8 py-4">Bases</button>
+            <button onclick="switchTab('hits')" id="tab-hits" class="tab-btn px-8 py-4">Hits</button>
+            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord</button>
         </nav>
 
         <!-- Controls: search + group -->
@@ -135,18 +144,25 @@
             </div>
         </section>
 
+        <section id="content-bases" class="hidden mb-6">
+            <div id="basesContainer" class="data-card p-4 overflow-auto max-h-[60vh]">
+                <div id="basesToolbar" class="mb-2 text-[10px] text-slate-400">Chargement...</div>
+                <div id="basesArea"></div>
+            </div>
+        </section>
+
         <section id="content-hits" class="hidden">
         </section>
 
         <section id="content-discord" class="hidden">
-            
         </section>
     </div>
 
     <script>
         let GLOBAL_TOKEN = "";
         let ALL_ITEMS = [];
-        let SORT = { key: 'Income', dir: 'desc' }; // default sort by income desc
+        let SORT = { key: 'Income', dir: 'desc' }; // collection sort
+        let SORT_BASES = { key: 'TotalIncome', dir: 'desc' }; // bases sort
         let DEBOUNCE_TIMER = null;
 
         async function checkAuth() {
@@ -167,13 +183,22 @@
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('content-' + name).classList.remove('hidden');
-            document.getElementById('tab-' + name).classList.add('active');
+            const tabEl = document.getElementById('tab-' + name);
+            if (tabEl) tabEl.classList.add('active');
 
             if (name === 'collection') loadCollection();
+            if (name === 'bases') loadBases();
             if (name === 'hits') loadHits();
         }
 
-        document.getElementById('refreshBtn').addEventListener('click', () => loadCollection(true));
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            // refresh both sources
+            ALL_ITEMS = [];
+            loadCollection(true).then(() => {
+                // if currently on bases tab, re-render
+                if (!document.getElementById('content-bases').classList.contains('hidden')) loadBases();
+            });
+        });
         document.getElementById('groupSelect').addEventListener('change', () => renderGrid());
         document.getElementById('searchInput').addEventListener('input', (e) => {
             clearTimeout(DEBOUNCE_TIMER);
@@ -191,36 +216,6 @@
             return 0;
         }
 
-        function renderHeader() {
-            const toolbar = document.getElementById('gridToolbar');
-            toolbar.innerHTML = '';
-            const header = document.createElement('div');
-            header.className = 'w-full overflow-x-auto';
-            header.innerHTML = `
-                <table class="w-full text-[12px]">
-                    <thead>
-                        <tr class="text-slate-400 text-left">
-                            <th class="p-2 sortable" data-key="BaseName">Base</th>
-                            <th class="p-2 sortable" data-key="Name">Name</th>
-                            <th class="p-2 sortable" data-key="Income">Income</th>
-                            <th class="p-2 sortable" data-key="Rarity">Rarity</th>
-                            <th class="p-2 sortable" data-key="Mutation">Mutation</th>
-                            <th class="p-2">Traits</th>
-                        </tr>
-                    </thead>
-                </table>
-            `;
-            toolbar.appendChild(header);
-            header.querySelectorAll('.sortable').forEach(th => {
-                th.addEventListener('click', () => {
-                    const key = th.getAttribute('data-key');
-                    if (SORT.key === key) SORT.dir = SORT.dir === 'asc' ? 'desc' : 'asc';
-                    else { SORT.key = key; SORT.dir = 'asc'; }
-                    renderGrid();
-                });
-            });
-        }
-
         function matchesFilter(item, q) {
             if (!q) return true;
             q = q.toLowerCase();
@@ -232,8 +227,8 @@
             return false;
         }
 
+        /* -------- collection grid (brainrots) -------- */
         function renderGrid() {
-            renderHeader();
             const grid = document.getElementById('gridArea');
             grid.innerHTML = '';
             const q = document.getElementById('searchInput').value || '';
@@ -255,7 +250,7 @@
                 }
                 for (const g of Object.keys(groups).sort()) {
                     const groupDiv = document.createElement('div');
-                    groupDiv.innerHTML = `<div class="group-header">${g} <span class="text-slate-400 text-[10px] ml-2">(${groups[g].length})</span></div>`;
+                    groupDiv.innerHTML = `<div class="group-header">${escapeHtml(g)} <span class="text-slate-400 text-[10px] ml-2">(${groups[g].length})</span></div>`;
                     const table = buildTable(groups[g]);
                     groupDiv.appendChild(table);
                     grid.appendChild(groupDiv);
@@ -268,9 +263,10 @@
             document.getElementById('gridToolbar').innerText = `Résultats: ${items.length}`;
         }
 
+        // buildTable for brainrots
         function buildTable(items) {
-            const tbl = document.createElement('div');
-            tbl.className = 'w-full overflow-x-auto';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'w-full overflow-x-auto';
             const rows = items.map(it => {
                 const traits = Array.isArray(it.Traits) ? it.Traits.join(', ') : '';
                 return `
@@ -284,16 +280,152 @@
                     </tr>
                 `;
             }).join('');
-            tbl.innerHTML = `
+
+            wrapper.innerHTML = `
                 <table class="w-full text-[12px]">
+                    <thead>
+                        <tr class="text-slate-400 text-left">
+                            <th class="p-2 sortable" data-key="BaseName">Base</th>
+                            <th class="p-2 sortable" data-key="Name">Name</th>
+                            <th class="p-2 sortable" data-key="Income">Income</th>
+                            <th class="p-2 sortable" data-key="Rarity">Rarity</th>
+                            <th class="p-2 sortable" data-key="Mutation">Mutation</th>
+                            <th class="p-2">Traits</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        ${rows || '<tr><td class="p-2 text-slate-500">Aucun résultat</td></tr>'}
+                        ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
                     </tbody>
                 </table>
             `;
-            return tbl;
+
+            // wire clickable headers for sorting
+            const ths = wrapper.querySelectorAll('.sortable');
+            ths.forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-key');
+                    if (SORT.key === key) SORT.dir = SORT.dir === 'asc' ? 'desc' : 'asc';
+                    else { SORT.key = key; SORT.dir = 'asc'; }
+                    renderGrid();
+                });
+            });
+
+            return wrapper;
         }
 
+        /* -------- bases grid (aggregated) -------- */
+        function loadBases() {
+            // ensure items loaded
+            if (!ALL_ITEMS || ALL_ITEMS.length === 0) {
+                return loadCollection().then(() => renderBasesGrid());
+            }
+            renderBasesGrid();
+        }
+
+        function renderBasesGrid() {
+            const area = document.getElementById('basesArea');
+            area.innerHTML = '';
+            document.getElementById('basesToolbar').innerText = 'Chargement...';
+
+            // aggregate by BaseName
+            const map = new Map();
+            for (const it of ALL_ITEMS) {
+                const name = it.BaseName || '—';
+                let node = map.get(name);
+                if (!node) {
+                    node = {
+                        Name: name,
+                        TotalIncome: 0,
+                        BestIncome: 0,
+                        BrainrotCount: 0,
+                        TotalPlace: (typeof it.TotalPlace === 'number') ? it.TotalPlace : 0
+                    };
+                    map.set(name, node);
+                }
+                const income = Number(it.Income || 0);
+                node.TotalIncome += income;
+                node.BestIncome = Math.max(node.BestIncome, income);
+                node.BrainrotCount += 1;
+                // keep the max TotalPlace seen (in case multiple items)
+                if (typeof it.TotalPlace === 'number' && it.TotalPlace > node.TotalPlace) node.TotalPlace = it.TotalPlace;
+            }
+
+            const bases = Array.from(map.values()).map(b => {
+                return {
+                    ...b,
+                    PlaceLibre: Math.max(0, (b.TotalPlace || 0) - (b.BrainrotCount || 0))
+                };
+            });
+
+            // sort
+            bases.sort((a, b) => {
+                const key = SORT_BASES.key;
+                let va = a[key], vb = b[key];
+                // numeric comparison for income/count/place, fallback to string
+                if (typeof va === 'number' && typeof vb === 'number') {
+                    return SORT_BASES.dir === 'asc' ? va - vb : vb - va;
+                }
+                va = (va || '').toString().toLowerCase();
+                vb = (vb || '').toString().toLowerCase();
+                if (va < vb) return SORT_BASES.dir === 'asc' ? -1 : 1;
+                if (va > vb) return SORT_BASES.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            const table = buildBasesTable(bases);
+            area.appendChild(table);
+            document.getElementById('basesToolbar').innerText = `Bases: ${bases.length}`;
+        }
+
+        function buildBasesTable(items) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'w-full overflow-x-auto';
+            const rows = items.map(it => {
+                return `
+                    <tr class="border-t border-slate-800 hover:bg-slate-900">
+                        <td class="p-2 align-top font-semibold">${escapeHtml(it.Name)}</td>
+                        <td class="p-2 align-top">${escapeHtml(formatNumber(it.TotalIncome))} /s</td>
+                        <td class="p-2 align-top">${escapeHtml(formatNumber(it.BestIncome))} /s</td>
+                        <td class="p-2 align-top">${escapeHtml(it.BrainrotCount)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.TotalPlace)}</td>
+                        <td class="p-2 align-top">${escapeHtml(it.PlaceLibre)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            wrapper.innerHTML = `
+                <table class="w-full text-[12px]">
+                    <thead>
+                        <tr class="text-slate-400 text-left">
+                            <th class="p-2 sortable" data-key="Name">Name</th>
+                            <th class="p-2 sortable" data-key="TotalIncome">Total Income</th>
+                            <th class="p-2 sortable" data-key="BestIncome">Best Income</th>
+                            <th class="p-2 sortable" data-key="BrainrotCount">Brainrot Count</th>
+                            <th class="p-2 sortable" data-key="TotalPlace">Total Place</th>
+                            <th class="p-2 sortable" data-key="PlaceLibre">Place Libre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
+                    </tbody>
+                </table>
+            `;
+
+            // wire headers for sorting
+            const ths = wrapper.querySelectorAll('.sortable');
+            ths.forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-key');
+                    if (SORT_BASES.key === key) SORT_BASES.dir = SORT_BASES.dir === 'asc' ? 'desc' : 'asc';
+                    else { SORT_BASES.key = key; SORT_BASES.dir = 'desc'; }
+                    renderBasesGrid();
+                });
+            });
+
+            return wrapper;
+        }
+
+        /* -------- helpers -------- */
         function escapeHtml(s) {
             if (!s && s !== 0) return '';
             return String(s)
@@ -304,6 +436,12 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function formatNumber(n) {
+            if (typeof n !== 'number') n = Number(n) || 0;
+            return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        }
+
+        /* -------- data load -------- */
         async function loadCollection(force = false) {
             try {
                 document.getElementById('gridToolbar').innerText = 'Chargement...';
@@ -331,3 +469,4 @@
         }
     </script>
 </body>
+</html>
