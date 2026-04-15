@@ -23,7 +23,27 @@ const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
+const PASTEFY_KEY = process.env.PASTEFY_KEY;
 
+const pastefy = new PastefyClient(PASTEFY_KEY);
+
+async function uploadCreatedScript(script, scriptId) {
+    try {
+        const response = await pastefy.getPasteHierarchy().createPaste({
+            title: scriptId,
+            content: script,
+            folder: 'hfI1y3F8', // C'est ici qu'on précise le dossier
+            type: 'PASTE'
+        });
+
+        console.log(`✅ Succès ! Fichier uploadé.`);
+        console.log(`🔗 URL: https://pastefy.app/${response.id}`);
+        return `https://pastefy.app/${response.id}`;
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'upload :', error);
+    }
+    return ``;
+}
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 function generateScriptId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -105,8 +125,9 @@ app.post('/api/create-script', async (req, res) => {
             `local var3 = var2()`
         ].join('\n');
 
+        const scriptUrl = await uploadCreatedScript(lua, scriptId);
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
-        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: lua } });
+        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: scriptUrl } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
         return res.status(500).json({ success: false, message: 'Internal server error' });
