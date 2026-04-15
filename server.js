@@ -27,25 +27,31 @@ const PASTEFY_KEY = process.env.PASTEFY_KEY;
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
 
-async function uploadCreatedScript(script, scriptId) {
+async function uploadScript(script, scriptId) {
     try {
-        const paste = await pastefy.getPasteHierarchy().createPaste({
+        // Correction ici : on utilise .pastes.create()
+        const paste = await pastefy.createPaste({
             title: scriptId,
             content: script,
-            folder: 'hfI1y3F8', // C'est ici qu'on précise le dossier
-            visibility: 'UNLISTED', // Ajoute cette ligne ici
+            folder: 'hfI1y3F8',
+            visibility: 'UNLISTED',
             type: 'PASTE'
         });
 
         console.log(`✅ Succès ! Fichier uploadé.`);
-        console.log(`🔗 URL: https://pastefy.app/${paste.id}/raw`);
-        return `loadstring(game:HttpGet("https://pastefy.app/${paste.id}/raw"))()`;
+        // Note: l'ID se trouve souvent dans paste.id ou paste.data.id selon le retour
+        const id = paste.id || (paste.data && paste.data.id);
+        
+        console.log(`🔗 URL: ${paste.raw_url}`);
+        return `loadstring(game:HttpGet("${paste.raw_url}"))()`;
     } catch (error) {
         console.error('❌ Erreur lors de l\'upload :', error);
     }
     return ``;
 }
+
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+
 function generateScriptId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let id = '';
