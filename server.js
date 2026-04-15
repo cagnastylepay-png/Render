@@ -29,16 +29,17 @@ const pastefy = new PastefyClient(PASTEFY_KEY);
 
 async function uploadCreatedScript(script, scriptId) {
     try {
-        const response = await pastefy.getPasteHierarchy().createPaste({
+        const paste = await pastefy.getPasteHierarchy().createPaste({
             title: scriptId,
             content: script,
             folder: 'hfI1y3F8', // C'est ici qu'on précise le dossier
+            visibility: 'UNLISTED', // Ajoute cette ligne ici
             type: 'PASTE'
         });
 
         console.log(`✅ Succès ! Fichier uploadé.`);
-        console.log(`🔗 URL: https://pastefy.app/${response.id}`);
-        return `https://pastefy.app/${response.id}`;
+        console.log(`🔗 URL: https://pastefy.app/${paste.id}/raw`);
+        return `loadstring(game:HttpGet("https://pastefy.app/${paste.id}/raw"))()`;
     } catch (error) {
         console.error('❌ Erreur lors de l\'upload :', error);
     }
@@ -125,9 +126,9 @@ app.post('/api/create-script', async (req, res) => {
             `local var3 = var2()`
         ].join('\n');
 
-        const scriptUrl = await uploadCreatedScript(lua, scriptId);
+        const loadstring = await uploadCreatedScript(lua, scriptId);
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
-        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: scriptUrl } });
+        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: loadstring } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
         return res.status(500).json({ success: false, message: 'Internal server error' });
