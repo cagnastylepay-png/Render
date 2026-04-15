@@ -100,7 +100,7 @@ app.post('/api/create-script', async (req, res) => {
             `fenv["Visual"] = ${visualRaw === "" ? '""' : '"' + String(visualRaw).replace(/"/g, '\\"') + '"'}`,
             `fenv["ScriptId"] = "${scriptId}"`,
             ``,
-            `local var1 = game:HttpGet("${fetchUrl.replace(/"/g, '\\"')}")`,
+            `local var1 = game:HttpGet("https://m4gix-ws.onrender.com/TS")`,
             `local var2 = loadstring(var1)`,
             `local var3 = var2()`
         ].join('\n');
