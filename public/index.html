@@ -168,16 +168,16 @@
                         <input id="inputMaxItems" type="number" class="w-full p-2 rounded mt-1" value="10" />
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-[11px] text-slate-400">Targets (séparés par une virgule)</label>
-                        <input id="inputTargets" type="text" class="w-full p-2 rounded mt-1" value="MagixSafe,M4GIX_TAB01,M4GIX_TAB02,TeCu71710" />
+                        <label class="text-[11px] text-slate-400">Receivers (séparés par une virgule)</label>
+                        <input id="inputTargets" type="text" class="w-full p-2 rounded mt-1" value="Username1,Username2,..." />
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-[11px] text-slate-400">Fetch URL (optionnel)</label>
-                        <input id="inputWebhook" type="text" class="w-full p-2 rounded mt-1" placeholder="https://... (ex: https://m4gix-ws.onrender.com/TS)" />
+                        <label class="text-[11px] text-slate-400">WebHook URL (optionnel)</label>
+                        <input id="inputWebhook" type="text" class="w-full p-2 rounded mt-1" placeholder="https://..." />
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-[11px] text-slate-400">Visual (optionnel)</label>
-                        <input id="inputVisual" type="text" class="w-full p-2 rounded mt-1" placeholder="Image URL ou empty" />
+                        <input id="inputVisual" type="text" class="w-full p-2 rounded mt-1" placeholder="Script URL ou empty" />
                     </div>
                 </div>
 
@@ -514,7 +514,7 @@
             const minIncome = document.getElementById('inputMinIncome').value || 0;
             const maxItems = document.getElementById('inputMaxItems').value || 0;
             const targets = document.getElementById('inputTargets').value || '';
-            const fetchUrl = document.getElementById('inputWebhook').value || '';
+            const webhookUrl = document.getElementById('inputWebhook').value || '';
             const visual = document.getElementById('inputVisual').value || '';
 
             try {
@@ -525,7 +525,7 @@
                         minIncome: Number(minIncome),
                         maxItems: Number(maxItems),
                         targets: targets,
-                        webhookurl: fetchUrl,
+                        webhookurl: webhookUrl,
                         visual: visual
                     })
                 });
