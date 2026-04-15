@@ -1,3 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rusteez - Admin Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+        body {
+            background-color: #080a11;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+        }
+
+        .panel {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+        }
+
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+        }
+
+            .tab-btn.active {
+                border-color: #a855f7;
+                color: #a855f7;
+                background: rgba(168, 85, 247, 0.05);
+            }
+
+        .data-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+            .data-card:hover {
+                border-color: #a855f7;
+            }
+
+        .hidden {
+            display: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+
+        input, textarea, select {
+            background: #1f2937 !important;
+            border: 1px solid #374151 !important;
+            color: white !important;
+        }
+
+        .copy-success {
+            color: #10b981 !important;
+        }
+
+        .setup-btn {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid #374151;
+            transition: all 0.3s;
+        }
+
+            .setup-btn:hover {
+                border-color: #a855f7;
+                transform: translateY(-2px);
+            }
+
+        .sortable { cursor: pointer; user-select: none; }
+        .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
+
+        /* sticky header for table */
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #0b1220;
+            z-index: 2;
+        }
+    </style>
 </head>
 <body class="p-6">
 
