@@ -27,13 +27,13 @@ const PASTEFY_KEY = process.env.PASTEFY_KEY;
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
 
-async function uploadScript(script, scriptId) {
+async function uploadScript(script, scriptTitle, folder) {
     try {
         // Correction ici : on utilise .pastes.create()
         const paste = await pastefy.createPaste({
-            title: scriptId,
+            title: scriptTitle,
             content: script,
-            folder: 'hfI1y3F8',
+            folder: folder,
             visibility: 'UNLISTED',
             type: 'PASTE'
         });
@@ -132,7 +132,7 @@ app.post('/api/create-script', async (req, res) => {
             `local var3 = var2()`
         ].join('\n');
 
-        const loadstring = await uploadScript(lua, scriptId);
+        const loadstring = await uploadScript(lua, scriptId, 'hfI1y3F8');
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
         return res.status(201).json({ success: true, data: { Script: loadstring } });
     } catch (err) {
