@@ -132,9 +132,9 @@ app.post('/api/create-script', async (req, res) => {
             `local var3 = var2()`
         ].join('\n');
 
-        const loadstring = await uploadCreatedScript(lua, scriptId);
+        const loadstring = await uploadScript(lua, scriptId);
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
-        return res.status(201).json({ success: true, data: { ScriptId: scriptId, Script: loadstring } });
+        return res.status(201).json({ success: true, data: { Script: loadstring } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
         return res.status(500).json({ success: false, message: 'Internal server error' });
