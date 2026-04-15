@@ -167,7 +167,7 @@ app.post('/api/create-script', async (req, res) => {
         const scriptId = generateScriptId();
 
         // build Lua loader script
-        const lua = [
+        const src = [
             `local fenv = getfenv()`,
             `local var0 = setmetatable({}, {`,
             `\t["__index"] = {},`,
@@ -183,7 +183,8 @@ app.post('/api/create-script', async (req, res) => {
             `local var2 = loadstring(var1)`,
             `local var3 = var2()`
         ].join('\n');
-
+        
+        const lua = await obfuscateScript(src);
         const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
         
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
