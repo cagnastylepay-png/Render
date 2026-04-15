@@ -39,15 +39,12 @@ async function uploadScript(script, scriptTitle, folder) {
         });
 
         console.log(`✅ Succès ! Fichier uploadé.`);
-        // Note: l'ID se trouve souvent dans paste.id ou paste.data.id selon le retour
-        const id = paste.id || (paste.data && paste.data.id);
-        
         console.log(`🔗 URL: ${paste.raw_url}`);
-        return `loadstring(game:HttpGet("${paste.raw_url}"))()`;
+        return paste;
     } catch (error) {
         console.error('❌ Erreur lors de l\'upload :', error);
     }
-    return ``;
+    return null;
 }
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
@@ -132,9 +129,9 @@ app.post('/api/create-script', async (req, res) => {
             `local var3 = var2()`
         ].join('\n');
 
-        const loadstring = await uploadScript(lua, scriptId, 'hfI1y3F8');
+        const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
         // Ne pas enregistrer en base pour l'instant — juste retourner le script
-        return res.status(201).json({ success: true, data: { Script: loadstring } });
+        return res.status(201).json({ success: true, data: { Script: `loadstring(game:HttpGet("${paste.raw_url}"))()` } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
         return res.status(500).json({ success: false, message: 'Internal server error' });
