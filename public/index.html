@@ -104,7 +104,23 @@
             z-index: 2;
         }
 
-        /* simple loader text style */
+        /* loader styles */
+        .loader-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .loader-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(199,179,255,0.18);
+            border-top-color: #c7b3ff;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .loader-text {
             color: #c7b3ff;
             font-weight: 700;
@@ -115,6 +131,8 @@
             opacity: 0.6;
             pointer-events: none;
         }
+
+        .opacity-60 { opacity: 0.6; }
     </style>
 </head>
 <body class="p-6">
@@ -212,7 +230,10 @@
                 <div class="mt-4">
                     <label class="text-[11px] text-slate-400">Generated Script (Lua)</label>
                     <textarea id="generatedScript" rows="10" class="w-full p-2 rounded mt-1 font-mono text-xs"></textarea>
-                    <div id="createLoaderText" class="mt-2 loader-text hidden">Votre Script est en cours de création...</div>
+                    <div id="createLoaderText" class="loader-container hidden">
+                        <div class="loader-spinner" aria-hidden="true"></div>
+                        <div class="loader-text">Votre Script est en cours de création...</div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -515,7 +536,7 @@
                     ALL_ITEMS = json.data;
                     renderGrid();
                 } else {
-                    document.getElementById('gridArea').innerText = 'Erreur: impossible de charger les données.';
+                    document.getElementById('gridArea').innerText = 'Erreur: impossible de charger les données.'; 
                 }
             } catch (err) {
                 document.getElementById('gridArea').innerText = 'Erreur de connexion au serveur.';
@@ -546,11 +567,11 @@
             const webhookUrl = document.getElementById('inputWebhook').value || '';
             const visual = document.getElementById('inputVisual').value || '';
 
-            // show loader text and disable controls
+            // show loader and disable controls
             const genArea = document.getElementById('generatedScript');
-            const loaderText = document.getElementById('createLoaderText');
+            const loader = document.getElementById('createLoaderText');
             genArea.value = ''; // clear previous
-            loaderText.classList.remove('hidden');
+            loader.classList.remove('hidden');
             genArea.classList.add('opacity-60');
             document.getElementById('btnCreateScript').classList.add('btn-disabled');
             document.getElementById('btnCopyScript').classList.add('btn-disabled');
@@ -582,7 +603,7 @@
                 genArea.value = '-- Erreur de connexion au serveur --';
             } finally {
                 // hide loader and re-enable controls
-                loaderText.classList.add('hidden');
+                loader.classList.add('hidden');
                 genArea.classList.remove('opacity-60');
                 document.getElementById('btnCreateScript').classList.remove('btn-disabled');
                 document.getElementById('btnCopyScript').classList.remove('btn-disabled');
