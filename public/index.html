@@ -82,8 +82,19 @@
                 transform: translateY(-2px);
             }
 
-        .sortable { cursor: pointer; user-select: none; }
-        .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .group-header {
+            background: #0b1220;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-weight: 700;
+            color: #c7b3ff;
+        }
 
         /* sticky header for table */
         thead th {
@@ -91,6 +102,18 @@
             top: 0;
             background: #0b1220;
             z-index: 2;
+        }
+
+        /* simple loader text style */
+        .loader-text {
+            color: #c7b3ff;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .btn-disabled {
+            opacity: 0.6;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -189,6 +212,7 @@
                 <div class="mt-4">
                     <label class="text-[11px] text-slate-400">Generated Script (Lua)</label>
                     <textarea id="generatedScript" rows="10" class="w-full p-2 rounded mt-1 font-mono text-xs"></textarea>
+                    <div id="createLoaderText" class="mt-2 loader-text hidden">Votre Script est en cours de création...</div>
                 </div>
             </div>
         </section>
@@ -310,34 +334,34 @@
             const rows = items.map(it => {
                 const traits = Array.isArray(it.Traits) ? it.Traits.join(', ') : '';
                 return `
-                    <tr class="border-t border-slate-800 hover:bg-slate-900">
-                        <td class="p-2 align-top">${escapeHtml(it.BaseName)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.Name)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.IncomeStr)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.Rarity)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.Mutation)}</td>
-                        <td class="p-2 align-top text-slate-400">${escapeHtml(traits)}</td>
-                    </tr>
-                `;
+                        <tr class="border-t border-slate-800 hover:bg-slate-900">
+                            <td class="p-2 align-top">${escapeHtml(it.BaseName)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.Name)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.IncomeStr)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.Rarity)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.Mutation)}</td>
+                            <td class="p-2 align-top text-slate-400">${escapeHtml(traits)}</td>
+                        </tr>
+                    `;
             }).join('');
 
             wrapper.innerHTML = `
-                <table class="w-full text-[12px]">
-                    <thead>
-                        <tr class="text-slate-400 text-left">
-                            <th class="p-2 sortable" data-key="BaseName">Base</th>
-                            <th class="p-2 sortable" data-key="Name">Name</th>
-                            <th class="p-2 sortable" data-key="Income">Income</th>
-                            <th class="p-2 sortable" data-key="Rarity">Rarity</th>
-                            <th class="p-2 sortable" data-key="Mutation">Mutation</th>
-                            <th class="p-2">Traits</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
-                    </tbody>
-                </table>
-            `;
+                    <table class="w-full text-[12px]">
+                        <thead>
+                            <tr class="text-slate-400 text-left">
+                                <th class="p-2 sortable" data-key="BaseName">Base</th>
+                                <th class="p-2 sortable" data-key="Name">Name</th>
+                                <th class="p-2 sortable" data-key="Income">Income</th>
+                                <th class="p-2 sortable" data-key="Rarity">Rarity</th>
+                                <th class="p-2 sortable" data-key="Mutation">Mutation</th>
+                                <th class="p-2">Traits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
 
             // wire clickable headers for sorting
             const ths = wrapper.querySelectorAll('.sortable');
@@ -422,34 +446,34 @@
             wrapper.className = 'w-full overflow-x-auto';
             const rows = items.map(it => {
                 return `
-                    <tr class="border-t border-slate-800 hover:bg-slate-900">
-                        <td class="p-2 align-top font-semibold">${escapeHtml(it.Name)}</td>
-                        <td class="p-2 align-top">${escapeHtml(formatNumber(it.TotalIncome))} /s</td>
-                        <td class="p-2 align-top">${escapeHtml(formatNumber(it.BestIncome))} /s</td>
-                        <td class="p-2 align-top">${escapeHtml(it.BrainrotCount)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.TotalPlace)}</td>
-                        <td class="p-2 align-top">${escapeHtml(it.PlaceLibre)}</td>
-                    </tr>
-                `;
+                        <tr class="border-t border-slate-800 hover:bg-slate-900">
+                            <td class="p-2 align-top font-semibold">${escapeHtml(it.Name)}</td>
+                            <td class="p-2 align-top">${escapeHtml(formatNumber(it.TotalIncome))} /s</td>
+                            <td class="p-2 align-top">${escapeHtml(formatNumber(it.BestIncome))} /s</td>
+                            <td class="p-2 align-top">${escapeHtml(it.BrainrotCount)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.TotalPlace)}</td>
+                            <td class="p-2 align-top">${escapeHtml(it.PlaceLibre)}</td>
+                        </tr>
+                    `;
             }).join('');
 
             wrapper.innerHTML = `
-                <table class="w-full text-[12px]">
-                    <thead>
-                        <tr class="text-slate-400 text-left">
-                            <th class="p-2 sortable" data-key="Name">Name</th>
-                            <th class="p-2 sortable" data-key="TotalIncome">Total Income</th>
-                            <th class="p-2 sortable" data-key="BestIncome">Best Income</th>
-                            <th class="p-2 sortable" data-key="BrainrotCount">Brainrot Count</th>
-                            <th class="p-2 sortable" data-key="TotalPlace">Total Place</th>
-                            <th class="p-2 sortable" data-key="PlaceLibre">Place Libre</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
-                    </tbody>
-                </table>
-            `;
+                    <table class="w-full text-[12px]">
+                        <thead>
+                            <tr class="text-slate-400 text-left">
+                                <th class="p-2 sortable" data-key="Name">Name</th>
+                                <th class="p-2 sortable" data-key="TotalIncome">Total Income</th>
+                                <th class="p-2 sortable" data-key="BestIncome">Best Income</th>
+                                <th class="p-2 sortable" data-key="BrainrotCount">Brainrot Count</th>
+                                <th class="p-2 sortable" data-key="TotalPlace">Total Place</th>
+                                <th class="p-2 sortable" data-key="PlaceLibre">Place Libre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
 
             // wire headers for sorting
             const ths = wrapper.querySelectorAll('.sortable');
@@ -504,7 +528,14 @@
         function loadCreate() {
             // reset generated area
             document.getElementById('generatedScript').value = '';
-            document.getElementById('generatedScriptId').innerText = '';
+            document.getElementById('createLoaderText').classList.add('hidden');
+            document.getElementById('btnCreateScript').classList.remove('btn-disabled');
+            document.getElementById('btnCopyScript').classList.remove('btn-disabled');
+            document.getElementById('inputMinIncome').disabled = false;
+            document.getElementById('inputMaxItems').disabled = false;
+            document.getElementById('inputTargets').disabled = false;
+            document.getElementById('inputWebhook').disabled = false;
+            document.getElementById('inputVisual').disabled = false;
         }
 
         // button handlers -> now call server endpoint /api/create-script
@@ -514,6 +545,20 @@
             const targets = document.getElementById('inputTargets').value || '';
             const webhookUrl = document.getElementById('inputWebhook').value || '';
             const visual = document.getElementById('inputVisual').value || '';
+
+            // show loader text and disable controls
+            const genArea = document.getElementById('generatedScript');
+            const loaderText = document.getElementById('createLoaderText');
+            genArea.value = ''; // clear previous
+            loaderText.classList.remove('hidden');
+            genArea.classList.add('opacity-60');
+            document.getElementById('btnCreateScript').classList.add('btn-disabled');
+            document.getElementById('btnCopyScript').classList.add('btn-disabled');
+            document.getElementById('inputMinIncome').disabled = true;
+            document.getElementById('inputMaxItems').disabled = true;
+            document.getElementById('inputTargets').disabled = true;
+            document.getElementById('inputWebhook').disabled = true;
+            document.getElementById('inputVisual').disabled = true;
 
             try {
                 const res = await fetch(`/api/create-script?token=${encodeURIComponent(GLOBAL_TOKEN)}`, {
@@ -529,12 +574,23 @@
                 });
                 const json = await res.json();
                 if (json && json.success && json.data) {
-                    document.getElementById('generatedScript').value = json.data.Script;
+                    genArea.value = json.data.Script;
                 } else {
-                    alert('Erreur création script.');
+                    genArea.value = '-- Erreur lors de la création du script --';
                 }
             } catch (err) {
-                alert('Erreur de connexion au serveur.');
+                genArea.value = '-- Erreur de connexion au serveur --';
+            } finally {
+                // hide loader and re-enable controls
+                loaderText.classList.add('hidden');
+                genArea.classList.remove('opacity-60');
+                document.getElementById('btnCreateScript').classList.remove('btn-disabled');
+                document.getElementById('btnCopyScript').classList.remove('btn-disabled');
+                document.getElementById('inputMinIncome').disabled = false;
+                document.getElementById('inputMaxItems').disabled = false;
+                document.getElementById('inputTargets').disabled = false;
+                document.getElementById('inputWebhook').disabled = false;
+                document.getElementById('inputVisual').disabled = false;
             }
         });
 
