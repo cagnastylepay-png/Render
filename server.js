@@ -29,7 +29,6 @@ const OAUTH2_CLIENT_SECRET = process.env.OAUTH2_CLIENT_SECRET;
 const OAUTH2_REDIRECT = process.env.OAUTH2_REDIRECT; // redirect URI registered in Discord app
 const LUA_OBF_KEY = process.env.LUA_OBF_KEY;
 const ADMIN_DISCORD_IDS = process.env.ADMIN_DISCORD_IDS || ''; // optional CSV of admin discord ids
-const OAUTH2_URL = process.env.OAUTH2_URL;
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
 
@@ -79,10 +78,23 @@ function isDiscordAdmin(auth) {
 /* ----------------- OAuth2 endpoints ----------------- */
 // Redirect to Discord OAuth2 authorize URL (with state)
 app.get('/auth/discord', (req, res) => {
+    if (!OAUTH2_CLIENT_ID || !OAUTH2_REDIRECT) {
+        return res.status(500).send('OAuth2 not configured on server.');
+    }
+
     const state = generateState();
     // store state temporarily (in-memory). For production, stocker en cookie ou Redis.
     SESSIONS.set(`state:${state}`, { createdAt: Date.now() });
-    return res.redirect(OAUTH2_URL);
+
+    const params = new URLSearchParams({
+        client_id: OAUTH2_CLIENT_ID,
+        redirect_uri: OAUTH2_REDIRECT,
+        response_type: 'code',
+        scope: 'identify',
+        state: state
+    });
+
+    return res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
 });
 
 // Callback route: validate state before exchanging code
