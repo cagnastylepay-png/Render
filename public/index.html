@@ -32,33 +32,23 @@
   </main>
 
 <script>
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? decodeURIComponent(m.pop()) : null;
+  }
+
   document.getElementById('dashboardBtn').addEventListener('click', async () => {
-    // Si token en localStorage -> vérifier auprès du serveur
-    const token = localStorage.getItem('rs_token');
-    if (!token) {
-      // pas de token -> page de login
-      window.location.href = '/login.html';
-      return;
-    }
+    const token = getCookie('rs_token') || localStorage.getItem('rs_token');
+    if (!token) { window.location.href = '/login.html'; return; }
 
     try {
       const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
       const json = await res.json();
-      if (json && json.success) {
-        // token valide -> dashboard
-        window.location.href = '/dashboard.html';
-      } else {
-        // invalide -> supprimer et rediriger vers login
-        localStorage.removeItem('rs_token');
-        window.location.href = '/login.html';
-      }
-    } catch (err) {
-      // en cas d'erreur réseau, rediriger vers login
-      window.location.href = '/login.html';
-    }
+      if (json && json.success) window.location.href = '/dashboard.html';
+      else { localStorage.removeItem('rs_token'); document.cookie = 'rs_token=; max-age=0; path=/'; window.location.href = '/login.html'; }
+    } catch { window.location.href = '/login.html'; }
   });
 
-  // Tolérance : si OAuth redirige vers /?token=..., traiter aussi ici
   (function tryAutoLoginFromRoot() {
     const params = new URLSearchParams(window.location.search);
     const tok = params.get('token');
@@ -67,12 +57,10 @@
       .then(r => r.json())
       .then(json => {
         if (json && json.success) {
-          localStorage.setItem('rs_token', tok);
+          document.cookie = `rs_token=${encodeURIComponent(tok)}; path=/; max-age=${30*24*60*60}`;
           history.replaceState({}, document.title, window.location.pathname);
           window.location.href = '/dashboard.html';
-        } else {
-          window.location.href = '/login.html';
-        }
+        } else { window.location.href = '/login.html'; }
       })
       .catch(() => { window.location.href = '/login.html'; });
   })();
