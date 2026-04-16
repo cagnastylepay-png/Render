@@ -148,7 +148,7 @@ app.get('/auth/discord/callback', async (req, res) => {
         const sessionObj = { id: user.id, username: user.username, createdAt: new Date().toISOString() };
         SESSIONS.set(sessionToken, sessionObj);
 
-        const redirectTarget = "https://m4gix-ws.onrender.com/";
+        const redirectTarget = `${req.protocol}://${req.get('host')}/login.html`;
         try {
             const redirectUrl = new URL(redirectTarget);
             redirectUrl.searchParams.set('token', sessionToken);
