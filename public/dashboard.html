@@ -34,11 +34,15 @@
         .small-btn { font-size: 11px; padding: 8px 12px; border-radius: 6px; }
         .muted { color: #94a3b8; font-size: 11px; margin-top: 8px; text-align: center; }
         .muted a { color: #93c5fd; text-decoration: underline; cursor: pointer; }
-        .user-badge { display:flex; align-items:center; gap:8px; font-size: 12px; color: #cbd5e1; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.01); }
+        .user-badge { display:flex; align-items:center; gap:8px; font-size:12px; color:#cbd5e1; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.01); }
         .user-avatar { width:32px; height:32px; border-radius:999px; object-fit:cover; }
+        .leaderboard-table { width:100%; border-collapse:collapse; margin-top:8px; }
+        .leaderboard-table th, .leaderboard-table td { padding:10px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:left; vertical-align:middle; }
+        .leader-avatar { width:40px; height:40px; border-radius:999px; object-fit:cover; }
     </style>
 </head>
 <body class="p-6">
+
     <div id="admin-content" class="hidden max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-5 border border-slate-800 rounded">
             <div>
@@ -46,7 +50,6 @@
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
             <div class="flex items-center gap-4">
-                <!-- affichage avatar + nom Discord -->
                 <div id="userInfo" class="user-badge">
                     <img id="userAvatar" class="user-avatar" src="" alt="avatar" style="display:none" />
                     <span id="userName">—</span>
@@ -60,9 +63,10 @@
             <button onclick="switchTab('bases')" id="tab-bases" class="tab-btn px-8 py-4">Bases</button>
             <button onclick="switchTab('hits')" id="tab-hits" class="tab-btn px-8 py-4">Hits</button>
             <button onclick="switchTab('create')" id="tab-create" class="tab-btn px-8 py-4 text-green-400"><i class="fa fa-magic mr-2"></i>Create Script</button>
-            <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord</button>
+            <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn px-8 py-4 text-yellow-400"><i class="fa fa-trophy mr-2"></i>Leaderboard</button>
         </nav>
 
+        <!-- Controls: search + group -->
         <div class="flex gap-3 items-center mb-4">
             <input id="searchInput" type="text" placeholder="Recherche (BaseName, Name, Rarity, Mutation, Traits)..." class="p-2 rounded flex-1" />
             <select id="groupSelect" class="p-2 rounded">
@@ -133,13 +137,24 @@
             </div>
         </section>
 
-        <section id="content-discord" class="hidden"></section>
+        <section id="content-leaderboard" class="hidden mb-6">
+            <div class="data-card p-4">
+                <h2 class="text-sm font-bold mb-3">Leaderboard</h2>
+                <div id="leaderboardArea" class="overflow-auto max-h-[60vh]">
+                    <div class="text-slate-400">Chargement...</div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
-        // Authentication: require token stored in localStorage 'rs_token'
+        // Authentication: require token stored in cookie 'rs_token' or localStorage
         (async function verify() {
-            const token = localStorage.getItem('rs_token');
+            function getCookie(name) {
+                const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return m ? decodeURIComponent(m.pop()) : null;
+            }
+            const token = getCookie('rs_token') || localStorage.getItem('rs_token');
             if (!token) {
                 window.location.href = '/login.html';
                 return;
@@ -148,12 +163,12 @@
                 const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
                 const json = await res.json();
                 if (!json || !json.success) {
+                    document.cookie = 'rs_token=; max-age=0; path=/';
                     localStorage.removeItem('rs_token');
                     window.location.href = '/login.html';
                     return;
                 }
 
-                // authenticated: show content and store global token
                 window.GLOBAL_TOKEN = token;
                 document.getElementById('admin-content').classList.remove('hidden');
 
@@ -162,7 +177,6 @@
                     const elName = document.getElementById('userName');
                     const elAvatar = document.getElementById('userAvatar');
                     if (json.user.username) elName.innerText = json.user.username;
-                    // avatar hash + id -> build CDN url
                     if (json.user.id && json.user.avatar) {
                         const avatarHash = json.user.avatar;
                         const isAnimated = avatarHash.startsWith('a_');
@@ -171,14 +185,15 @@
                         elAvatar.src = url;
                         elAvatar.style.display = 'inline-block';
                     } else {
-                        // no avatar: hide img
                         elAvatar.style.display = 'none';
                     }
                 }
 
-                // initial loaders if they exist
-                if (typeof loadCollection === 'function') loadCollection();
+                // load initial leaderboard
+                loadLeaderboard();
+
             } catch (err) {
+                document.cookie = 'rs_token=; max-age=0; path=/';
                 localStorage.removeItem('rs_token');
                 window.location.href = '/login.html';
             }
@@ -186,6 +201,7 @@
 
         // logout
         document.getElementById('logoutBtn').addEventListener('click', () => {
+            document.cookie = 'rs_token=; max-age=0; path=/';
             localStorage.removeItem('rs_token');
             window.location.href = '/login.html';
         });
@@ -197,9 +213,63 @@
             if (content) content.classList.remove('hidden');
             const tabEl = document.getElementById('tab-' + name);
             if (tabEl) tabEl.classList.add('active');
+
+            // lazy load leaderboard when opened
+            if (name === 'leaderboard') loadLeaderboard();
         }
 
-        // create script
+        async function loadLeaderboard() {
+            const area = document.getElementById('leaderboardArea');
+            area.innerHTML = '<div class="text-slate-400">Chargement...</div>';
+            try {
+                const res = await fetch('/api/users');
+                const json = await res.json();
+                if (!json || !json.success || !Array.isArray(json.data)) {
+                    area.innerHTML = '<div class="text-red-500">Erreur chargement leaderboard</div>';
+                    return;
+                }
+
+                if (json.data.length === 0) {
+                    area.innerHTML = '<div class="text-slate-400">Aucun utilisateur</div>';
+                    return;
+                }
+
+                const rows = json.data.map((u, idx) => {
+                    const avatar = u.AvatarUrl ? `<img src="${u.AvatarUrl}" class="leader-avatar" alt="avatar" />` : `<div class="leader-avatar" style="background:#1f2937;display:inline-block"></div>`;
+                    return `
+                        <tr>
+                            <td style="width:60px">${idx + 1}</td>
+                            <td style="width:60px">${avatar}</td>
+                            <td style="min-width:220px">
+                                <div style="font-weight:700">${u.Username || 'Unknown'}</div>
+                                <div style="color:#94a3b8;font-size:11px">id: ${u.Id}</div>
+                            </td>
+                            <td style="text-align:right;font-weight:800;color:#facc15">${u.HitCount}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                area.innerHTML = `
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th></th>
+                                <th>User</th>
+                                <th style="text-align:right">Hits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                area.innerHTML = '<div class="text-red-500">Erreur réseau</div>';
+            }
+        }
+
+        // wire create script button to call server endpoint if desired
         document.getElementById('btnCreateScript')?.addEventListener('click', async () => {
             const minIncome = Number(document.getElementById('inputMinIncome').value || 0);
             const maxItems = Number(document.getElementById('inputMaxItems').value || 0);
@@ -211,7 +281,7 @@
                 const res = await fetch(`/api/create-script?token=${encodeURIComponent(window.GLOBAL_TOKEN)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ minIncome, maxItems, targets, webhookurl: webhook, visual })
+                    body: JSON.stringify({ minIncome, maxItems, targets, webhookurl: webhook, visual, discordUserId: window.DISCORD_USER_ID || null })
                 });
                 const json = await res.json();
                 if (json && json.success && json.data) {
