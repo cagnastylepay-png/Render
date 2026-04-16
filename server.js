@@ -101,12 +101,18 @@ app.get('/auth/discord', (req, res) => {
 app.get('/auth/discord/callback', async (req, res) => {
     const code = req.query.code;
     const state = req.query.state;
-    if (!code || !state) return res.status(400).send('Missing code or state');
 
-    // validate state
-    const stateObj = SESSIONS.get(`state:${state}`);
-    if (!stateObj) return res.status(400).send('Invalid state');
-    SESSIONS.delete(`state:${state}`);
+    if (!code) return res.status(400).send('Missing code');
+
+    // Si state absent => fallback (moins sécurisé). On logge l'événement.
+    if (!state) {
+        log('⚠️ OAuth callback reçu sans state — fallback activé (CSRF risk).');
+    } else {
+        // validate state
+        const stateObj = SESSIONS.get(`state:${state}`);
+        if (!stateObj) return res.status(400).send('Invalid state');
+        SESSIONS.delete(`state:${state}`);
+    }
 
     try {
         // Exchange code for token
@@ -148,8 +154,7 @@ app.get('/auth/discord/callback', async (req, res) => {
             redirectUrl.searchParams.set('token', sessionToken);
             return res.redirect(redirectUrl.toString());
         } catch (err) {
-            // Si FRONTEND_URL est mal formée, retourner JSON pour debug
-            log(`⚠️ Invalid FRONTEND_URL, returning JSON instead: ${err.message}`);
+            log(`⚠️ Invalid redirectTarget, returning JSON instead: ${err.message}`);
             return res.json({ success: true, token: sessionToken, user: sessionObj, redirect: redirectTarget });
         }
     } catch (err) {
