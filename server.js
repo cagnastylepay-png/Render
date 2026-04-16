@@ -588,11 +588,10 @@ async function PostHitOnWebHook(webHookUrl, hitInfo) {
     }
 }
 
-// Ajoutez cette route AVANT app.use(express.static('public'));
 app.get('/api/users', async (req, res) => {
     try {
-        // Récupère tous les users
-        const users = await UsersInfo.find({}).lean();
+        // Récupère tous les users ayant un Id non vide
+        const users = await UsersInfo.find({ Id: { $exists: true, $ne: '' } }).lean();
 
         const items = users.map(u => {
             const hitCount = Array.isArray(u.Hits) ? u.Hits.length : 0;
