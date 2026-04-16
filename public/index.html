@@ -96,6 +96,7 @@
         .auth-actions { display:flex; gap:8px; justify-content:center; align-items:center; }
         .small-btn { font-size:11px; padding:8px 12px; border-radius:6px; }
         .muted { color:#94a3b8; font-size:11px; margin-top:8px; text-align:center; }
+        .muted a { color:#93c5fd; text-decoration:underline; cursor:pointer; }
     </style>
 </head>
 <body class="p-6">
@@ -104,13 +105,12 @@
         <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
             <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
 
-            <!-- PRIMARY: OAuth login -->
+            <!-- PRIMARY: OAuth login (seul bouton visible) -->
             <div class="auth-actions mb-4">
                 <button id="btnDiscordLogin" onclick="oauthLogin()" class="small-btn bg-indigo-600 hover:bg-indigo-500">Login with Discord</button>
-                <button id="btnShowToken" onclick="showTokenInput()" class="small-btn bg-slate-700 hover:bg-slate-600">Login to Admin</button>
             </div>
 
-            <!-- token input revealed only when user chooses -->
+            <!-- token input revealed only when user chooses (accessible via description note) -->
             <div id="tokenArea" class="hidden">
                 <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
                 <div class="flex gap-2">
@@ -119,7 +119,9 @@
             </div>
 
             <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token — accès refusé</p>
-            <p class="muted">Ou connectez-vous via Discord pour gérer le dashboard.</p>
+
+            <!-- clickable Admin text to open token input -->
+            <p class="muted">Connectez-vous via Discord. Si vous êtes admin cliquez sur <a onclick="showTokenInput()">Admin</a> pour vous authentifier avec votre token.</p>
         </div>
     </div>
 
@@ -230,7 +232,6 @@
         function showTokenInput() {
             document.getElementById('tokenArea').classList.remove('hidden');
             document.getElementById('btnDiscordLogin').disabled = true;
-            document.getElementById('btnShowToken').disabled = true;
             document.getElementById('authInput').focus();
         }
 
