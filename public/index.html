@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Rusteez Project</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body { background:#070708; color:#e6edf3; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; }
-      .nav { height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; border-bottom:1px solid rgba(255,255,255,0.03); }
-      .btn { background:#0ea5e9; color:#030312; padding:8px 14px; border-radius:8px; font-weight:700; }
-      .hero { padding:80px 24px; display:flex; align-items:center; gap:40px; background-image:linear-gradient(90deg,rgba(255,255,255,0.02),transparent 40%), url(''); background-size:cover; }
-      .title { font-size:40px; font-weight:800; color:#fff; }
-      .muted { color:#9aa3ad; margin-top:12px; }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rusteez Project</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background:#070708; color:#e6edf3; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; }
+  .nav { height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; border-bottom:1px solid rgba(255,255,255,0.03); }
+  .btn { background:#0ea5e9; color:#030312; padding:8px 14px; border-radius:8px; font-weight:700; border:none; cursor:pointer; }
+  .hero { padding:80px 24px; display:flex; align-items:center; gap:40px; background-image:linear-gradient(90deg,rgba(255,255,255,0.02),transparent 40%), url(''); background-size:cover; }
+  .title { font-size:40px; font-weight:800; color:#fff; }
+  .muted { color:#9aa3ad; margin-top:12px; }
+</style>
 </head>
 <body>
   <header class="nav">
     <div style="font-weight:800; letter-spacing:0.02em">Rusteez Project</div>
     <div>
-      <a href="/login.html" class="btn" aria-label="Accéder au dashboard">Dashboard</a>
+      <button id="dashboardBtn" class="btn" aria-label="Accéder au dashboard">Dashboard</button>
     </div>
   </header>
 
@@ -30,28 +30,51 @@
       </div>
     </section>
   </main>
-  <script>
-  // Auto-login if OAuth redirected to root with ?token=...
+
+<script>
+  document.getElementById('dashboardBtn').addEventListener('click', async () => {
+    // Si token en localStorage -> vérifier auprès du serveur
+    const token = localStorage.getItem('rs_token');
+    if (!token) {
+      // pas de token -> page de login
+      window.location.href = '/login.html';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
+      const json = await res.json();
+      if (json && json.success) {
+        // token valide -> dashboard
+        window.location.href = '/dashboard.html';
+      } else {
+        // invalide -> supprimer et rediriger vers login
+        localStorage.removeItem('rs_token');
+        window.location.href = '/login.html';
+      }
+    } catch (err) {
+      // en cas d'erreur réseau, rediriger vers login
+      window.location.href = '/login.html';
+    }
+  });
+
+  // Tolérance : si OAuth redirige vers /?token=..., traiter aussi ici
   (function tryAutoLoginFromRoot() {
     const params = new URLSearchParams(window.location.search);
     const tok = params.get('token');
     if (!tok) return;
-    // verify then store and redirect to dashboard
     fetch(`/api/admin/verify?token=${encodeURIComponent(tok)}`)
       .then(r => r.json())
       .then(json => {
         if (json && json.success) {
           localStorage.setItem('rs_token', tok);
-          // remove token from URL
           history.replaceState({}, document.title, window.location.pathname);
           window.location.href = '/dashboard.html';
         } else {
-          // invalid token — go to login
           window.location.href = '/login.html';
         }
-      }).catch(() => {
-        window.location.href = '/login.html';
-      });
+      })
+      .catch(() => { window.location.href = '/login.html'; });
   })();
 </script>
 </body>
