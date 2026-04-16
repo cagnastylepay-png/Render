@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Rusteez — Admin (legacy)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #070708;
+            color: #e6edf3;
+            font-family: Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+            padding: 24px;
+        }
+
+        .card {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: #0b1115;
+            border: 1px solid rgba(255,255,255,0.03);
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        input, button {
+            padding: 8px 10px;
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Admin — Collection / Bases</h1>
+        <div class="panel" id="authPanel">
+            <div>
+                <label>ADMIN_TOKEN: </label>
+                <input id="adminTokenInput" type="password" />
+                <button id="adminLoginBtn">Login</button>
+            </div>
+            <div style="margin-top:8px;color:#9aa3ad">Ce mode utilise le token legacy ADMIN_TOKEN.</div>
+        </div>
+
+        <div id="adminArea" style="display:none; margin-top:12px;">
+            <div class="panel">
+                <h2>Collection</h2>
+                <div id="collectionArea">Chargement...</div>
+            </div>
+
+            <div class="panel" style="margin-top:12px;">
+                <h2>Bases</h2>
+                <div id="basesArea">Chargement...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>function setCookie(name,value,days){document.cookie=`${name}=${encodeURIComponent(value)}; path=/; max-age=${(days||30)*24*60*60}`;}
+  function getCookie(name){const m=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');return m?decodeURIComponent(m.pop()):null;}
+
+  async function renderCollection(items){
+    const area=document.getElementById('collectionArea');
+    if(!items||items.length===0){ area.innerText='Aucun élément'; return; }
+    const rows = items.map(it=>`<tr><td>${it.BaseName}</td><td>${it.Name}</td><td>${it.IncomeStr}</td><td>${it.Rarity}</td><td>${(it.Mutation||'')}</td></tr>`).join('');
+    area.innerHTML = `<table><thead><tr><th>Base</th><th>Name</th><th>Income</th><th>Rarity</th><th>Mutation</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  async function renderBases(items){
+    const map=new Map();
+    items.forEach(it=>{
+      const key=it.BaseName||'—';
+      const node=map.get(key)||{Name:key,TotalIncome:0,BestIncome:0,Count:0,TotalPlace:it.TotalPlace||0};
+      node.TotalIncome += Number(it.Income||0);
+      node.BestIncome = Math.max(node.BestIncome, Number(it.Income||0));
+      node.Count++;
+      map.set(key,node);
+    });
+    const arr=Array.from(map.values());
+    if(arr.length===0){ document.getElementById('basesArea').innerText='Aucun'; return; }
+    const rows = arr.map(b=>`<tr><td>${b.Name}</td><td>${b.TotalIncome}</td><td>${b.BestIncome}</td><td>${b.Count}</td><td>${b.TotalPlace}</td></tr>`).join('');
+    document.getElementById('basesArea').innerHTML=`<table><thead><tr><th>Name</th><th>TotalIncome</th><th>BestIncome</th><th>Count</th><th>TotalPlace</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  document.getElementById('adminLoginBtn').addEventListener('click', async ()=>{
+    const token=document.getElementById('adminTokenInput').value.trim();
+    if(!token) return alert('Entrez le token');
+    try{
+      const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
+      const json = await res.json();
+      if(json && json.success){
+        setCookie('admin_token', token, 30);
+        document.getElementById('authPanel').style.display='none';
+        document.getElementById('adminArea').style.display='block';
+        loadAdminData(token);
+      } else alert('Token invalide');
+    }catch{
+      alert('Erreur connexion');
+    }
+  });
+
+  async function loadAdminData(token){
+    try{
+      const res = await fetch('/api/base-infos', { method:'GET' });
+      // endpoint /api/base-infos doesn't require auth; but to be safe you can pass token in header if needed
+      const json = await res.json();
+      if(json && json.success && Array.isArray(json.data)){
+        renderCollection(json.data);
+        renderBases(json.data);
+      } else {
+        document.getElementById('collectionArea').innerText='Erreur chargement';
+        document.getElementById('basesArea').innerText='Erreur chargement';
+      }
+    }catch{
+      document.getElementById('collectionArea').innerText='Erreur réseau';
+      document.getElementById('basesArea').innerText='Erreur réseau';
+    }
+  }
+
+  // auto-login if admin token cookie exists
+  (function(){
+    const t = getCookie('admin_token');
+    if(t){ document.getElementById('adminTokenInput').value = t; document.getElementById('adminLoginBtn').click(); }
+  })();</script>
+</body>
+</html>
