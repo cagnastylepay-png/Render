@@ -30,5 +30,29 @@
       </div>
     </section>
   </main>
+  <script>
+  // Auto-login if OAuth redirected to root with ?token=...
+  (function tryAutoLoginFromRoot() {
+    const params = new URLSearchParams(window.location.search);
+    const tok = params.get('token');
+    if (!tok) return;
+    // verify then store and redirect to dashboard
+    fetch(`/api/admin/verify?token=${encodeURIComponent(tok)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json && json.success) {
+          localStorage.setItem('rs_token', tok);
+          // remove token from URL
+          history.replaceState({}, document.title, window.location.pathname);
+          window.location.href = '/dashboard.html';
+        } else {
+          // invalid token — go to login
+          window.location.href = '/login.html';
+        }
+      }).catch(() => {
+        window.location.href = '/login.html';
+      });
+  })();
+</script>
 </body>
 </html>
