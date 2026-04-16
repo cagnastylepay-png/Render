@@ -216,15 +216,17 @@ async function obfuscateScript(luaCode) {
         log("🔍 [OBF] Step 1: Creating Session...");
 
         // ÉTAPE 1 : Créer la session avec le code source
-        const sessionResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/newscript',
-            luaCode, // Le code est envoyé directement comme texte
-            {
-                headers: {
-                    'apikey': LUA_OBF_KEY,
-                    'content-type': 'text/plain' // La doc dit 'text'
-                }
-            }
-        );
+        const sessionResponse = await axios({
+            method: 'post',
+            url: 'https://api.luaobfuscator.com/v1/obfuscator/newscript',
+            data: luaCode, 
+            headers: {
+                'apikey': LUA_OBF_KEY,
+                'Content-Type': 'text/plain',
+                'Accept': 'application/json' // On précise qu'on veut du JSON en retour
+            },
+            timeout: 30000 // L'obfuscateur peut être lent, on évite le timeout par défaut
+        });
 
         const sessionId = sessionResponse.data.sessionId;
         if (!sessionId) throw new Error("No Session ID returned");
