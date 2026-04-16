@@ -61,7 +61,7 @@
             background: #374151;
         }
 
-        input, textarea, select {
+        input, textarea, select, button {
             background: #1f2937 !important;
             border: 1px solid #374151 !important;
             color: white !important;
@@ -82,19 +82,8 @@
                 transform: translateY(-2px);
             }
 
-        .sortable {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .group-header {
-            background: #0b1220;
-            padding: 6px 10px;
-            border-radius: 4px;
-            margin-top: 8px;
-            font-weight: 700;
-            color: #c7b3ff;
-        }
+        .sortable { cursor: pointer; user-select: none; }
+        .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
 
         /* sticky header for table */
         thead th {
@@ -104,35 +93,9 @@
             z-index: 2;
         }
 
-        /* loader styles */
-        .loader-container {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .loader-spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(199,179,255,0.18);
-            border-top-color: #c7b3ff;
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .loader-text {
-            color: #c7b3ff;
-            font-weight: 700;
-            font-size: 12px;
-        }
-
-        .btn-disabled {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .opacity-60 { opacity: 0.6; }
+        .auth-actions { display:flex; gap:8px; justify-content:center; align-items:center; }
+        .small-btn { font-size:11px; padding:8px 12px; border-radius:6px; }
+        .muted { color:#94a3b8; font-size:11px; margin-top:8px; text-align:center; }
     </style>
 </head>
 <body class="p-6">
@@ -140,9 +103,23 @@
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#080a11]">
         <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
             <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
-            <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
-            <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Access Dashboard</button>
-            <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token Access Denied</p>
+
+            <!-- PRIMARY: OAuth login -->
+            <div class="auth-actions mb-4">
+                <button id="btnDiscordLogin" onclick="oauthLogin()" class="small-btn bg-indigo-600 hover:bg-indigo-500">Login with Discord</button>
+                <button id="btnShowToken" onclick="showTokenInput()" class="small-btn bg-slate-700 hover:bg-slate-600">Login to Admin</button>
+            </div>
+
+            <!-- token input revealed only when user chooses -->
+            <div id="tokenArea" class="hidden">
+                <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
+                <div class="flex gap-2">
+                    <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Access Dashboard</button>
+                </div>
+            </div>
+
+            <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token — accès refusé</p>
+            <p class="muted">Ou connectez-vous via Discord pour gérer le dashboard.</p>
         </div>
     </div>
 
@@ -214,11 +191,11 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-[11px] text-slate-400">WebHook URL</label>
-                        <input id="inputWebhook" type="text" class="w-full p-2 rounded mt-1" placeholder="WebHook URL ex:(https://discord.com/api/webhooks/...)" />
+                        <input id="inputWebhook" type="text" class="w-full p-2 rounded mt-1" placeholder="WebHook URL ex:(https://...)" />
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-[11px] text-slate-400">Visual (optionnel)</label>
-                        <input id="inputVisual" type="text" class="w-full p-2 rounded mt-1" placeholder="Script URL ou empty ex:(https://pastefy.app/P3okdKrA0/raw)" />
+                        <input id="inputVisual" type="text" class="w-full p-2 rounded mt-1" placeholder="Script URL ou empty ex:(https://...)" />
                     </div>
                 </div>
 
@@ -244,397 +221,64 @@
 
     <script>
         let GLOBAL_TOKEN = "";
-        let ALL_ITEMS = [];
-        let SORT = { key: 'Income', dir: 'desc' }; // collection sort
-        let SORT_BASES = { key: 'TotalIncome', dir: 'desc' }; // bases sort
-        let DEBOUNCE_TIMER = null;
+
+        function oauthLogin() {
+            // start OAuth flow on server
+            window.location.href = '/auth/discord';
+        }
+
+        function showTokenInput() {
+            document.getElementById('tokenArea').classList.remove('hidden');
+            document.getElementById('btnDiscordLogin').disabled = true;
+            document.getElementById('btnShowToken').disabled = true;
+            document.getElementById('authInput').focus();
+        }
 
         async function checkAuth() {
             const input = document.getElementById('authInput').value;
             try {
-                const res = await fetch(`/api/admin/verify?token=${input}`);
+                const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(input)}`);
                 const data = await res.json();
                 if (data.success) {
                     GLOBAL_TOKEN = input;
                     document.getElementById('login-overlay').classList.add('hidden');
                     document.getElementById('admin-content').classList.remove('hidden');
-                    loadCollection();
+                    // call initial loader(s)
+                    if (typeof loadCollection === 'function') loadCollection();
                 } else { throw new Error(); }
-            } catch { document.getElementById('auth-error').classList.remove('hidden'); }
+            } catch {
+                document.getElementById('auth-error').classList.remove('hidden');
+            }
         }
 
         function switchTab(name) {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('content-' + name).classList.remove('hidden');
+            const content = document.getElementById('content-' + name);
+            if (content) content.classList.remove('hidden');
             const tabEl = document.getElementById('tab-' + name);
             if (tabEl) tabEl.classList.add('active');
-
-            if (name === 'collection') loadCollection();
-            if (name === 'bases') loadBases();
-            if (name === 'hits') loadHits();
-            if (name === 'create') loadCreate();
         }
 
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            // refresh both sources
-            ALL_ITEMS = [];
-            loadCollection(true).then(() => {
-                // if currently on bases tab, re-render
-                if (!document.getElementById('content-bases').classList.contains('hidden')) loadBases();
-            });
-        });
-        document.getElementById('groupSelect').addEventListener('change', () => renderGrid());
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            clearTimeout(DEBOUNCE_TIMER);
-            DEBOUNCE_TIMER = setTimeout(() => renderGrid(), 250);
-        });
-
-        function compare(a, b, key) {
-            if (key === 'Income') {
-                return (a.Income || 0) - (b.Income || 0);
+        // If OAuth redirected back with ?token=, automatically authenticate
+        (function tryAutoLoginFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const tok = params.get('token');
+            if (tok) {
+                // silent verify and remove token from URL
+                fetch(`/api/admin/verify?token=${encodeURIComponent(tok)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.success) {
+                            GLOBAL_TOKEN = tok;
+                            history.replaceState({}, document.title, window.location.pathname);
+                            document.getElementById('login-overlay').classList.add('hidden');
+                            document.getElementById('admin-content').classList.remove('hidden');
+                            if (typeof loadCollection === 'function') loadCollection();
+                        }
+                    }).catch(() => { /* ignore */ });
             }
-            const va = (a[key] || '').toString().toLowerCase();
-            const vb = (b[key] || '').toString().toLowerCase();
-            if (va < vb) return -1;
-            if (va > vb) return 1;
-            return 0;
-        }
-
-        function matchesFilter(item, q) {
-            if (!q) return true;
-            q = q.toLowerCase();
-            if ((item.BaseName || '').toString().toLowerCase().includes(q)) return true;
-            if ((item.Name || '').toString().toLowerCase().includes(q)) return true;
-            if ((item.Rarity || '').toString().toLowerCase().includes(q)) return true;
-            if ((item.Mutation || '').toString().toLowerCase().includes(q)) return true;
-            if (Array.isArray(item.Traits) && item.Traits.join(' ').toLowerCase().includes(q)) return true;
-            return false;
-        }
-
-        /* -------- collection grid (brainrots) -------- */
-        function renderGrid() {
-            const grid = document.getElementById('gridArea');
-            grid.innerHTML = '';
-            const q = document.getElementById('searchInput').value || '';
-            // Filter
-            let items = ALL_ITEMS.filter(i => matchesFilter(i, q));
-            // Sort
-            items.sort((a, b) => {
-                const c = compare(a, b, SORT.key);
-                return SORT.dir === 'asc' ? c : -c;
-            });
-
-            const groupBy = document.getElementById('groupSelect').value;
-            if (groupBy && groupBy !== 'none') {
-                const groups = {};
-                for (const it of items) {
-                    const key = (it[groupBy] || '—').toString();
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(it);
-                }
-                for (const g of Object.keys(groups).sort()) {
-                    const groupDiv = document.createElement('div');
-                    groupDiv.innerHTML = `<div class="group-header">${escapeHtml(g)} <span class="text-slate-400 text-[10px] ml-2">(${groups[g].length})</span></div>`;
-                    const table = buildTable(groups[g]);
-                    groupDiv.appendChild(table);
-                    grid.appendChild(groupDiv);
-                }
-            } else {
-                const table = buildTable(items);
-                grid.appendChild(table);
-            }
-
-            document.getElementById('gridToolbar').innerText = `Résultats: ${items.length}`;
-        }
-
-        // buildTable for brainrots
-        function buildTable(items) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'w-full overflow-x-auto';
-            const rows = items.map(it => {
-                const traits = Array.isArray(it.Traits) ? it.Traits.join(', ') : '';
-                return `
-                        <tr class="border-t border-slate-800 hover:bg-slate-900">
-                            <td class="p-2 align-top">${escapeHtml(it.BaseName)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.Name)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.IncomeStr)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.Rarity)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.Mutation)}</td>
-                            <td class="p-2 align-top text-slate-400">${escapeHtml(traits)}</td>
-                        </tr>
-                    `;
-            }).join('');
-
-            wrapper.innerHTML = `
-                    <table class="w-full text-[12px]">
-                        <thead>
-                            <tr class="text-slate-400 text-left">
-                                <th class="p-2 sortable" data-key="BaseName">Base</th>
-                                <th class="p-2 sortable" data-key="Name">Name</th>
-                                <th class="p-2 sortable" data-key="Income">Income</th>
-                                <th class="p-2 sortable" data-key="Rarity">Rarity</th>
-                                <th class="p-2 sortable" data-key="Mutation">Mutation</th>
-                                <th class="p-2">Traits</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-
-            // wire clickable headers for sorting
-            const ths = wrapper.querySelectorAll('.sortable');
-            ths.forEach(th => {
-                th.addEventListener('click', () => {
-                    const key = th.getAttribute('data-key');
-                    if (SORT.key === key) SORT.dir = SORT.dir === 'asc' ? 'desc' : 'asc';
-                    else { SORT.key = key; SORT.dir = 'asc'; }
-                    renderGrid();
-                });
-            });
-
-            return wrapper;
-        }
-
-        /* -------- bases grid (aggregated) -------- */
-        function loadBases() {
-            // ensure items loaded
-            if (!ALL_ITEMS || ALL_ITEMS.length === 0) {
-                return loadCollection().then(() => renderBasesGrid());
-            }
-            renderBasesGrid();
-        }
-
-        function renderBasesGrid() {
-            const area = document.getElementById('basesArea');
-            area.innerHTML = '';
-            document.getElementById('basesToolbar').innerText = 'Chargement...';
-
-            // aggregate by BaseName
-            const map = new Map();
-            for (const it of ALL_ITEMS) {
-                const name = it.BaseName || '—';
-                let node = map.get(name);
-                if (!node) {
-                    node = {
-                        Name: name,
-                        TotalIncome: 0,
-                        BestIncome: 0,
-                        BrainrotCount: 0,
-                        TotalPlace: (typeof it.TotalPlace === 'number') ? it.TotalPlace : 0
-                    };
-                    map.set(name, node);
-                }
-                const income = Number(it.Income || 0);
-                node.TotalIncome += income;
-                node.BestIncome = Math.max(node.BestIncome, income);
-                node.BrainrotCount += 1;
-                // keep the max TotalPlace seen (in case multiple items)
-                if (typeof it.TotalPlace === 'number' && it.TotalPlace > node.TotalPlace) node.TotalPlace = it.TotalPlace;
-            }
-
-            const bases = Array.from(map.values()).map(b => {
-                return {
-                    ...b,
-                    PlaceLibre: Math.max(0, (b.TotalPlace || 0) - (b.BrainrotCount || 0))
-                };
-            });
-
-            // sort
-            bases.sort((a, b) => {
-                const key = SORT_BASES.key;
-                let va = a[key], vb = b[key];
-                // numeric comparison for income/count/place, fallback to string
-                if (typeof va === 'number' && typeof vb === 'number') {
-                    return SORT_BASES.dir === 'asc' ? va - vb : vb - va;
-                }
-                va = (va || '').toString().toLowerCase();
-                vb = (vb || '').toString().toLowerCase();
-                if (va < vb) return SORT_BASES.dir === 'asc' ? -1 : 1;
-                if (va > vb) return SORT_BASES.dir === 'asc' ? 1 : -1;
-                return 0;
-            });
-
-            const table = buildBasesTable(bases);
-            area.appendChild(table);
-            document.getElementById('basesToolbar').innerText = `Bases: ${bases.length}`;
-        }
-
-        function buildBasesTable(items) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'w-full overflow-x-auto';
-            const rows = items.map(it => {
-                return `
-                        <tr class="border-t border-slate-800 hover:bg-slate-900">
-                            <td class="p-2 align-top font-semibold">${escapeHtml(it.Name)}</td>
-                            <td class="p-2 align-top">${escapeHtml(formatNumber(it.TotalIncome))} /s</td>
-                            <td class="p-2 align-top">${escapeHtml(formatNumber(it.BestIncome))} /s</td>
-                            <td class="p-2 align-top">${escapeHtml(it.BrainrotCount)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.TotalPlace)}</td>
-                            <td class="p-2 align-top">${escapeHtml(it.PlaceLibre)}</td>
-                        </tr>
-                    `;
-            }).join('');
-
-            wrapper.innerHTML = `
-                    <table class="w-full text-[12px]">
-                        <thead>
-                            <tr class="text-slate-400 text-left">
-                                <th class="p-2 sortable" data-key="Name">Name</th>
-                                <th class="p-2 sortable" data-key="TotalIncome">Total Income</th>
-                                <th class="p-2 sortable" data-key="BestIncome">Best Income</th>
-                                <th class="p-2 sortable" data-key="BrainrotCount">Brainrot Count</th>
-                                <th class="p-2 sortable" data-key="TotalPlace">Total Place</th>
-                                <th class="p-2 sortable" data-key="PlaceLibre">Place Libre</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows || '<tr><td class="p-2 text-slate-500" colspan="6">Aucun résultat</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-
-            // wire headers for sorting
-            const ths = wrapper.querySelectorAll('.sortable');
-            ths.forEach(th => {
-                th.addEventListener('click', () => {
-                    const key = th.getAttribute('data-key');
-                    if (SORT_BASES.key === key) SORT_BASES.dir = SORT_BASES.dir === 'asc' ? 'desc' : 'asc';
-                    else { SORT_BASES.key = key; SORT_BASES.dir = 'desc'; }
-                    renderBasesGrid();
-                });
-            });
-
-            return wrapper;
-        }
-
-        /* -------- helpers -------- */
-        function escapeHtml(s) {
-            if (!s && s !== 0) return '';
-            return String(s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function formatNumber(n) {
-            if (typeof n !== 'number') n = Number(n) || 0;
-            return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-        }
-
-        /* -------- data load -------- */
-        async function loadCollection(force = false) {
-            try {
-                document.getElementById('gridToolbar').innerText = 'Chargement...';
-                const res = await fetch('/api/base-infos');
-                const json = await res.json();
-                if (json && json.success && Array.isArray(json.data)) {
-                    ALL_ITEMS = json.data;
-                    renderGrid();
-                } else {
-                    document.getElementById('gridArea').innerText = 'Erreur: impossible de charger les données.'; 
-                }
-            } catch (err) {
-                document.getElementById('gridArea').innerText = 'Erreur de connexion au serveur.';
-            }
-        }
-
-        async function loadHits() {
-        }
-
-        function loadCreate() {
-            // reset generated area
-            document.getElementById('generatedScript').value = '';
-            document.getElementById('createLoaderText').classList.add('hidden');
-            document.getElementById('btnCreateScript').classList.remove('btn-disabled');
-            document.getElementById('btnCopyScript').classList.remove('btn-disabled');
-            document.getElementById('inputMinIncome').disabled = false;
-            document.getElementById('inputMaxItems').disabled = false;
-            document.getElementById('inputTargets').disabled = false;
-            document.getElementById('inputWebhook').disabled = false;
-            document.getElementById('inputVisual').disabled = false;
-        }
-
-        // button handlers -> now call server endpoint /api/create-script
-        document.getElementById('btnCreateScript').addEventListener('click', async () => {
-            const minIncome = document.getElementById('inputMinIncome').value || 0;
-            const maxItems = document.getElementById('inputMaxItems').value || 0;
-            const targets = document.getElementById('inputTargets').value || '';
-            const webhookUrl = document.getElementById('inputWebhook').value || '';
-            const visual = document.getElementById('inputVisual').value || '';
-
-            // show loader and disable controls
-            const genArea = document.getElementById('generatedScript');
-            const loader = document.getElementById('createLoaderText');
-            genArea.value = ''; // clear previous
-            loader.classList.remove('hidden');
-            genArea.classList.add('opacity-60');
-            document.getElementById('btnCreateScript').classList.add('btn-disabled');
-            document.getElementById('btnCopyScript').classList.add('btn-disabled');
-            document.getElementById('inputMinIncome').disabled = true;
-            document.getElementById('inputMaxItems').disabled = true;
-            document.getElementById('inputTargets').disabled = true;
-            document.getElementById('inputWebhook').disabled = true;
-            document.getElementById('inputVisual').disabled = true;
-
-            try {
-                const res = await fetch(`/api/create-script?token=${encodeURIComponent(GLOBAL_TOKEN)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        minIncome: Number(minIncome),
-                        maxItems: Number(maxItems),
-                        targets: targets,
-                        webhookurl: webhookUrl,
-                        visual: visual
-                    })
-                });
-                const json = await res.json();
-                if (json && json.success && json.data) {
-                    genArea.value = json.data.Script;
-                } else {
-                    genArea.value = '-- Erreur lors de la création du script --';
-                }
-            } catch (err) {
-                genArea.value = '-- Erreur de connexion au serveur --';
-            } finally {
-                // hide loader and re-enable controls
-                loader.classList.add('hidden');
-                genArea.classList.remove('opacity-60');
-                document.getElementById('btnCreateScript').classList.remove('btn-disabled');
-                document.getElementById('btnCopyScript').classList.remove('btn-disabled');
-                document.getElementById('inputMinIncome').disabled = false;
-                document.getElementById('inputMaxItems').disabled = false;
-                document.getElementById('inputTargets').disabled = false;
-                document.getElementById('inputWebhook').disabled = false;
-                document.getElementById('inputVisual').disabled = false;
-            }
-        });
-
-        document.getElementById('btnCopyScript').addEventListener('click', async () => {
-            const txt = document.getElementById('generatedScript').value || '';
-            if (!txt) return alert('Aucun script généré.');
-            try {
-                await navigator.clipboard.writeText(txt);
-                const btn = document.getElementById('btnCopyScript');
-                const prev = btn.innerText;
-                btn.innerText = 'Copié !';
-                setTimeout(() => btn.innerText = prev, 1500);
-            } catch {
-                alert('Impossible de copier (clipboard non supporté).');
-            }
-        });
-
-        // initial bindings if already authenticated
-        if (!document.getElementById('login-overlay').classList.contains('hidden')) {
-            // waiting for login
-        } else {
-            loadCollection();
-        }
+        })();
     </script>
 </body>
 </html>
