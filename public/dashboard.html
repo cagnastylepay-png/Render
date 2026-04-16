@@ -15,126 +15,30 @@
             font-family: 'Inter', sans-serif;
             font-size: 11px;
         }
-
-        .panel {
-            background: #111827;
-            border: 1px solid #1f2937;
-            border-radius: 4px;
-        }
-
-        .tab-btn {
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-            color: #64748b;
-            text-transform: uppercase;
-            font-weight: 900;
-            font-size: 10px;
-            letter-spacing: 0.05em;
-        }
-
-            .tab-btn.active {
-                border-color: #a855f7;
-                color: #a855f7;
-                background: rgba(168, 85, 247, 0.05);
-            }
-
-        .data-card {
-            background: #111827;
-            border: 1px solid #1f2937;
-            transition: all 0.3s;
-            position: relative;
-        }
-
-            .data-card:hover {
-                border-color: #a855f7;
-            }
-
-        .hidden {
-            display: none;
-        }
-
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #374151;
-        }
-
-        input, textarea, select, button {
-            background: #1f2937 !important;
-            border: 1px solid #374151 !important;
-            color: white !important;
-        }
-
-        .copy-success {
-            color: #10b981 !important;
-        }
-
-        .setup-btn {
-            background: rgba(31, 41, 55, 0.5);
-            border: 1px solid #374151;
-            transition: all 0.3s;
-        }
-
-            .setup-btn:hover {
-                border-color: #a855f7;
-                transform: translateY(-2px);
-            }
-
-        .sortable {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .group-header {
-            background: #0b1220;
-            padding: 6px 10px;
-            border-radius: 4px;
-            margin-top: 8px;
-            font-weight: 700;
-            color: #c7b3ff;
-        }
-
-        /* sticky header for table */
-        thead th {
-            position: sticky;
-            top: 0;
-            background: #0b1220;
-            z-index: 2;
-        }
-
-        .auth-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .small-btn {
-            font-size: 11px;
-            padding: 8px 12px;
-            border-radius: 6px;
-        }
-
-        .muted {
-            color: #94a3b8;
-            font-size: 11px;
-            margin-top: 8px;
-            text-align: center;
-        }
-
-            .muted a {
-                color: #93c5fd;
-                text-decoration: underline;
-                cursor: pointer;
-            }
+        .panel { background: #111827; border: 1px solid #1f2937; border-radius: 4px; }
+        .tab-btn { border-bottom: 2px solid transparent; transition: all 0.2s; color: #64748b; text-transform: uppercase; font-weight: 900; font-size: 10px; letter-spacing: 0.05em; }
+        .tab-btn.active { border-color: #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.05); }
+        .data-card { background: #111827; border: 1px solid #1f2937; transition: all 0.3s; position: relative; }
+        .data-card:hover { border-color: #a855f7; }
+        .hidden { display: none; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #374151; }
+        input, textarea, select, button { background: #1f2937 !important; border: 1px solid #374151 !important; color: white !important; }
+        .copy-success { color: #10b981 !important; }
+        .setup-btn { background: rgba(31, 41, 55, 0.5); border: 1px solid #374151; transition: all 0.3s; }
+        .setup-btn:hover { border-color: #a855f7; transform: translateY(-2px); }
+        .sortable { cursor: pointer; user-select: none; }
+        .group-header { background: #0b1220; padding: 6px 10px; border-radius: 4px; margin-top: 8px; font-weight: 700; color: #c7b3ff; }
+        thead th { position: sticky; top: 0; background: #0b1220; z-index: 2; }
+        .auth-actions { display: flex; gap: 8px; justify-content: center; align-items: center; }
+        .small-btn { font-size: 11px; padding: 8px 12px; border-radius: 6px; }
+        .muted { color: #94a3b8; font-size: 11px; margin-top: 8px; text-align: center; }
+        .muted a { color: #93c5fd; text-decoration: underline; cursor: pointer; }
+        .user-badge { display:flex; align-items:center; gap:8px; font-size: 12px; color: #cbd5e1; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.01); }
+        .user-avatar { width:32px; height:32px; border-radius:999px; object-fit:cover; }
     </style>
 </head>
 <body class="p-6">
-
-    <!-- login-overlay removed: login handled in /login.html -->
-
     <div id="admin-content" class="hidden max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-5 border border-slate-800 rounded">
             <div>
@@ -142,8 +46,10 @@
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
             <div class="flex items-center gap-4">
-                <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
-                    System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                <!-- affichage avatar + nom Discord -->
+                <div id="userInfo" class="user-badge">
+                    <img id="userAvatar" class="user-avatar" src="" alt="avatar" style="display:none" />
+                    <span id="userName">—</span>
                 </div>
                 <button id="logoutBtn" class="px-3 py-1 rounded bg-red-600 text-white text-xs">Logout</button>
             </div>
@@ -157,7 +63,6 @@
             <button onclick="switchTab('discord')" id="tab-discord" class="tab-btn px-8 py-4 text-purple-400"><i class="fab fa-discord mr-2"></i>Discord</button>
         </nav>
 
-        <!-- Controls: search + group -->
         <div class="flex gap-3 items-center mb-4">
             <input id="searchInput" type="text" placeholder="Recherche (BaseName, Name, Rarity, Mutation, Traits)..." class="p-2 rounded flex-1" />
             <select id="groupSelect" class="p-2 rounded">
@@ -172,7 +77,6 @@
 
         <section id="content-collection" class="mb-6">
             <div id="gridContainer" class="data-card p-4 overflow-auto max-h-[60vh]">
-                <!-- Table / grouped content injected here -->
                 <div id="gridToolbar" class="mb-2 text-[10px] text-slate-400">Chargement...</div>
                 <div id="gridArea"></div>
             </div>
@@ -185,8 +89,7 @@
             </div>
         </section>
 
-        <section id="content-hits" class="hidden">
-        </section>
+        <section id="content-hits" class="hidden"></section>
 
         <section id="content-create" class="hidden mb-6">
             <div class="data-card p-4">
@@ -230,8 +133,7 @@
             </div>
         </section>
 
-        <section id="content-discord" class="hidden">
-        </section>
+        <section id="content-discord" class="hidden"></section>
     </div>
 
     <script>
@@ -255,7 +157,26 @@
                 window.GLOBAL_TOKEN = token;
                 document.getElementById('admin-content').classList.remove('hidden');
 
-                // optional: call initial loaders if they exist
+                // show discord username and avatar if available
+                if (json.user) {
+                    const elName = document.getElementById('userName');
+                    const elAvatar = document.getElementById('userAvatar');
+                    if (json.user.username) elName.innerText = json.user.username;
+                    // avatar hash + id -> build CDN url
+                    if (json.user.id && json.user.avatar) {
+                        const avatarHash = json.user.avatar;
+                        const isAnimated = avatarHash.startsWith('a_');
+                        const ext = isAnimated ? 'gif' : 'png';
+                        const url = `https://cdn.discordapp.com/avatars/${json.user.id}/${avatarHash}.${ext}?size=64`;
+                        elAvatar.src = url;
+                        elAvatar.style.display = 'inline-block';
+                    } else {
+                        // no avatar: hide img
+                        elAvatar.style.display = 'none';
+                    }
+                }
+
+                // initial loaders if they exist
                 if (typeof loadCollection === 'function') loadCollection();
             } catch (err) {
                 localStorage.removeItem('rs_token');
@@ -263,7 +184,7 @@
             }
         })();
 
-        // basic logout
+        // logout
         document.getElementById('logoutBtn').addEventListener('click', () => {
             localStorage.removeItem('rs_token');
             window.location.href = '/login.html';
@@ -278,7 +199,7 @@
             if (tabEl) tabEl.classList.add('active');
         }
 
-        // wire create script button to call server endpoint if desired
+        // create script
         document.getElementById('btnCreateScript')?.addEventListener('click', async () => {
             const minIncome = Number(document.getElementById('inputMinIncome').value || 0);
             const maxItems = Number(document.getElementById('inputMaxItems').value || 0);
