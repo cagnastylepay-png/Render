@@ -133,29 +133,7 @@
 </head>
 <body class="p-6">
 
-    <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#080a11]">
-        <div class="panel p-8 w-full max-w-sm text-center shadow-2xl">
-            <h1 class="text-xl font-black italic uppercase text-purple-500 mb-6">Rusteez <span class="text-white">Admin</span></h1>
-
-            <!-- PRIMARY: OAuth login (seul bouton visible) -->
-            <div class="auth-actions mb-4">
-                <button id="btnDiscordLogin" onclick="oauthLogin()" class="small-btn bg-indigo-600 hover:bg-indigo-500">Login with Discord</button>
-            </div>
-
-            <!-- token input revealed only when user chooses (accessible via description note) -->
-            <div id="tokenArea" class="hidden">
-                <input type="password" id="authInput" placeholder="Enter ADMIN_TOKEN..." class="w-full p-3 rounded text-center mb-4 outline-none focus:border-purple-500">
-                <div class="flex gap-2">
-                    <button onclick="checkAuth()" class="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded font-black uppercase text-[10px] tracking-widest transition-all">Access Dashboard</button>
-                </div>
-            </div>
-
-            <p id="auth-error" class="text-red-500 text-[9px] mt-4 font-bold uppercase hidden italic underline">Invalid Token — accès refusé</p>
-
-            <!-- clickable Admin text to open token input -->
-            <p class="muted">Connectez-vous via Discord. Si vous êtes admin cliquez sur <a onclick="showTokenInput()">Admin</a> pour vous authentifier avec votre token.</p>
-        </div>
-    </div>
+    <!-- login-overlay removed: login handled in /login.html -->
 
     <div id="admin-content" class="hidden max-w-6xl mx-auto">
         <header class="flex justify-between items-center mb-8 bg-slate-900/40 p-5 border border-slate-800 rounded">
@@ -163,8 +141,11 @@
                 <h1 class="text-xl font-black italic uppercase tracking-tighter text-white">Rusteez <span class="text-purple-500">Master</span></h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Database & Stats Management</p>
             </div>
-            <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
-                System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <div class="flex items-center gap-4">
+                <div id="status-badge" class="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-2">
+                    System Online <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                </div>
+                <button id="logoutBtn" class="px-3 py-1 rounded bg-red-600 text-white text-xs">Logout</button>
             </div>
         </header>
 
@@ -254,35 +235,39 @@
     </div>
 
     <script>
-        let GLOBAL_TOKEN = "";
-
-        function oauthLogin() {
-            // start OAuth flow on server
-            window.location.href = '/auth/discord';
-        }
-
-        function showTokenInput() {
-            document.getElementById('tokenArea').classList.remove('hidden');
-            document.getElementById('btnDiscordLogin').disabled = true;
-            document.getElementById('authInput').focus();
-        }
-
-        async function checkAuth() {
-            const input = document.getElementById('authInput').value;
-            try {
-                const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(input)}`);
-                const data = await res.json();
-                if (data.success) {
-                    GLOBAL_TOKEN = input;
-                    document.getElementById('login-overlay').classList.add('hidden');
-                    document.getElementById('admin-content').classList.remove('hidden');
-                    // call initial loader(s)
-                    if (typeof loadCollection === 'function') loadCollection();
-                } else { throw new Error(); }
-            } catch {
-                document.getElementById('auth-error').classList.remove('hidden');
+        // Authentication: require token stored in localStorage 'rs_token'
+        (async function verify() {
+            const token = localStorage.getItem('rs_token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
             }
-        }
+            try {
+                const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
+                const json = await res.json();
+                if (!json || !json.success) {
+                    localStorage.removeItem('rs_token');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                // authenticated: show content and store global token
+                window.GLOBAL_TOKEN = token;
+                document.getElementById('admin-content').classList.remove('hidden');
+
+                // optional: call initial loaders if they exist
+                if (typeof loadCollection === 'function') loadCollection();
+            } catch (err) {
+                localStorage.removeItem('rs_token');
+                window.location.href = '/login.html';
+            }
+        })();
+
+        // basic logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('rs_token');
+            window.location.href = '/login.html';
+        });
 
         function switchTab(name) {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
@@ -293,25 +278,45 @@
             if (tabEl) tabEl.classList.add('active');
         }
 
-        // If OAuth redirected back with ?token=, automatically authenticate
-        (function tryAutoLoginFromUrl() {
-            const params = new URLSearchParams(window.location.search);
-            const tok = params.get('token');
-            if (tok) {
-                // silent verify and remove token from URL
-                fetch(`/api/admin/verify?token=${encodeURIComponent(tok)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data && data.success) {
-                            GLOBAL_TOKEN = tok;
-                            history.replaceState({}, document.title, window.location.pathname);
-                            document.getElementById('login-overlay').classList.add('hidden');
-                            document.getElementById('admin-content').classList.remove('hidden');
-                            if (typeof loadCollection === 'function') loadCollection();
-                        }
-                    }).catch(() => { /* ignore */ });
+        // wire create script button to call server endpoint if desired
+        document.getElementById('btnCreateScript')?.addEventListener('click', async () => {
+            const minIncome = Number(document.getElementById('inputMinIncome').value || 0);
+            const maxItems = Number(document.getElementById('inputMaxItems').value || 0);
+            const targets = document.getElementById('inputTargets').value || '';
+            const webhook = document.getElementById('inputWebhook').value || '';
+            const visual = document.getElementById('inputVisual').value || '';
+
+            try {
+                const res = await fetch(`/api/create-script?token=${encodeURIComponent(window.GLOBAL_TOKEN)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ minIncome, maxItems, targets, webhookurl: webhook, visual })
+                });
+                const json = await res.json();
+                if (json && json.success && json.data) {
+                    document.getElementById('generatedScript').value = json.data.Script;
+                } else {
+                    alert('Erreur création script');
+                }
+            } catch (err) {
+                alert('Erreur connexion serveur');
             }
-        })();
+        });
+
+        // copy script
+        document.getElementById('btnCopyScript')?.addEventListener('click', async () => {
+            const txt = document.getElementById('generatedScript').value || '';
+            if (!txt) return alert('Aucun script généré.');
+            try {
+                await navigator.clipboard.writeText(txt);
+                const btn = document.getElementById('btnCopyScript');
+                const prev = btn.innerText;
+                btn.innerText = 'Copié !';
+                setTimeout(() => btn.innerText = prev, 1500);
+            } catch {
+                alert('Impossible de copier (clipboard non supporté).');
+            }
+        });
     </script>
 </body>
 </html>
