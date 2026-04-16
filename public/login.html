@@ -6,82 +6,16 @@
     <title>Rusteez — Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background: #070708;
-            color: #e6edf3;
-            font-family: Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-            display: flex;
-            min-height: 100vh;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card {
-            width: 100%;
-            max-width: 720px;
-            padding: 36px;
-            border-radius: 10px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            border: 1px solid rgba(255,255,255,0.03);
-            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
-            text-align: center;
-        }
-
-        .logo {
-            font-weight: 800;
-            font-size: 20px;
-            margin-bottom: 12px;
-        }
-
-        .heroTitle {
-            font-size: 28px;
-            font-weight: 800;
-            color: #fff;
-            margin-bottom: 8px;
-        }
-
-        .sub {
-            color: #9aa3ad;
-            margin-bottom: 18px;
-        }
-
-        .discordBtn {
-            background: #5865f2;
-            color: white;
-            padding: 14px 18px;
-            border-radius: 10px;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-
-        .muted {
-            color: #8a97a1;
-            margin-top: 16px;
-        }
-
-        .admin-link {
-            color: #93c5fd;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
-        .token-area {
-            margin-top: 16px;
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-        }
-
-        input {
-            background: #0f1720;
-            border: 1px solid rgba(255,255,255,0.04);
-            padding: 10px 12px;
-            border-radius: 8px;
-            color: #e6edf3;
-        }
+        body { background:#070708; color:#e6edf3; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; display:flex; min-height:100vh; align-items:center; justify-content:center; }
+        .card { width:100%; max-width:720px; padding:36px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); box-shadow:0 6px 24px rgba(0,0,0,0.6); text-align:center; }
+        .logo { font-weight:800; font-size:20px; margin-bottom:12px; }
+        .heroTitle { font-size:28px; font-weight:800; color:#fff; margin-bottom:8px; }
+        .sub { color:#9aa3ad; margin-bottom:18px; }
+        .discordBtn { background:#5865f2; color:white; padding:14px 18px; border-radius:10px; font-weight:700; display:inline-flex; align-items:center; gap:10px; text-decoration:none; }
+        .muted { color:#8a97a1; margin-top:16px; }
+        .admin-link { color:#93c5fd; text-decoration:underline; cursor:pointer; }
+        .token-area { margin-top:16px; display:flex; gap:8px; justify-content:center; }
+        input { background:#0f1720; border:1px solid rgba(255,255,255,0.04); padding:10px 12px; border-radius:8px; color:#e6edf3; }
     </style>
 </head>
 <body>
@@ -109,13 +43,24 @@
         <div id="error" style="color:#ff7b7b;margin-top:10px;display:none">Authentification impossible</div>
     </div>
 
-    <script>// show admin token input
+<script>
+  // helper cookie
+  function setCookie(name, value, days) {
+    const maxAge = days ? days*24*60*60 : 0;
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+  }
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? decodeURIComponent(m.pop()) : null;
+  }
+
+  // show admin token input
   document.getElementById('adminOpen').addEventListener('click', () => {
     document.getElementById('tokenArea').style.display = 'flex';
     document.getElementById('adminToken').focus();
   });
 
-  // token login: verify then redirect to dashboard
+  // token login: verify then redirect to dashboard and persist token in cookie
   document.getElementById('useToken').addEventListener('click', async () => {
     const token = document.getElementById('adminToken').value.trim();
     if (!token) return;
@@ -123,7 +68,10 @@
       const res = await fetch(`/api/admin/verify?token=${encodeURIComponent(token)}`);
       const json = await res.json();
       if (json && json.success) {
-        localStorage.setItem('rs_token', token);
+        // persist in cookie 30 days
+        setCookie('rs_token', token, 30);
+        // also store admin token separately if desired
+        setCookie('admin_token', token, 30);
         window.location.href = '/dashboard.html';
       } else {
         document.getElementById('error').style.display = 'block';
@@ -133,24 +81,23 @@
     }
   });
 
-  // handle OAuth redirect returning ?token=SESSION
+  // OAuth redirect handling: verify, store cookie and redirect
   (function() {
     const params = new URLSearchParams(window.location.search);
     const tok = params.get('token');
     if (tok) {
-      // verify then store and redirect
       fetch(`/api/admin/verify?token=${encodeURIComponent(tok)}`)
         .then(r => r.json())
         .then(data => {
           if (data && data.success) {
-            localStorage.setItem('rs_token', tok);
+            // persistent cookie 30d
+            setCookie('rs_token', tok, 30);
             history.replaceState({}, document.title, '/login.html');
             window.location.href = '/dashboard.html';
-          } else {
-            // invalid
           }
         }).catch(()=>{});
     }
-  })();</script>
+  })();
+</script>
 </body>
 </html>
