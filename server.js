@@ -26,10 +26,10 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const PASTEFY_KEY = process.env.PASTEFY_KEY;
 const OAUTH2_CLIENT_ID = process.env.OAUTH2_CLIENT_ID;
 const OAUTH2_CLIENT_SECRET = process.env.OAUTH2_CLIENT_SECRET;
-const OAUTH2_REDIRECT = process.env.OAUTH2_URL; // redirect URI registered in Discord app
-const FRONTEND_URL = process.env.FRONTEND_URL; // where to redirect after auth
+const OAUTH2_REDIRECT = process.env.OAUTH2_REDIRECT; // redirect URI registered in Discord app
 const LUA_OBF_KEY = process.env.LUA_OBF_KEY;
 const ADMIN_DISCORD_IDS = process.env.ADMIN_DISCORD_IDS || ''; // optional CSV of admin discord ids
+const OAUTH2_URL = process.env.OAUTH2_URL;
 
 const pastefy = new PastefyClient(PASTEFY_KEY);
 
@@ -42,6 +42,9 @@ const SESSIONS = new Map();
 function generateSessionToken() {
     return randomBytes(24).toString('hex');
 }
+
+// generate random state token
+function generateState() { return randomBytes(12).toString('hex'); }
 
 // Helper: check if a session token (or admin token) is valid and returns user info
 function getAuthFromRequest(req) {
@@ -74,29 +77,24 @@ function isDiscordAdmin(auth) {
 }
 
 /* ----------------- OAuth2 endpoints ----------------- */
-// Redirect to Discord OAuth2 authorize URL
+// Redirect to Discord OAuth2 authorize URL (with state)
 app.get('/auth/discord', (req, res) => {
-    if (!OAUTH2_CLIENT_ID || !OAUTH2_REDIRECT) {
-        return res.status(500).send('OAuth2 not configured on server.');
-    }
-    const params = new URLSearchParams({
-        client_id: OAUTH2_CLIENT_ID,
-        redirect_uri: OAUTH2_REDIRECT,
-        response_type: 'code',
-        scope: 'identify'
-    });
-    return res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+    const state = generateState();
+    // store state temporarily (in-memory). For production, stocker en cookie ou Redis.
+    SESSIONS.set(`state:${state}`, { createdAt: Date.now() });
+    return res.redirect(OAUTH2_URL);
 });
 
-// Callback route Discord will call
+// Callback route: validate state before exchanging code
 app.get('/auth/discord/callback', async (req, res) => {
     const code = req.query.code;
-    if (!code) {
-        return res.status(400).send('Missing code');
-    }
-    if (!OAUTH2_CLIENT_ID || !OAUTH2_CLIENT_SECRET || !OAUTH2_REDIRECT) {
-        return res.status(500).send('OAuth2 not configured on server.');
-    }
+    const state = req.query.state;
+    if (!code || !state) return res.status(400).send('Missing code or state');
+
+    // validate state
+    const stateObj = SESSIONS.get(`state:${state}`);
+    if (!stateObj) return res.status(400).send('Invalid state');
+    SESSIONS.delete(`state:${state}`);
 
     try {
         // Exchange code for token
