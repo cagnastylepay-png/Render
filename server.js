@@ -34,7 +34,7 @@ const pastefy = new PastefyClient(PASTEFY_KEY);
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-// In-memory sessions map: sessionToken -> { id, username, createdAt }
+// In-memory sessions map: sessionToken -> { id, username, avatar, discriminator, createdAt }
 const SESSIONS = new Map();
 
 // Helper: generate session token
@@ -57,7 +57,8 @@ function getAuthFromRequest(req) {
 
     // legacy ADMIN_TOKEN support
     if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
-        return { adminUsingLegacyToken: true };
+        // return a minimal user object so front-end can show "Admin"
+        return { adminUsingLegacyToken: true, id: null, username: 'Admin', avatar: null, discriminator: null };
     }
 
     const session = SESSIONS.get(String(token));
@@ -143,9 +144,15 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.status(500).send('Failed to fetch Discord user.');
         }
 
-        // Create server session token
+        // Create server session token and include avatar/discriminator
         const sessionToken = generateSessionToken();
-        const sessionObj = { id: user.id, username: user.username, createdAt: new Date().toISOString() };
+        const sessionObj = {
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar || null,
+            discriminator: user.discriminator || null,
+            createdAt: new Date().toISOString()
+        };
         SESSIONS.set(sessionToken, sessionObj);
 
         const redirectTarget = `${req.protocol}://${req.get('host')}/login.html`;
