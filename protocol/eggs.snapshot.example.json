@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "type": "eggs.snapshot",
+  "moduleId": "EggReporter",
+  "sessionId": "example-session",
+  "placeId": "example-place",
+  "jobId": "example-job",
+  "cycleId": "example-cycle",
+  "revision": 1,
+  "observedAt": "2026-11-04T08:00:00Z",
+  "eggs": [
+    {
+      "uid": "example-egg",
+      "category": "ExampleCategory",
+      "name": "Exemple fictif",
+      "rarity": "Divine",
+      "weightKg": 1234.5,
+      "incomePerSecond": 2000000000
+    }
+  ]
+}
