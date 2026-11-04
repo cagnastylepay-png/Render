@@ -6,10 +6,10 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
   if (!uri) throw new Error("MongoDB URI required");
   const memory = createEggHistory({ maxEntries });
   const pending = new Map(), listeners = new Set();
-  let client, collection, running, closed = false, ready = false, timer;
+  let client, collection, running, clearing, closed = false, ready = false, timer;
   function notify() { for (const callback of listeners) callback(); }
   function schedule() {
-    if (closed || timer) return;
+    if (closed || clearing || timer) return;
     timer = setTimeout(() => { timer = undefined; void flush(); }, ready ? 300 : retryMs);
     timer.unref();
   }
@@ -23,6 +23,12 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
     await target.createIndex({ id: 1 }, { unique: true });
     const rows = await target.find({ action: "appeared", "egg.rarity": { $in: ["Divine", "Eternal"] } }, { projection: { _id: 0 } }).sort({ at: -1 }).limit(maxEntries).toArray();
     memory.hydrate(rows);
+    // Migrate old random IDs and remove duplicate receipts, keeping the earliest observation.
+    const canonical=memory.all();
+    if(canonical.length)await target.bulkWrite(canonical.map(row=>({updateOne:{filter:{id:row.id},update:{$set:row},upsert:true}})),{ordered:false});
+    const legacy=rows.filter(row=>!canonical.some(kept=>kept.id===row.id)).map(row=>row.id);
+    if(legacy.length)await target.deleteMany({id:{$in:legacy}});
+    for(const row of canonical)if(pending.has(row.id))pending.set(row.id,row);
     collection = target;
     ready = true;
     notify();
@@ -59,21 +65,34 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
     if (!rows.length) return rows;
     for (const row of rows) pending.set(row.id, row);
     while (pending.size > maxEntries) pending.delete(pending.keys().next().value);
-    void flush();
+    if(!clearing)void flush();
     return rows;
   }
   void flush();
   return {
     append, flush,
+    async clear(){
+      if(clearing)throw Error("History clear already in progress");
+      let release;clearing=new Promise(resolve=>{release=resolve;});clearTimeout(timer);timer=undefined;
+      try{
+        if(!await flush()||!collection)throw Error("MongoDB unavailable: history was not cleared");
+        const ids=memory.all().map(row=>row.id),pendingIds=[...pending.keys()];
+        await collection.deleteMany({});
+        const newer=memory.all().filter(row=>!ids.includes(row.id));memory.clear();memory.hydrate(newer);
+        for(const id of pendingIds)pending.delete(id);
+      }finally{release();clearing=undefined;if(pending.size)schedule();}
+    },
     state() { return { ...memory.state(), storage: ready ? "mongodb" : "mongodb-pending", savedToDisk: false, pendingWrites: pending.size }; },
     onReady(callback) { listeners.add(callback); return () => listeners.delete(callback); },
     async close() {
       if (closed) return;
       closed = true;
       clearTimeout(timer);
+      if(clearing)await clearing;
       await flush();
       if (client) await client.close().catch(() => {});
     }
   };
 }
 module.exports = { createMongoHistory };
+

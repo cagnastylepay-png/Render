@@ -1,7 +1,18 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const { randomUUID } = require("node:crypto");
+const { createHash } = require("node:crypto");
+function historyIdentity(egg) {
+  return createHash("sha256").update(JSON.stringify([egg.placeId||"",egg.jobId||egg.globalUid?.split("/")[0]||"",egg.uid||egg.globalUid||egg.key||"",String(egg.cycleId??"")])).digest("hex");
+}
+function deduplicateHistory(rows) {
+  const unique=new Map();
+  for(const row of rows.filter(keepHistoryEvent).sort((a,b)=>a.at.localeCompare(b.at))){
+    const id=historyIdentity(row.egg);
+    if(!unique.has(id))unique.set(id,{...row,id});
+  }
+  return [...unique.values()];
+}
 function keepHistoryEvent(row) {
   return row?.action === "appeared" && ["Divine", "Eternal"].includes(row.egg?.rarity);
 }
@@ -11,7 +22,7 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     try {
       const saved = JSON.parse(fs.readFileSync(filePath, "utf8"));
       if (!Array.isArray(saved)) throw new Error("Invalid history file");
-      entries = saved.filter(row => row && typeof row.id === "string" && row.egg && typeof row.at === "string" && keepHistoryEvent(row)).slice(-maxEntries);
+      entries = deduplicateHistory(saved.filter(row => row && typeof row.id === "string" && row.egg && typeof row.at === "string")).slice(-maxEntries);
     } catch (error) {
       lastError = error.message;
       fs.copyFileSync(filePath, filePath + ".invalid-" + Date.now());
@@ -31,8 +42,12 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     } catch (error) { lastError = error.message; console.error("Egg history save failed:", error.message); return false; }
   }
   function append(events) {
-    const added = events.filter(keepHistoryEvent).map(event => ({ id: randomUUID(), at: new Date(now()).toISOString(),
-      action: event.action, reason: event.reason, egg: event.egg }));
+    const seen=new Set(entries.map(row=>row.id)),added=[];
+    for(const event of events.filter(keepHistoryEvent)){
+      const id=historyIdentity(event.egg);
+      if(seen.has(id))continue;
+      seen.add(id);added.push({id,at:new Date(now()).toISOString(),action:event.action,reason:event.reason,egg:event.egg});
+    }
     if (!added.length) return added;
     entries.push(...added);
     if (entries.length > maxEntries) entries = entries.slice(-maxEntries);
@@ -43,11 +58,12 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     return { version: 1, type: "history.state", storage: filePath ? "disk" : "memory", total: entries.length, savedToDisk: !!filePath && !lastError,
       entries: entries.slice(-2000).reverse() };
   }
-  return { append, state, flush, close: flush,
+  return { append, state, flush, close: flush, all:()=>entries.slice(),
+    clear(){entries=[];if(!flush())throw Error("History could not be cleared on disk");},
     hydrate(saved) {
-      const merged = new Map([...saved, ...entries].filter(keepHistoryEvent).map(row => [row.id, row]));
-      entries = [...merged.values()].sort((a,b) => a.at.localeCompare(b.at)).slice(-maxEntries);
+      entries = deduplicateHistory([...saved,...entries]).slice(-maxEntries);
     }
   };
 }
-module.exports = { createEggHistory, keepHistoryEvent };
+module.exports = { createEggHistory, keepHistoryEvent, historyIdentity, deduplicateHistory };
+

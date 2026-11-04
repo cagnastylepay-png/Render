@@ -100,6 +100,12 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,logs.state());
           return;
         }
+        if(message.type==="history.clear"){
+          if(ws.role!=="viewer")throw Error("Only dashboard viewers may clear history");
+          await history.clear();
+          for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,history.state());
+          return;
+        }
         if(message.type==="delivery.configure"){
           if(ws.role!=="viewer")throw new Error("Only dashboard viewers may edit delivery settings");
           try{send(ws,await policy.configure(message));}

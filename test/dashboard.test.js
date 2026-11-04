@@ -76,7 +76,8 @@ test("game suffixes and receipts-only history",()=>{
  ],storage:"mongodb"});
  const body=h.document.getElementById("history");
  assert.equal(body.children.length,1);
- assert.match(body.textContent,/Reçu/);
+ assert.match(body.textContent,/Première observation/);
+ h.document.getElementById("history-clear").onclick();assert.equal(h.sent.at(-1).type,"history.clear");
  assert.doesNotMatch(body.textContent,/Disparu|Modifié/);
 });
 

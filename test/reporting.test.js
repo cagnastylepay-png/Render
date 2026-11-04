@@ -149,7 +149,7 @@ test("history retains dates, event details, bounded entries and survives reload 
  assert.equal(history.flush(),true);
  const restored=createEggHistory({filePath:file,maxEntries:2});
  const rows=restored.state().entries;
- assert.equal(rows.length,2);
+ assert.equal(rows.length,1);
  assert.equal(rows[0].at,"2026-11-04T08:10:12.000Z");
  assert.equal(rows[0].egg.globalUid,"job-a/egg-1");
  assert.equal(restored.state().savedToDisk,true);
@@ -169,11 +169,11 @@ test("Mongo history upserts queued observations and reloads them across instance
   },
   async bulkWrite(operations){
    for(const operation of operations){
-    const row=operation.updateOne.update.$setOnInsert;
-    if(!documents.has(row.id))documents.set(row.id,row);
+    const row=operation.updateOne.update.$set||operation.updateOne.update.$setOnInsert;
+    if(operation.updateOne.update.$set||!documents.has(row.id))documents.set(row.id,row);
    }
   },
-  async deleteMany(filter){for(const id of filter.id.$in)documents.delete(id);}
+  async deleteMany(filter){if(!filter.id){documents.clear();return;}for(const id of filter.id.$in)documents.delete(id);}
  };
  const factory=()=>({
   async connect(){if(fail){fail=false;throw Error("temporary");}},
@@ -188,11 +188,30 @@ test("Mongo history upserts queued observations and reloads them across instance
  assert.equal(history.state().pendingWrites,0);
  assert.equal(history.state().storage,"mongodb");
  await history.close();
+ const existing=[...documents.values()][0];
+ documents.set("old-first",{...existing,id:"old-first",at:"2026-11-04T20:55:02.000Z"});
+ documents.set("old-second",{...existing,id:"old-second",at:"2026-11-04T20:59:39.000Z"});
  const restored=createMongoHistory({uri:"mongodb://fake",clientFactory:factory,retryMs:100000});
  await restored.flush();
  assert.equal(restored.state().entries.length,1);
  assert.equal(restored.state().entries[0].egg.globalUid,"job/egg");
+ assert.equal(restored.state().entries[0].at,"2026-11-04T20:55:02.000Z");
+ assert.equal(documents.size,1);
+ await restored.clear();assert.equal(documents.size,0);assert.equal(restored.state().total,0);
  await restored.close();
+});
+
+test("history counts a server egg once per cycle despite reappearance and metadata changes",()=>{
+ const {createEggHistory}=require("../src/store/EggHistory");let now=Date.UTC(2026,10,4,20,55,2);
+ const history=createEggHistory({now:()=>now});
+ const original={...egg,jobId:"server-1",cycleId:"42",name:"Phoenix",weightKg:2020,incomePerSecond:74.6e6};
+ assert.equal(history.append([{action:"appeared",egg:original}]).length,1);
+ now+=277000;
+ assert.equal(history.append([{action:"appeared",egg:{...original,carrierUserId:42,weightKg:2030,incomePerSecond:75e6}}]).length,0);
+ assert.equal(history.state().entries[0].at,"2026-11-04T20:55:02.000Z");
+ assert.equal(history.append([{action:"appeared",egg:{...original,jobId:"server-2"}}]).length,1);
+ assert.equal(history.append([{action:"appeared",egg:{...original,cycleId:"43"}}]).length,1);
+ history.clear();assert.equal(history.state().total,0);
 });
 
 test("reporting accepts every observed rarity and retains all eggs",()=>{
@@ -211,7 +230,7 @@ test("history retains only Divine/Eternal receipts on append, hydrate and disk r
  const root=fs.mkdtempSync(path.join(process.cwd(),".history-test-")),file=path.join(root,"history.json");
  t.after(()=>{for(const name of [file,file+".tmp"])if(fs.existsSync(name))fs.unlinkSync(name);fs.rmdirSync(root);});
  const at="2026-11-04T12:00:00.000Z";
- const legacy=["Common","Secret","Cosmic","Divine","Eternal"].map((rarity,i)=>({id:"old"+i,at,action:"appeared",egg:{...egg,rarity}}));
+ const legacy=["Common","Secret","Cosmic","Divine","Eternal"].map((rarity,i)=>({id:"old"+i,at,action:"appeared",egg:{...egg,uid:"legacy-"+i,rarity}}));
  legacy.push({id:"gone",at,action:"disappeared",egg:{...egg,rarity:"Divine"}});
  fs.writeFileSync(file,JSON.stringify(legacy));
  const history=createEggHistory({filePath:file});
@@ -220,11 +239,12 @@ test("history retains only Divine/Eternal receipts on append, hydrate and disk r
  assert.equal(history.state().total,2);
  const events=legacy.map(row=>({action:row.action,egg:row.egg}));
  const added=history.append(events);
- assert.equal(added.length,2);
+ assert.equal(added.length,0);
  assert.equal(history.append([{action:"updated",egg:{...egg,rarity:"Eternal"}}]).length,0);
  assert.equal(history.append([{action:"appeared",egg:{...egg,rarity:"Common"}}]).length,0);
  history.close();
  const rows=JSON.parse(fs.readFileSync(file,"utf8"));
- assert.equal(rows.length,4);
+ assert.equal(rows.length,2);
  assert.ok(rows.every(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg.rarity)));
 });
+

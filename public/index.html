@@ -37,6 +37,8 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+<button id="history-clear" title="Supprimer l’historique de MongoDB pour tous les clients">Vider l’historique</button>
+<p class="muted">Une seule première observation par serveur, œuf et cycle. L’heure de détection peut être postérieure au spawn ; elle ne suffit pas à prouver une périodicité.</p>
 <p class="muted" id="history-info">Historique Divine / Eternal : œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
 <div class="table"><table><thead><tr><th>Date</th><th>Heure</th><th>Événement</th><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Identifiant serveur/œuf</th><th>Cycle</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
@@ -223,7 +225,7 @@ function renderHistory(){
  const list=[...historyRows.values()].filter(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity)).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
  historyRows=new Map(list.map(row=>[row.id,row]));
  const body=document.getElementById("history");body.replaceChildren();
- const labels={appeared:"Reçu / réapparu",disappeared:"Disparu",updated:"Modifié"};
+ const labels={appeared:"Première observation",disappeared:"Disparu",updated:"Modifié"};
  for(const row of list){
   const tr=body.insertRow(),date=new Date(row.at),egg=row.egg;
   for(const value of [date.toLocaleDateString(),date.toLocaleTimeString(),labels[row.action]||row.action,egg.name,egg.rarity,fmt(egg.weightKg),money(egg.incomePerSecond),egg.globalUid,egg.cycleId])tr.insertCell().textContent=String(value);
@@ -247,6 +249,10 @@ function renderLogs(){
  setText(document.getElementById("tab-logs"),"Logs ("+lines.length+")");
 }
 document.getElementById("logs-filter").oninput=renderLogs;
+document.getElementById("history-clear").onclick=()=>{
+ if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour vider l’historique.");return;}
+ socket.send(JSON.stringify({version:1,type:"history.clear"}));
+};
 document.getElementById("logs-clear").onclick=()=>{
  if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour vider les logs.");return;}
  socket.send(JSON.stringify({version:1,type:"logs.clear"}));
