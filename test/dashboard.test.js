@@ -21,11 +21,11 @@ function harness(){
  }
  for(const match of html.matchAll(/id="([^"]+)"/g))roots.set(match[1],new Element("div"));
  const document={createElement:tag=>new Element(tag),getElementById(id){if(roots.has(id))return roots.get(id);for(const root of roots.values()){const search=node=>node.id===id?node:node.children.map(search).find(Boolean);const found=search(root);if(found)return found;}return null;}};
- class FakeSocket{constructor(){FakeSocket.current=this;}send(){}close(){}}
+ class FakeSocket{static OPEN=1;constructor(){FakeSocket.current=this;this.readyState=1;this.sent=[];}send(data){this.sent.push(JSON.parse(data));}close(){}}
  const context=vm.createContext({document,WebSocket:FakeSocket,location:{protocol:"http:",host:"test"},Intl,Date,Map,Set,Math,Number,JSON,String,
   setInterval(){},clearTimeout(){},setTimeout(){},console});
  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
- return {context,document,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
+ return {context,document,sent:FakeSocket.current.sent,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
 }
 test("WebSocket updates retain image nodes, open sections and use game speed",()=>{
  const h=harness(),egg={key:"123/job/egg",uid:"egg",placeId:"123",jobId:"job",name:"Ice Dragon",rarity:"Eternal",imageUrl:"/eggs/ice.webp",
@@ -100,4 +100,28 @@ test("server cards select the best egg, expand all eggs and keep expansion acros
  h.document.getElementById("rarity").value="Divine";
  vm.runInContext("renderCards()",h.context);
  assert.equal(vm.runInContext("serverViews.size",h.context),0);
+});
+
+test("rosters sort by game speed and favorites send the selected income policy",()=>{
+ const h=harness();
+ h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"job",uid:"egg",name:"Egg",rarity:"Divine",expiresAt:Date.now()+60000}]});
+ h.emit({type:"players.state",players:[
+  {placeId:"123",jobId:"job",userId:"1",name:"Slow",displayName:"Slow",speedPower:1e9,reporterConnected:true},
+  {placeId:"123",jobId:"job",userId:"2",name:"Fast",displayName:"Fast",speedPower:3e12},
+  {placeId:"123",jobId:"job",userId:"3",name:"Unknown",displayName:"Unknown",speedPower:null}
+ ]});
+ h.emit({type:"delivery.policy",revision:0,favoriteUserIds:[],minimumIncomePerSecond:2e9,storage:"mongodb"});
+ const server=vm.runInContext('serverViews.get(JSON.stringify(["123","job"]))',h.context),roster=server.view.rosterList;
+ assert.match(roster.children[0].textContent,/Fast/);
+ assert.match(roster.children[1].textContent,/Slow/);
+ assert.match(roster.children[2].textContent,/Unknown/);
+ const star=roster.children[0].querySelectorAll("button")[0];star.onclick();
+ assert.deepEqual(h.sent.at(-1).favoriteUserIds,["2"]);
+ assert.equal(h.sent.at(-1).minimumIncomePerSecond,2e9);
+ h.emit({type:"delivery.policy",revision:1,favoriteUserIds:["2"],minimumIncomePerSecond:2e9,storage:"mongodb"});
+ assert.match(roster.children[0].textContent,/★/);
+ h.document.getElementById("delivery-minimum").value="2.5Qa/s";
+ h.document.getElementById("delivery-apply").onclick();
+ assert.equal(h.sent.at(-1).minimumIncomePerSecond,2.5e15);
+ assert.equal(h.sent.at(-1).expectedRevision,1);
 });

@@ -13,6 +13,6 @@ function mountAutoSAE(server, options = {}) {
     ? createMongoHistory({ uri: mongoUri, database: process.env.MONGODB_DB || "autosae", ...options.history })
     : createEggHistory({ filePath: path.join(process.env.SAE_DATA_DIR || path.join(__dirname, "..", "data"), "egg-history.json"), ...options.history });
   const gateway = attachEggGateway(server, store, players, history, options.gateway);
-  return { store, players, history, gateway, close() { gateway.close(); return history.close(); } };
+  return { store, players, history, gateway, close() { return Promise.all([gateway.close(), history.close()]); } };
 }
 module.exports = { mountAutoSAE };

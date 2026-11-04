@@ -17,6 +17,7 @@ label{display:inline-flex;gap:8px;align-items:center}.token{max-width:180px}smal
 .egg-art{height:105px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:6px 0}.egg-art img{width:100px;height:100px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:56px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.metric{background:#1a2538;border-radius:6px;padding:8px}.metric strong{display:block;font-size:16px;margin-top:3px}
 .identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:10px;padding-top:10px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
+.favorite{float:right;padding:2px 6px;margin-left:5px;font-size:18px;line-height:1.1;background:transparent;border:0;color:#8d9cb4}.favorite[aria-pressed=true]{color:#ffd269}.delivery-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0;padding:12px;border:1px solid #303d53;border-radius:10px}.delivery-controls input{width:150px}
 .roster{display:grid;gap:7px}.player{border:1px solid #3b465b;background:#1a2435;border-radius:8px;padding:7px;font-size:11px}.player.script{border-color:#6fc788;background:#153427}.player strong{font-size:13px}.badge{float:right;font-size:10px;padding:3px 6px;border-radius:4px;background:#344058}.script .badge{background:#27633d}
 details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .table{overflow:auto;border:1px solid #303d53;border-radius:10px}table{border-collapse:collapse;width:100%;white-space:nowrap;text-align:left}td,th{padding:12px;border-bottom:1px solid #303d53}th{background:#1a2538}
@@ -30,6 +31,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
+<div class="delivery-controls"><label>Envoi aux favoris ≥ <input id="delivery-minimum" value="2B/s" aria-label="Revenu minimum pour les favoris"></label><button id="delivery-apply" disabled>Appliquer</button><span id="delivery-info" class="muted">Chargement des favoris…</span></div>
 <p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO reste désactivé.</p>
 <div id="cards" class="cards"></div>
 <div class="notifications"><strong>Apparitions et disparitions</strong><ol id="events"><li>En attente d’un changement…</li></ol></div>
@@ -43,6 +45,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 "use strict";
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0,notifications=[],historyRows=new Map();
 const cardViews=new Map(),serverViews=new Map();
+let favoriteUsers=new Set(),deliveryRevision=0,deliveryMinimum=2e9,deliveryReady=false;
 const status=document.getElementById("status"),cards=document.getElementById("cards");
 const suffixes=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
 const decimal=new Intl.NumberFormat("en-US",{maximumFractionDigits:2,useGrouping:false});
@@ -57,7 +60,30 @@ function formatNumber(value){
 const fmt=formatNumber,money=formatNumber;
 const el=(tag,text,className)=>{const n=document.createElement(tag);if(text!=null)n.textContent=String(text);if(className)n.className=className;return n;};
 function setText(node,value){const text=String(value);if(node.textContent!==text)node.textContent=text;}
-function rosterFor(egg){return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId);}
+function rosterFor(egg){
+ return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId).sort((a,b)=>
+  (b.speedPower??-1)-(a.speedPower??-1)||String(a.name).localeCompare(String(b.name)));
+}
+function parseIncome(value){
+ const match=String(value).replace(/\s/g,"").replace(/\/s$/i,"").match(/^(\d+(?:[.,]\d+)?)(K|M|B|T|Qa|Qi|Sx|Sp|Oc|No|Dc)?$/i);
+ if(!match)return null;
+ const tier=suffixes.findIndex(s=>s.toLowerCase()===(match[2]||"").toLowerCase());
+ const number=Number(match[1].replace(",","."))*Math.pow(1000,tier);
+ return Number.isFinite(number)&&number>=0?number:null;
+}
+function configureDelivery(ids,minimum){
+ if(!deliveryReady||!socket||socket.readyState!==WebSocket.OPEN)return;
+ socket.send(JSON.stringify({version:1,type:"delivery.configure",expectedRevision:deliveryRevision,
+  favoriteUserIds:[...ids],minimumIncomePerSecond:minimum}));
+}
+function updateDelivery(message){
+ favoriteUsers=new Set(message.favoriteUserIds);deliveryRevision=message.revision;
+ deliveryMinimum=message.minimumIncomePerSecond;deliveryReady=true;
+ document.getElementById("delivery-apply").disabled=false;
+ document.getElementById("delivery-minimum").value=fmt(deliveryMinimum)+"/s";
+ setText(document.getElementById("delivery-info"),favoriteUsers.size+" favori(s) · "+(message.storage==="mongodb"?"Sauvegarde MongoDB":message.storage==="disk"?"Sauvegarde locale":"Mémoire uniquement"));
+ updateAllRosters();
+}
 function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
  heading.append(rarity,name);
@@ -75,14 +101,23 @@ function createCard(){
  return {node,art,metrics,rarity,name,image,placeholder,values,roster,rosterSummary,rosterList,rosterSignature:null,details,detailsBody,imageUrl:null};
 }
 function updateRoster(view,egg){
- const known=rosterFor(egg),signature=JSON.stringify(known);
+ const known=rosterFor(egg),signature=JSON.stringify([known,[...favoriteUsers].sort(),deliveryReady]);
  if(view.rosterSignature===signature)return;
  view.rosterSignature=signature;
  setText(view.rosterSummary,"Joueurs ("+known.length+")");
  view.rosterList.replaceChildren();
  for(const p of known){
   const item=el("div",null,"player"+(p.reporterConnected?" script":""));
-  item.append(el("span",p.reporterConnected?"SCRIPT":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),
+  const favorite=el("button",favoriteUsers.has(p.userId)?"★":"☆","favorite");
+  favorite.setAttribute("aria-pressed",String(favoriteUsers.has(p.userId)));
+  favorite.setAttribute("aria-label",(favoriteUsers.has(p.userId)?"Retirer des favoris : ":"Ajouter aux favoris : ")+p.name);
+  favorite.disabled=!deliveryReady;
+  favorite.onclick=()=>{
+   const next=new Set(favoriteUsers);
+   if(next.has(p.userId))next.delete(p.userId);else next.add(p.userId);
+   configureDelivery(next,deliveryMinimum);
+  };
+  item.append(favorite,el("span",p.reporterConnected?"SCRIPT":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),
    el("div","Vitesse "+fmt(p.speedPower)+" · "+money(p.incomePerSecond)+"/s"));
   view.rosterList.append(item);
  }
@@ -202,7 +237,7 @@ function showEvents(message){
  notifications=notifications.slice(0,80);const list=document.getElementById("events");list.replaceChildren();for(const line of notifications)list.append(el("li",line));
 }
 function connect(){
- clearTimeout(retry);stopped=false;
+ clearTimeout(retry);stopped=false;deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
  const previous=socket;socket=null;if(previous)previous.close();
  const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/sae/ws");socket=current;setText(status,"Connexion…");
  current.onopen=()=>current.send(JSON.stringify({version:1,type:"hello",role:"viewer",token:document.getElementById("token").value}));
@@ -211,7 +246,8 @@ function connect(){
   try{
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
-   if(message.type==="eggs.state"){
+   if(message.type==="delivery.policy"){updateDelivery(message);}
+   else if(message.type==="eggs.state"){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
     setText(document.getElementById("tab-eggs"),"Eggs ("+rows.length+")");renderCards();
     setText(status,rows.length+" œuf(s) · "+serverCount+" serveur(s) observé(s) · En direct");
@@ -226,6 +262,7 @@ function connect(){
  };
  current.onclose=event=>{
   if(socket!==current)return;
+  deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
   if(event.code===1008){stopped=true;setText(status,"Accès refusé : renseigne la clé de lecture puis reconnecte.");}
@@ -237,5 +274,10 @@ for(const name of ["eggs","history"])document.getElementById("tab-"+name).onclic
 };
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
+document.getElementById("delivery-apply").onclick=()=>{
+ const minimum=parseIncome(document.getElementById("delivery-minimum").value);
+ if(minimum===null){setText(document.getElementById("delivery-info"),"Revenu invalide : exemple 2B/s ou 500M/s.");return;}
+ configureDelivery(favoriteUsers,minimum);
+};
 setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>

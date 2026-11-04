@@ -2,20 +2,40 @@
 
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
+const { createDeliveryPolicy } = require("../store/DeliveryPolicy");
 function sameToken(provided, expected) {
   if (!expected) return true; // Explicit anonymous test mode when no token is configured.
   const a = Buffer.from(typeof provided === "string" ? provided : "");
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "" } = {}) {
+function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {} } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1048576, perMessageDeflate: false });
   let closed = false;
+  const policy=createDeliveryPolicy(delivery);
   function send(ws, message) {
     if (ws.readyState !== WebSocket.OPEN) return;
     if (ws.bufferedAmount > 8388608) { ws.close(1013, "Slow client"); return; }
     ws.send(JSON.stringify(message));
   }
+  function deliverTargets(){
+    const config=policy.state(),favorites=new Set(config.favoriteUserIds),state=store.state();
+    for(const ws of wss.clients){
+      if(ws.role!=="reporter"||!ws.reporterIdentity)continue;
+      const identity=ws.reporterIdentity,enabled=favorites.has(identity.userId);
+      if(!enabled&&!ws.deliveryEnabled)continue;
+      const eggs=enabled?state.eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId!==identity.jobId&&
+        typeof egg.incomePerSecond==="number"&&egg.incomePerSecond>=config.minimumIncomePerSecond&&egg.expiresAt>Date.now()):[];
+      const signature=JSON.stringify([enabled,config.minimumIncomePerSecond,eggs]);
+      if(ws.deliverySignature===signature)continue;
+      ws.deliverySignature=signature;ws.deliveryEnabled=enabled;
+      send(ws,{version:1,type:"eggs.targets",enabled,minimumIncomePerSecond:config.minimumIncomePerSecond,serverTime:Date.now(),eggs});
+    }
+  }
+  const unsubscribePolicy=policy.onChange(config=>{
+    for(const ws of wss.clients)if(ws.role==="viewer")send(ws,config);
+    broadcast();
+  });
   let broadcastTimer;
   function broadcast() {
     if (broadcastTimer || closed) return;
@@ -23,6 +43,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       broadcastTimer = undefined;
       const state = store.state(), presence = players.state();
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, state); send(ws, presence); }
+      deliverTargets();
     }, 200);
     broadcastTimer.unref();
   }
@@ -51,7 +72,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     handshake.unref();
     ws.on("close", () => { clearTimeout(handshake); if (players.remove(ws.connectionId)) broadcast(); });
     let windowAt = Date.now(), messages = 0;
-    ws.on("message", (raw, binary) => {
+    ws.on("message", async (raw, binary) => {
       try {
         if (binary) throw new Error("JSON text required");
         if (Date.now() - windowAt > 10000) { windowAt = Date.now(); messages = 0; }
@@ -66,15 +87,25 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           ws.role = message.role;
           clearTimeout(handshake);
           send(ws, { version: 1, type: "hello.ack", role: ws.role });
-          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, history.state()); }
+          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, history.state()); send(ws,policy.state()); }
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
+        if(message.type==="delivery.configure"){
+          if(ws.role!=="viewer")throw new Error("Only dashboard viewers may edit delivery settings");
+          try{send(ws,await policy.configure(message));}
+          catch(error){send(ws,policy.state());throw error;}
+          return;
+        }
         if (ws.role !== "reporter") throw new Error("Viewer is read-only");
         if (message.type === "players.snapshot") {
           const accepted = players.accept(ws.connectionId, message);
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
-          if (accepted) broadcast();
+          if (accepted) {
+            const reporter=message.players.find(player=>player.userId===message.reporterUserId);
+            ws.reporterIdentity={userId:reporter.userId,placeId:message.placeId,jobId:message.jobId};
+            broadcast();
+          }
           return;
         }
         const accepted = store.accept(message);
@@ -95,16 +126,18 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }, 15000);
   heartbeat.unref();
   return {
-    info: () => ({ clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken }),
+    info: () => ({ clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length }),
     close() {
       if (closed) return;
       closed = true;
       unsubscribeEvents();
       unsubscribeHistory();
+      unsubscribePolicy();
       clearInterval(heartbeat); clearTimeout(broadcastTimer);
       server.removeListener("upgrade", upgrade);
       for (const ws of wss.clients) ws.terminate();
       wss.close();
+      return policy.close();
     }
   };
 }
