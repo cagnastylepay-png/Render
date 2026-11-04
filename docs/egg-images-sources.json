@@ -1,0 +1,690 @@
+{
+  "sourcePage": "https://eggipedia.com/fr/oeufs",
+  "downloadedAt": "2026-11-04T08:59:51.341Z",
+  "images": [
+    {
+      "name": "Ankylosaurus Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/ankylosaurus-egg-s.webp?v=e1cc16",
+      "path": "public/eggs/ankylosaurus-egg-s.webp",
+      "bytes": 3374
+    },
+    {
+      "name": "ArchAngel Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/archangel-egg-s.webp?v=3881bf",
+      "path": "public/eggs/archangel-egg-s.webp",
+      "bytes": 7116
+    },
+    {
+      "name": "Astral Jackalope Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/astral-jackalope-egg-s.webp?v=51aa7f",
+      "path": "public/eggs/astral-jackalope-egg-s.webp",
+      "bytes": 7434
+    },
+    {
+      "name": "Axolotl Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/axolotl-egg-s.webp?v=9cbc57",
+      "path": "public/eggs/axolotl-egg-s.webp",
+      "bytes": 6688
+    },
+    {
+      "name": "Bear Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/bear-egg-s.webp?v=f15dd9",
+      "path": "public/eggs/bear-egg-s.webp",
+      "bytes": 2714
+    },
+    {
+      "name": "Beluga Whale Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/beluga-whale-egg-s.webp?v=14b3a3",
+      "path": "public/eggs/beluga-whale-egg-s.webp",
+      "bytes": 3246
+    },
+    {
+      "name": "Bird Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/bird-egg-s.webp?v=4aea6b",
+      "path": "public/eggs/bird-egg-s.webp",
+      "bytes": 2486
+    },
+    {
+      "name": "Bladehide Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/bladehide-egg-s.webp?v=3dbd2b",
+      "path": "public/eggs/bladehide-egg-s.webp",
+      "bytes": 6338
+    },
+    {
+      "name": "Bronto Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/bronto-egg-s.webp?v=6b68c6",
+      "path": "public/eggs/bronto-egg-s.webp",
+      "bytes": 3932
+    },
+    {
+      "name": "Brr Brr Patapim Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/brr-brr-patapim-egg-s.webp?v=78a154",
+      "path": "public/eggs/brr-brr-patapim-egg-s.webp",
+      "bytes": 3936
+    },
+    {
+      "name": "Burrowing Owl Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/burrowing-owl-egg-s.webp?v=ed61d3",
+      "path": "public/eggs/burrowing-owl-egg-s.webp",
+      "bytes": 2790
+    },
+    {
+      "name": "Camel Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/camel-egg-s.webp?v=5190b9",
+      "path": "public/eggs/camel-egg-s.webp",
+      "bytes": 3160
+    },
+    {
+      "name": "Catfish Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/catfish-egg-s.webp?v=5d821d",
+      "path": "public/eggs/catfish-egg-s.webp",
+      "bytes": 8334
+    },
+    {
+      "name": "Celestial Sunlion Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/celestial-sunlion-egg-s.webp?v=05a91e",
+      "path": "public/eggs/celestial-sunlion-egg-s.webp",
+      "bytes": 5082
+    },
+    {
+      "name": "Centapede Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/centapede-egg-s.webp?v=e78d87",
+      "path": "public/eggs/centapede-egg-s.webp",
+      "bytes": 6484
+    },
+    {
+      "name": "Centaur Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/centaur-egg-s.webp?v=59c7fe",
+      "path": "public/eggs/centaur-egg-s.webp",
+      "bytes": 7750
+    },
+    {
+      "name": "Cerberus Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/cerberus-egg-s.webp?v=9d6dec",
+      "path": "public/eggs/cerberus-egg-s.webp",
+      "bytes": 5684
+    },
+    {
+      "name": "Chicken Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/chicken-egg-s.webp?v=8a38c6",
+      "path": "public/eggs/chicken-egg-s.webp",
+      "bytes": 3052
+    },
+    {
+      "name": "Chillin Chilli Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/chillin-chilli-egg-s.webp?v=059247",
+      "path": "public/eggs/chillin-chilli-egg-s.webp",
+      "bytes": 2660
+    },
+    {
+      "name": "Chimpanzee Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/chimpanzee-egg-s.webp?v=1b0b3c",
+      "path": "public/eggs/chimpanzee-egg-s.webp",
+      "bytes": 2550
+    },
+    {
+      "name": "Cosmic Dragon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/cosmic-dragon-egg-s.webp?v=d8fce5",
+      "path": "public/eggs/cosmic-dragon-egg-s.webp",
+      "bytes": 3978
+    },
+    {
+      "name": "Cosmic Gecko Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/cosmic-gecko-egg-s.webp?v=ee8f79",
+      "path": "public/eggs/cosmic-gecko-egg-s.webp",
+      "bytes": 2618
+    },
+    {
+      "name": "Cosmic Gorilla Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/cosmic-gorilla-egg-s.webp?v=65e665",
+      "path": "public/eggs/cosmic-gorilla-egg-s.webp",
+      "bytes": 3336
+    },
+    {
+      "name": "Cosmic Skeleton Boss Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/cosmic-skeleton-boss-egg-s.webp?v=7c9141",
+      "path": "public/eggs/cosmic-skeleton-boss-egg-s.webp",
+      "bytes": 3694
+    },
+    {
+      "name": "Crane Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/crane-egg-s.webp?v=8aed51",
+      "path": "public/eggs/crane-egg-s.webp",
+      "bytes": 5556
+    },
+    {
+      "name": "Crocodile Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/crocodile-egg-s.webp?v=0cc178",
+      "path": "public/eggs/crocodile-egg-s.webp",
+      "bytes": 3250
+    },
+    {
+      "name": "Crustacia Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/crustacia-egg-s.webp?v=8fba35",
+      "path": "public/eggs/crustacia-egg-s.webp",
+      "bytes": 4696
+    },
+    {
+      "name": "Demon Hound Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/demon-hound-egg-s.webp?v=623635",
+      "path": "public/eggs/demon-hound-egg-s.webp",
+      "bytes": 5010
+    },
+    {
+      "name": "Dodo Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/dodo-egg-s.webp?v=a94d5c",
+      "path": "public/eggs/dodo-egg-s.webp",
+      "bytes": 3134
+    },
+    {
+      "name": "Dog Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/dog-egg-s.webp?v=6eb6a8",
+      "path": "public/eggs/dog-egg-s.webp",
+      "bytes": 2718
+    },
+    {
+      "name": "Duckling Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/duckling-egg-s.webp?v=1b1bbb",
+      "path": "public/eggs/duckling-egg-s.webp",
+      "bytes": 2290
+    },
+    {
+      "name": "El Maja Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/el-maja-egg-s.webp?v=e6e529",
+      "path": "public/eggs/el-maja-egg-s.webp",
+      "bytes": 4432
+    },
+    {
+      "name": "Enchanted Bluejay Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/enchanted-bluejay-egg-s.webp?v=a2a1a7",
+      "path": "public/eggs/enchanted-bluejay-egg-s.webp",
+      "bytes": 5990
+    },
+    {
+      "name": "Eternal Lunar Dragon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/eternal-lunar-dragon-egg-s.webp?v=d74bd5",
+      "path": "public/eggs/eternal-lunar-dragon-egg-s.webp",
+      "bytes": 4212
+    },
+    {
+      "name": "Fennec Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/fennec-egg-s.webp?v=c393a7",
+      "path": "public/eggs/fennec-egg-s.webp",
+      "bytes": 3210
+    },
+    {
+      "name": "Flame Sprite Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/flame-sprite-egg-s.webp?v=7a7803",
+      "path": "public/eggs/flame-sprite-egg-s.webp",
+      "bytes": 5358
+    },
+    {
+      "name": "Flaming Bull Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/flaming-bull-egg-s.webp?v=45f89f",
+      "path": "public/eggs/flaming-bull-egg-s.webp",
+      "bytes": 3654
+    },
+    {
+      "name": "Fox Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/fox-egg-s.webp?v=49744a",
+      "path": "public/eggs/fox-egg-s.webp",
+      "bytes": 3726
+    },
+    {
+      "name": "Frog Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/frog-egg-s.webp?v=072b8a",
+      "path": "public/eggs/frog-egg-s.webp",
+      "bytes": 5742
+    },
+    {
+      "name": "Gargoyle Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/gargoyle-egg-s.webp?v=5a2931",
+      "path": "public/eggs/gargoyle-egg-s.webp",
+      "bytes": 5770
+    },
+    {
+      "name": "Gorilla Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/gorilla-egg-s.webp?v=223226",
+      "path": "public/eggs/gorilla-egg-s.webp",
+      "bytes": 2622
+    },
+    {
+      "name": "Gorilla King Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/gorilla-king-egg-s.webp?v=d3deab",
+      "path": "public/eggs/gorilla-king-egg-s.webp",
+      "bytes": 7914
+    },
+    {
+      "name": "Holy Peacock Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/holy-peacock-egg-s.webp?v=1df5f3",
+      "path": "public/eggs/holy-peacock-egg-s.webp",
+      "bytes": 6250
+    },
+    {
+      "name": "Ice Dragon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/ice-dragon-egg-s.webp?v=e696c9",
+      "path": "public/eggs/ice-dragon-egg-s.webp",
+      "bytes": 4196
+    },
+    {
+      "name": "Imp Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/imp-egg-s.webp?v=e80b10",
+      "path": "public/eggs/imp-egg-s.webp",
+      "bytes": 6578
+    },
+    {
+      "name": "Jerboa Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/jerboa-egg-s.webp?v=5aa900",
+      "path": "public/eggs/jerboa-egg-s.webp",
+      "bytes": 3054
+    },
+    {
+      "name": "King Mammoth Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/king-mammoth-egg-s.webp?v=9debb5",
+      "path": "public/eggs/king-mammoth-egg-s.webp",
+      "bytes": 3432
+    },
+    {
+      "name": "King Snake Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/king-snake-egg-s.webp?v=7ffe29",
+      "path": "public/eggs/king-snake-egg-s.webp",
+      "bytes": 4048
+    },
+    {
+      "name": "Kitsune Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/kitsune-egg-s.webp?v=00f3b1",
+      "path": "public/eggs/kitsune-egg-s.webp",
+      "bytes": 8304
+    },
+    {
+      "name": "Koi Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/koi-egg-s.webp?v=93941b",
+      "path": "public/eggs/koi-egg-s.webp",
+      "bytes": 5142
+    },
+    {
+      "name": "Kraken Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/kraken-egg-s.webp?v=87ff96",
+      "path": "public/eggs/kraken-egg-s.webp",
+      "bytes": 3520
+    },
+    {
+      "name": "La Vacca Saturno Saturnita Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/la-vacca-saturno-saturnita-egg-s.webp?v=b7bc1d",
+      "path": "public/eggs/la-vacca-saturno-saturnita-egg-s.webp",
+      "bytes": 4034
+    },
+    {
+      "name": "Lava Dragon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/lava-dragon-egg-s.webp?v=b0d0a7",
+      "path": "public/eggs/lava-dragon-egg-s.webp",
+      "bytes": 2974
+    },
+    {
+      "name": "Lava Frog Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/lava-frog-egg-s.webp?v=73cf5f",
+      "path": "public/eggs/lava-frog-egg-s.webp",
+      "bytes": 5910
+    },
+    {
+      "name": "Lava Gecko Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/lava-gecko-egg-s.webp?v=353ce8",
+      "path": "public/eggs/lava-gecko-egg-s.webp",
+      "bytes": 2230
+    },
+    {
+      "name": "Lava Iguana Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/lava-iguana-egg-s.webp?v=95fab6",
+      "path": "public/eggs/lava-iguana-egg-s.webp",
+      "bytes": 2536
+    },
+    {
+      "name": "Leviathan Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/leviathan-egg-s.webp?v=290589",
+      "path": "public/eggs/leviathan-egg-s.webp",
+      "bytes": 3190
+    },
+    {
+      "name": "Light Dove Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/light-dove-egg-s.webp?v=a878a2",
+      "path": "public/eggs/light-dove-egg-s.webp",
+      "bytes": 6096
+    },
+    {
+      "name": "Mammoth Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/mammoth-egg-s.webp?v=e3c135",
+      "path": "public/eggs/mammoth-egg-s.webp",
+      "bytes": 3292
+    },
+    {
+      "name": "Mantaris Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/mantaris-egg-s.webp?v=8e38d2",
+      "path": "public/eggs/mantaris-egg-s.webp",
+      "bytes": 6344
+    },
+    {
+      "name": "Mosasaurus Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/mosasaurus-egg-s.webp?v=8d862e",
+      "path": "public/eggs/mosasaurus-egg-s.webp",
+      "bytes": 4978
+    },
+    {
+      "name": "Mutant Shark Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/mutant-shark-egg-s.webp?v=e5b4e3",
+      "path": "public/eggs/mutant-shark-egg-s.webp",
+      "bytes": 6492
+    },
+    {
+      "name": "Nightflame Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/nightflame-egg-s.webp?v=d5baba",
+      "path": "public/eggs/nightflame-egg-s.webp",
+      "bytes": 8526
+    },
+    {
+      "name": "Oni Tiger Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/oni-tiger-egg-s.webp?v=5c0c25",
+      "path": "public/eggs/oni-tiger-egg-s.webp",
+      "bytes": 8966
+    },
+    {
+      "name": "Orangutini Ananassini Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/orangutini-ananassini-egg-s.webp?v=ed3330",
+      "path": "public/eggs/orangutini-ananassini-egg-s.webp",
+      "bytes": 4430
+    },
+    {
+      "name": "Orca Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/orca-egg-s.webp?v=959147",
+      "path": "public/eggs/orca-egg-s.webp",
+      "bytes": 2644
+    },
+    {
+      "name": "Parrotfish Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/parrotfish-egg-s.webp?v=12f467",
+      "path": "public/eggs/parrotfish-egg-s.webp",
+      "bytes": 3144
+    },
+    {
+      "name": "Pegasus Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/pegasus-egg-s.webp?v=43d8c2",
+      "path": "public/eggs/pegasus-egg-s.webp",
+      "bytes": 6560
+    },
+    {
+      "name": "Penguin Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/penguin-egg-s.webp?v=b6f105",
+      "path": "public/eggs/penguin-egg-s.webp",
+      "bytes": 2768
+    },
+    {
+      "name": "Petal Beetle Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/petal-beetle-egg-s.webp?v=5ad84b",
+      "path": "public/eggs/petal-beetle-egg-s.webp",
+      "bytes": 5516
+    },
+    {
+      "name": "Phoenix Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/phoenix-egg-s.webp?v=b0398d",
+      "path": "public/eggs/phoenix-egg-s.webp",
+      "bytes": 3942
+    },
+    {
+      "name": "Polar Bear Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/polar-bear-egg-s.webp?v=a82b15",
+      "path": "public/eggs/polar-bear-egg-s.webp",
+      "bytes": 3520
+    },
+    {
+      "name": "Prism Gecko Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/prism-gecko-egg-s.webp?v=8d9a7b",
+      "path": "public/eggs/prism-gecko-egg-s.webp",
+      "bytes": 4856
+    },
+    {
+      "name": "Pterodactyl Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/pterodactyl-egg-s.webp?v=c0cdf6",
+      "path": "public/eggs/pterodactyl-egg-s.webp",
+      "bytes": 2758
+    },
+    {
+      "name": "Pure Jellyfish Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/pure-jellyfish-egg-s.webp?v=6c0c4c",
+      "path": "public/eggs/pure-jellyfish-egg-s.webp",
+      "bytes": 7118
+    },
+    {
+      "name": "Raccoon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/raccoon-egg-s.webp?v=9875f8",
+      "path": "public/eggs/raccoon-egg-s.webp",
+      "bytes": 2302
+    },
+    {
+      "name": "RazorFang Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/razorfang-egg-s.webp?v=aeed50",
+      "path": "public/eggs/razorfang-egg-s.webp",
+      "bytes": 5440
+    },
+    {
+      "name": "Red Panda Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/red-panda-egg-s.webp?v=a20f63",
+      "path": "public/eggs/red-panda-egg-s.webp",
+      "bytes": 5062
+    },
+    {
+      "name": "Rhinotaur Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/rhinotaur-egg-s.webp?v=f94ba2",
+      "path": "public/eggs/rhinotaur-egg-s.webp",
+      "bytes": 5406
+    },
+    {
+      "name": "Ring Guard Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/ring-guard-egg-s.webp?v=b69bc1",
+      "path": "public/eggs/ring-guard-egg-s.webp",
+      "bytes": 6986
+    },
+    {
+      "name": "Ringlord Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/ringlord-egg-s.webp?v=8cf496",
+      "path": "public/eggs/ringlord-egg-s.webp",
+      "bytes": 7420
+    },
+    {
+      "name": "Royal Skywhale Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/royal-skywhale-egg-s.webp?v=784b45",
+      "path": "public/eggs/royal-skywhale-egg-s.webp",
+      "bytes": 5344
+    },
+    {
+      "name": "Royal Sphinx Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/royal-sphinx-egg-s.webp?v=83494a",
+      "path": "public/eggs/royal-sphinx-egg-s.webp",
+      "bytes": 3620
+    },
+    {
+      "name": "Sabertooth Tiger Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/sabertooth-tiger-egg-s.webp?v=854cfe",
+      "path": "public/eggs/sabertooth-tiger-egg-s.webp",
+      "bytes": 3554
+    },
+    {
+      "name": "Sacred Moth Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/sacred-moth-egg-s.webp?v=7d7001",
+      "path": "public/eggs/sacred-moth-egg-s.webp",
+      "bytes": 6114
+    },
+    {
+      "name": "Salamander Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/salamander-egg-s.webp?v=abaafb",
+      "path": "public/eggs/salamander-egg-s.webp",
+      "bytes": 4828
+    },
+    {
+      "name": "Sand Spider Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/sand-spider-egg-s.webp?v=c33a65",
+      "path": "public/eggs/sand-spider-egg-s.webp",
+      "bytes": 3878
+    },
+    {
+      "name": "Scorpion Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/scorpion-egg-s.webp?v=c5d9a6",
+      "path": "public/eggs/scorpion-egg-s.webp",
+      "bytes": 3776
+    },
+    {
+      "name": "Shark Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/shark-egg-s.webp?v=d24914",
+      "path": "public/eggs/shark-egg-s.webp",
+      "bytes": 2718
+    },
+    {
+      "name": "Skeleton Horse Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/skeleton-horse-egg-s.webp?v=dd7b8a",
+      "path": "public/eggs/skeleton-horse-egg-s.webp",
+      "bytes": 5398
+    },
+    {
+      "name": "Snake Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/snake-egg-s.webp?v=7c7c6f",
+      "path": "public/eggs/snake-egg-s.webp",
+      "bytes": 3286
+    },
+    {
+      "name": "Snowy Owl Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/snowy-owl-egg-s.webp?v=923da0",
+      "path": "public/eggs/snowy-owl-egg-s.webp",
+      "bytes": 6846
+    },
+    {
+      "name": "Spider Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/spider-egg-s.webp?v=bdec61",
+      "path": "public/eggs/spider-egg-s.webp",
+      "bytes": 3202
+    },
+    {
+      "name": "Spideron Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/spideron-egg-s.webp?v=e5116a",
+      "path": "public/eggs/spideron-egg-s.webp",
+      "bytes": 6708
+    },
+    {
+      "name": "Spirit Panda Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/spirit-panda-egg-s.webp?v=58e7cf",
+      "path": "public/eggs/spirit-panda-egg-s.webp",
+      "bytes": 6284
+    },
+    {
+      "name": "Stag Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/stag-egg-s.webp?v=8a9315",
+      "path": "public/eggs/stag-egg-s.webp",
+      "bytes": 6336
+    },
+    {
+      "name": "Starry Fox Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/starry-fox-egg-s.webp?v=9d3bea",
+      "path": "public/eggs/starry-fox-egg-s.webp",
+      "bytes": 3328
+    },
+    {
+      "name": "Swan Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/swan-egg-s.webp?v=9f9c12",
+      "path": "public/eggs/swan-egg-s.webp",
+      "bytes": 3328
+    },
+    {
+      "name": "Swordfish Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/swordfish-egg-s.webp?v=2a01fe",
+      "path": "public/eggs/swordfish-egg-s.webp",
+      "bytes": 2276
+    },
+    {
+      "name": "T-Rex Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/t-rex-egg-s.webp?v=437d0f",
+      "path": "public/eggs/t-rex-egg-s.webp",
+      "bytes": 3596
+    },
+    {
+      "name": "Tiger Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/tiger-egg-s.webp?v=c79002",
+      "path": "public/eggs/tiger-egg-s.webp",
+      "bytes": 3904
+    },
+    {
+      "name": "Tob Tobi Tob Tob Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/tob-tobi-tob-tob-egg-s.webp?v=c542fa",
+      "path": "public/eggs/tob-tobi-tob-tob-egg-s.webp",
+      "bytes": 3992
+    },
+    {
+      "name": "Toro Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/toro-egg-s.webp?v=b72701",
+      "path": "public/eggs/toro-egg-s.webp",
+      "bytes": 6154
+    },
+    {
+      "name": "Toucan Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/toucan-egg-s.webp?v=da06bf",
+      "path": "public/eggs/toucan-egg-s.webp",
+      "bytes": 3290
+    },
+    {
+      "name": "Tralaledon Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/tralaledon-egg-s.webp?v=56923b",
+      "path": "public/eggs/tralaledon-egg-s.webp",
+      "bytes": 3434
+    },
+    {
+      "name": "Triceratops Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/triceratops-egg-s.webp?v=e8e4ad",
+      "path": "public/eggs/triceratops-egg-s.webp",
+      "bytes": 3832
+    },
+    {
+      "name": "Trulimero Trulicina Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/trulimero-trulicina-egg-s.webp?v=62736a",
+      "path": "public/eggs/trulimero-trulicina-egg-s.webp",
+      "bytes": 3732
+    },
+    {
+      "name": "Turtle Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/turtle-egg-s.webp?v=68e83b",
+      "path": "public/eggs/turtle-egg-s.webp",
+      "bytes": 3118
+    },
+    {
+      "name": "Unicorn Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/unicorn-egg-s.webp?v=2eea68",
+      "path": "public/eggs/unicorn-egg-s.webp",
+      "bytes": 3402
+    },
+    {
+      "name": "Walrus Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/walrus-egg-s.webp?v=bf566d",
+      "path": "public/eggs/walrus-egg-s.webp",
+      "bytes": 2864
+    },
+    {
+      "name": "Whale Shark Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/whale-shark-egg-s.webp?v=4aab7b",
+      "path": "public/eggs/whale-shark-egg-s.webp",
+      "bytes": 2488
+    },
+    {
+      "name": "Winged Lamb Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/winged-lamb-egg-s.webp?v=6c4ae6",
+      "path": "public/eggs/winged-lamb-egg-s.webp",
+      "bytes": 5786
+    },
+    {
+      "name": "World Burner Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/world-burner-egg-s.webp?v=b033e5",
+      "path": "public/eggs/world-burner-egg-s.webp",
+      "bytes": 4988
+    },
+    {
+      "name": "Yeti Egg",
+      "source": "https://eggipedia.com/images/sae/eggs/yeti-egg-s.webp?v=1c49f1",
+      "path": "public/eggs/yeti-egg-s.webp",
+      "bytes": 3248
+    }
+  ]
+}

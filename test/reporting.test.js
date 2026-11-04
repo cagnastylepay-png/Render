@@ -45,7 +45,7 @@ async function waitFor(predicate) {
   throw new Error("Timed out waiting for WebSocket message");
 }
 test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer read-only, reconnect", async t => {
-  const server = createServer({ gateway: { reportToken: "test-report", viewerToken: "test-view" } });
+  const server = createServer({ history: { filePath: null }, gateway: { reportToken: "test-report", viewerToken: "test-view" } });
   const peers = [];
   t.after(async () => {
     for (const peer of peers) peer.ws.terminate();
@@ -57,18 +57,24 @@ test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer 
   const base = "http://127.0.0.1:" + server.address().port;
   const url = base.replace("http:", "ws:") + "/sae/ws";
   assert.equal((await (await fetch(base + "/health")).json()).reporting, "ready");
-  assert.match(await (await fetch(base)).text(), /button.disabled=true/);
+  assert.equal((await fetch(base)).status, 200);
   const viewer = await connect(url, "viewer", "test-view"); peers.push(viewer);
   const reporter = await connect(url, "reporter", "test-report"); peers.push(reporter);
   await waitFor(() => reporter.messages.find(m => m.type === "hello.ack"));
+  reporter.ws.send(JSON.stringify(presence()));
+  await waitFor(() => reporter.messages.find(m=>m.type==="players.ack"&&m.accepted));
+  await waitFor(() => viewer.messages.find(m=>m.type==="players.state"&&m.players.some(p=>p.reporterConnected)));
   reporter.ws.send(JSON.stringify(snapshot()));
   await waitFor(() => reporter.messages.find(m => m.type === "eggs.ack" && m.accepted));
   await waitFor(() => viewer.messages.find(m => m.type === "eggs.state" && m.eggs.length === 1));
+  await waitFor(() => viewer.messages.find(m => m.type === "history.append" && m.entries.some(row=>row.action==="appeared")));
+  await waitFor(() => viewer.messages.find(m => m.type === "eggs.events" && m.events.some(row=>row.action==="appeared")));
   viewer.ws.send(JSON.stringify(snapshot({ revision: 2 })));
   await waitFor(() => viewer.messages.find(m => m.type === "error" && /read-only/.test(m.message)));
   reporter.ws.send(JSON.stringify(snapshot({ revision: 2, eggs: [] })));
   await waitFor(() => viewer.messages.find(m => m.type === "eggs.state" && m.serverCount === 1 && !m.eggs.length));
   reporter.ws.close();
+  await waitFor(() => viewer.messages.find(m=>m.type==="players.state"&&m.sessionCount===0));
   const reporter2 = await connect(url, "reporter", "test-report"); peers.push(reporter2);
   await waitFor(() => reporter2.messages.find(m => m.type === "hello.ack"));
   reporter2.ws.send(JSON.stringify(snapshot({ revision: 3 })));
@@ -78,4 +84,113 @@ test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer 
   invalid.send(JSON.stringify({ version: 1, type: "hello", role: "reporter", token: "wrong" }));
   const [code] = await once(invalid, "close");
   assert.equal(code, 1008);
+});
+
+const { createPlayerStore } = require("../src/store/PlayerStore");
+const { nextResetAt } = require("../src/store/EggStore");
+test("global egg identity, Cosmic metadata, disappearance/reappearance and aligned expiration", () => {
+  let clock = Date.UTC(2026,10,4,8,1,0);
+  const store = createEggStore({now:()=>clock});
+  const updates=[];
+  store.onEvents(events=>updates.push(...events));
+  const item={...egg,rarity:"Cosmic",position:{x:-1,y:2,z:3},sellValue:123,state:"Slot",mutations:["Golden"]};
+  const make=(options={})=>snapshot({observedAt:new Date(clock).toISOString(),eggs:[item],...options});
+  assert.equal(store.accept(make()),true);
+  assert.equal(store.accept(make({jobId:"job-b"})),true);
+  const rows=store.state().eggs;
+  assert.notEqual(rows[0].globalUid,rows[1].globalUid);
+  assert.equal(rows[0].sellValue,123);
+  assert.equal(rows[0].position.x,-1);
+  assert.equal(rows[0].expiresAt,Date.UTC(2026,10,4,8,5,0));
+  store.accept(make({revision:2,eggs:[]}));
+  assert.equal(updates.at(-1).action,"disappeared");
+  store.accept(make({revision:3}));
+  assert.equal(updates.at(-1).action,"appeared");
+  clock=nextResetAt(clock);
+  assert.equal(store.state().eggs.length,0);
+  assert.equal(updates.at(-1).reason,"cycle-expired");
+  assert.equal(store.accept(make({revision:2,cycleEndsAt:clock/1000-1})),false);
+});
+function presence(extra={}){
+ return {version:1,type:"players.snapshot",moduleId:"PlayerReporter",sessionId:"session-a",placeId:"123",jobId:"job-a",
+  reporterUserId:"1",revision:1,players:[
+   {userId:"1",name:"Alice",displayName:"Alice",walkSpeed:32,speedPower:100,incomePerSecond:200},
+   {userId:"2",name:"Bob",displayName:"Bob",walkSpeed:16,incomePerSecond:null}
+  ],...extra};
+}
+test("player connection badge tracks real sockets, complete rosters, changed stats and disconnect",()=>{
+ let clock=1000;
+ const store=createPlayerStore({now:()=>clock,ttlMs:100});
+ store.accept("socket-a",presence());
+ assert.equal(store.state().players.find(p=>p.userId==="1").reporterConnected,true);
+ assert.equal(store.state().players.find(p=>p.userId==="2").reporterConnected,false);
+ store.accept("socket-b",presence({sessionId:"session-b",reporterUserId:"2"}));
+ assert.equal(store.state().players.every(p=>p.reporterConnected),true);
+ store.remove("socket-a");
+ assert.equal(store.state().players.find(p=>p.userId==="1").reporterConnected,false);
+ const latest=presence({sessionId:"session-b",reporterUserId:"2",revision:2});
+ latest.players[1].walkSpeed=99;
+ store.accept("socket-b",latest);
+ assert.equal(store.state().players.find(p=>p.userId==="2").walkSpeed,99);
+ clock+=101;
+ assert.equal(store.state().players.length,0);
+});
+
+test("history retains dates, event details, bounded entries and survives reload from disk",t=>{
+ const fs=require("node:fs"),os=require("node:os"),path=require("node:path");
+ const {createEggHistory}=require("../src/store/EggHistory");
+ const root=fs.mkdtempSync(path.join(process.cwd(),".history-test-"));
+ const file=path.join(root,"history.json");
+ t.after(()=>{for(const target of [file,file+".tmp"])if(fs.existsSync(target))fs.unlinkSync(target);fs.rmdirSync(root);});
+ const history=createEggHistory({filePath:file,maxEntries:2,now:()=>Date.UTC(2026,10,4,8,10,12)});
+ history.append([{action:"appeared",reason:"observation",egg:{...egg,globalUid:"job-a/egg-1"}}]);
+ history.append([{action:"disappeared",reason:"observation",egg:{...egg,globalUid:"job-a/egg-1"}}]);
+ history.append([{action:"appeared",reason:"observation",egg:{...egg,globalUid:"job-a/egg-1"}}]);
+ assert.equal(history.flush(),true);
+ const restored=createEggHistory({filePath:file,maxEntries:2});
+ const rows=restored.state().entries;
+ assert.equal(rows.length,2);
+ assert.equal(rows[0].at,"2026-11-04T08:10:12.000Z");
+ assert.equal(rows[0].egg.globalUid,"job-a/egg-1");
+ assert.equal(restored.state().savedToDisk,true);
+ restored.close();
+});
+
+test("Mongo history upserts queued observations and reloads them across instances",async()=>{
+ const {createMongoHistory}=require("../src/store/MongoHistory");
+ const documents=new Map();
+ let fail=true;
+ const collection={
+  async createIndex(){},
+  find(){
+   let skip=0,limit=Infinity;
+   return {sort(){return this},skip(n){skip=n;return this},limit(n){limit=n;return this},
+    async toArray(){return [...documents.values()].sort((a,b)=>b.at.localeCompare(a.at)).slice(skip,skip+limit)}};
+  },
+  async bulkWrite(operations){
+   for(const operation of operations){
+    const row=operation.updateOne.update.$setOnInsert;
+    if(!documents.has(row.id))documents.set(row.id,row);
+   }
+  },
+  async deleteMany(filter){for(const id of filter.id.$in)documents.delete(id);}
+ };
+ const factory=()=>({
+  async connect(){if(fail){fail=false;throw Error("temporary");}},
+  db(){return {collection(){return collection}}},
+  async close(){}
+ });
+ const history=createMongoHistory({uri:"mongodb://fake",clientFactory:factory,retryMs:100000});
+ history.append([{action:"appeared",reason:"observation",egg:{...egg,globalUid:"job/egg"}}]);
+ assert.equal(await history.flush(),false);
+ assert.equal(history.state().pendingWrites,1);
+ assert.equal(await history.flush(),true);
+ assert.equal(history.state().pendingWrites,0);
+ assert.equal(history.state().storage,"mongodb");
+ await history.close();
+ const restored=createMongoHistory({uri:"mongodb://fake",clientFactory:factory,retryMs:100000});
+ await restored.flush();
+ assert.equal(restored.state().entries.length,1);
+ assert.equal(restored.state().entries[0].egg.globalUid,"job/egg");
+ await restored.close();
 });

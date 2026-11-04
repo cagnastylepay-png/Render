@@ -1,13 +1,11 @@
-# État d'intégration
+# Intégration
 
-Le serveur HTTP, le gateway /sae/ws, le stockage mémoire et la page Eggs sont branchés.
-Test.lua contient temporairement le client pour les essais, sans dépendre des squelettes modulaires.
+Le reporting de test reste dans Sae/Test.lua, en attendant l'extraction vers NotreLib.
 
-Prochaines étapes :
-1. Tester dans Delta et vérifier les accusés [REPORT] sur un reset réel.
-2. Extraire les méthodes dans NotreLib et les modules sans changer le protocole.
-3. Prévoir le passage des paramètres privés lors des changements de serveur si les clés sont activées.
-4. Ajouter une persistance si les observations doivent survivre aux redémarrages Render.
-5. Définir le comportement de GO séparément ; aucune commande distante n'est implémentée.
+Déploiement : publier main sur Render, définir MONGODB_URI et MONGODB_DB=autosae pour l'historique durable,
+puis relancer Test.lua dans Delta. Vérifier /health, les logs [REPORT], les cartes, Players et Historique.
 
-Protocole v1 : voir Sae/modular/docs/Protocol.md et README.md pour les modes d'accès.
+La connexion Atlas réelle reste à vérifier après configuration des variables privées.
+Le code ne contient aucun mot de passe. Les fichiers d'images sont inclus dans Git et servis par Render.
+
+GO n'est pas branché ; aucune demande distante de téléportation/vol n'est reçue ni exécutée.

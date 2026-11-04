@@ -1,17 +1,18 @@
 {
   "name": "m4gix-ws",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "AutoSAE egg observations WebSocket service",
+  "description": "AutoSAE live egg cards player presence and history",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js",
+    "check": "node --check server.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js && node --check src/store/PlayerStore.js && node --check src/store/EggHistory.js && node --check src/assets/EggImages.js && node --check src/store/MongoHistory.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
+    "mongodb": "^6.22.0",
     "ws": "^8.13.0"
   }
 }

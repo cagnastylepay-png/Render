@@ -1,0 +1,77 @@
+"use strict";
+const { MongoClient } = require("mongodb");
+const { createEggHistory } = require("./EggHistory");
+function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
+  clientFactory = (connection) => new MongoClient(connection, { serverSelectionTimeoutMS: 5000 }), retryMs = 30000 } = {}) {
+  if (!uri) throw new Error("MongoDB URI required");
+  const memory = createEggHistory({ maxEntries });
+  const pending = new Map(), listeners = new Set();
+  let client, collection, running, closed = false, ready = false, timer;
+  function notify() { for (const callback of listeners) callback(); }
+  function schedule() {
+    if (closed || timer) return;
+    timer = setTimeout(() => { timer = undefined; void flush(); }, ready ? 300 : retryMs);
+    timer.unref();
+  }
+  async function connect() {
+    if (collection) return;
+    client = clientFactory(uri);
+    await client.connect();
+    const target = client.db(database).collection("egg_history");
+    await target.createIndex({ at: -1 });
+    await target.createIndex({ id: 1 }, { unique: true });
+    const rows = await target.find({}, { projection: { _id: 0 } }).sort({ at: -1 }).limit(maxEntries).toArray();
+    memory.hydrate(rows);
+    collection = target;
+    ready = true;
+    notify();
+  }
+  async function persist() {
+    try {
+      await connect();
+      const batch = [...pending.values()];
+      if (batch.length) {
+        await collection.bulkWrite(batch.map(row => ({ updateOne: { filter: { id: row.id }, update: { $setOnInsert: row }, upsert: true } })), { ordered: false });
+        for (const row of batch) pending.delete(row.id);
+        // Bound retained documents using the same date ordering as the UI.
+        const overflow = await collection.find({}, { projection: { id: 1 } }).sort({ at: -1 }).skip(maxEntries).limit(1000).toArray();
+        if (overflow.length) await collection.deleteMany({ id: { $in: overflow.map(row => row.id) } });
+      }
+      return true;
+    } catch {
+      ready = false;
+      collection = undefined;
+      if (client) { await client.close().catch(() => {}); client = undefined; }
+      console.error("MongoDB history unavailable; observations remain queued in memory (check URI and Atlas network access)");
+      notify();
+      schedule();
+      return false;
+    }
+  }
+  function flush() {
+    if (running) return running;
+    running = persist().finally(() => { running = undefined; if (!closed && pending.size) schedule(); });
+    return running;
+  }
+  function append(events) {
+    const rows = memory.append(events);
+    for (const row of rows) pending.set(row.id, row);
+    while (pending.size > maxEntries) pending.delete(pending.keys().next().value);
+    void flush();
+    return rows;
+  }
+  void flush();
+  return {
+    append, flush,
+    state() { return { ...memory.state(), storage: ready ? "mongodb" : "mongodb-pending", savedToDisk: false, pendingWrites: pending.size }; },
+    onReady(callback) { listeners.add(callback); return () => listeners.delete(callback); },
+    async close() {
+      if (closed) return;
+      closed = true;
+      clearTimeout(timer);
+      await flush();
+      if (client) await client.close().catch(() => {});
+    }
+  };
+}
+module.exports = { createMongoHistory };

@@ -13,7 +13,16 @@ function createServer(options = {}) {
     }
     if (route === "/health") {
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", build: "eggs-ws-v1", reporting: "ready", ...service.gateway.info() }));
+      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", build: "eggs-players-v2", reporting: "ready", historyStorage: service.history.state().storage, ...service.gateway.info() }));
+      return;
+    }
+    const image = route.match(/^\/eggs\/([a-z0-9-]+\.webp)$/);
+    if (image) {
+      fs.readFile(path.join(__dirname, "public", "eggs", image[1]), (error, content) => {
+        if (error) { res.writeHead(error.code === "ENOENT" ? 404 : 500); res.end(); return; }
+        res.writeHead(200, { "Content-Type": "image/webp", "Cache-Control": "public, max-age=86400" });
+        res.end(req.method === "HEAD" ? undefined : content);
+      });
       return;
     }
     if (route === "/" || route === "/eggs" || route === "/index.html") {
@@ -35,7 +44,19 @@ function createServer(options = {}) {
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 3000);
-  createServer().listen(port, "0.0.0.0", () => console.log("M4GIX-WS listening on " + port));
+  const server = createServer();
+  server.listen(port, "0.0.0.0", () => console.log("M4GIX-WS listening on " + port));
+  let stopping = false;
+  async function shutdown() {
+    if (stopping) return;
+    stopping = true;
+    const deadline = setTimeout(() => process.exit(1), 10000);
+    deadline.unref();
+    await server.autoSAE.close();
+    server.close(() => process.exit(0));
+  }
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 }
 
 module.exports = { createServer };
