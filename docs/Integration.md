@@ -1,13 +1,13 @@
-# Plan d'intégration
+# État d'intégration
 
-1. Valider le contrat documenté dans Sae/modular/docs/Protocol.md.
-2. Migrer les fonctions de Test.lua dans NotreLib sans changer les règles du jeu.
-3. Relier EggObserver -> EggReporter -> transport partagé ; publier après réception du nouveau cycle.
-4. Implémenter EggStore et EggGateway puis les tester avec des snapshots fictifs.
-5. Monter explicitement l'extension sur le serveur HTTP existant, chemin /sae/ws,
-   après définition des contrôles d'accès. Utiliser le serveur HTTP de server.js et son port Render.
-6. Ajouter l’authentification du dashboard et connecter la page Eggs.
-7. Activer la connexion cliente. GO reste désactivé jusqu'à une demande dédiée.
+Le serveur HTTP, le gateway /sae/ws, le stockage mémoire et la page Eggs sont branchés.
+Test.lua contient temporairement le client pour les essais, sans dépendre des squelettes modulaires.
 
-L'hôte fourni est m4gix-ws.onrender.com. Le chemin /sae/ws est une proposition,
-pas une route déjà disponible. Les fichiers de cette étape ne démarrent aucun service.
+Prochaines étapes :
+1. Tester dans Delta et vérifier les accusés [REPORT] sur un reset réel.
+2. Extraire les méthodes dans NotreLib et les modules sans changer le protocole.
+3. Prévoir le passage des paramètres privés lors des changements de serveur si les clés sont activées.
+4. Ajouter une persistance si les observations doivent survivre aux redémarrages Render.
+5. Définir le comportement de GO séparément ; aucune commande distante n'est implémentée.
+
+Protocole v1 : voir Sae/modular/docs/Protocol.md et README.md pour les modes d'accès.

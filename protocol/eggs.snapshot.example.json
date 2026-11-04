@@ -3,9 +3,9 @@
   "type": "eggs.snapshot",
   "moduleId": "EggReporter",
   "sessionId": "example-session",
-  "placeId": "example-place",
+  "placeId": "123456",
   "jobId": "example-job",
-  "cycleId": "example-cycle",
+  "cycleId": "123",
   "revision": 1,
   "observedAt": "2026-11-04T08:00:00Z",
   "eggs": [

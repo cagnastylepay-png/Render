@@ -1,13 +1,17 @@
 {
   "name": "m4gix-ws",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "AutoSAE egg reporting service scaffold",
+  "description": "AutoSAE egg observations WebSocket service",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js"
+    "check": "node --check server.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
   }
 }

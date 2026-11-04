@@ -1,28 +1,44 @@
 # M4GIX-WS / AutoSAE
 
-Nouvelle base Node, remplaçant l'ancienne application. L'historique Git permet de retrouver l'ancien code.
-Étape actuelle : architecture et fichiers, sans collecte WebSocket active.
+Service d'observations Divine / Eternal / Secret, sans commande distante ni bouton GO actif.
 
-## Démarrage
+## Démarrer
 
+npm ci
+npm test
 npm start
-PORT fourni par Render, sinon 3000. Écoute sur 0.0.0.0.
-GET /health renvoie le statut du serveur. GET / affiche l'ébauche Eggs.
-Le bouton GO est désactivé ; aucune commande distante n'est enregistrée.
 
-## Structure
+Node >=22. PORT fourni par Render, sinon 3000 ; écoute 0.0.0.0.
+GET / affiche Eggs. GET /health indique build=eggs-ws-v1 et reporting=ready.
+WebSocket : wss://m4gix-ws.onrender.com/sae/ws.
 
-- server.js : entrée HTTP et fichiers publics.
-- src/index.js : point de montage futur de l'extension.
-- src/ws/EggGateway.js : futur /sae/ws, validation, connexion des modules.
-- src/store/EggStore.js : stockage des observations par serveur/cycle/session.
-- public/index.html : futur onglet Eggs.
-- protocol/eggs.snapshot.example.json : exemple fictif.
-- docs/Integration.md : étapes suivantes.
+## Tests avec Test.lua
 
-Client Roblox : https://github.com/cagnastylepay-png/Sae/tree/main/modular
-Hôte fourni : https://m4gix-ws.onrender.com
-Futur WebSocket : wss://m4gix-ws.onrender.com/sae/ws (pas encore disponible).
+Lancer la dernière version de cagnastylepay-png/Sae/Test.lua dans Delta.
+Le client utilise WebSocket.connect, ou syn.websocket.connect si disponible.
+Il publie après connexion, après reset et révélation du nouveau cycle, après modification
+des œufs et toutes les 60 secondes. Les trois raretés sont envoyées sans minimum de revenu.
+Reconnexion avec délai progressif ; un seul socket par session ; arrêt au remplacement du script.
+Logs [REPORT] dans la console et AutoSAE_debug.txt : connexion, snapshot et accusé serveur.
 
-Sans dépendance externe à cette étape. /sae/ws et les contrôles d'accès seront implémentés
-avant activation du reporting. Aucun secret dans le dépôt public.
+## Accès
+
+Par défaut, sans variables de clés, le service est en mode de test anonyme : observation publique
+et réception de snapshots non autoritaires. Le protocole ne contient aucune commande d'exécution.
+Pour restreindre l'envoi : définir SAE_REPORT_TOKEN dans les variables Render.
+Pour restreindre la lecture : définir SAE_VIEW_TOKEN.
+Le token reporter se fournit en mémoire avant le lanceur :
+shared.__AutoSAEReportingOptions = {Token="VALEUR_PRIVEE"}
+Il ne doit pas être committé ni copié dans les logs.
+Le token viewer se renseigne dans le champ Clé de lecture du dashboard.
+Si la recherche change de serveur, l'option Token en mémoire doit être réinjectée par le lanceur
+pour continuer à utiliser un serveur protégé. Aucun secret n'est ajouté au dépôt.
+
+## Stockage et limites
+
+Mémoire volatile, effacée au redémarrage Render. Snapshot complet par serveur/cycle,
+révisions séparées par session, UID dédupliqués ; snapshot vide supprime les anciennes lignes.
+100 serveurs au maximum, 200 œufs par snapshot, expiration après 10 minutes sans observation.
+JSON texte <=256 KiB, 20 messages/10 secondes/connexion, ping/pong et fermeture des clients lents.
+Les observations restent identifiées par serveur et cycle ; elles ne prouvent pas la propriété.
+GO reste désactivé.

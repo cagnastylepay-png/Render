@@ -1,18 +1,65 @@
 <!doctype html>
 <html lang="fr">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>M4GIX — Eggs — Préparation</title>
-<body>
-<main>
-  <h1>Eggs</h1>
-  <p role="status">Interface préparatoire. Aucune connexion au serveur.</p>
-  <p>Divine · Eternal · Secret</p>
-  <table>
-    <caption>Œufs signalés par serveur et cycle</caption>
-    <thead><tr><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Serveur</th><th>Cycle</th><th>Action</th></tr></thead>
-    <tbody><tr><td colspan="6">En attente de la future connexion WebSocket.</td><td><button disabled title="Connexion prévue ultérieurement">GO</button></td></tr></tbody>
-  </table>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M4GIX — Eggs</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10131b;color:#ebedf4}
+body{margin:0;padding:24px}main{max-width:1500px;margin:auto}header{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+h1{margin:0;color:#adff6b}button,input,select{font:inherit;border:1px solid #434b60;border-radius:6px;background:#202638;color:inherit;padding:8px}
+button:disabled{opacity:.4}label{display:inline-flex;gap:8px;align-items:center;margin:8px 12px 8px 0}
+.table{overflow:auto;border:1px solid #30384b;border-radius:10px;margin-top:18px}
+table{border-collapse:collapse;width:100%;text-align:left;white-space:nowrap}th,td{padding:12px;border-bottom:1px solid #30384b}th{background:#202638}
+small,#status{color:#b4bed3}#status{min-height:1.4em}.token{max-width:180px}
+</style></head>
+<body><main>
+<header><h1>Eggs</h1><span>Divine · Eternal · Secret</span></header>
+<p id="status" role="status">Connexion…</p>
+<label>Rareté <select id="rarity"><option value="">Toutes</option><option>Divine</option><option>Eternal</option><option>Secret</option></select></label>
+<label>Clé de lecture <input class="token" id="token" type="password" autocomplete="off" placeholder="Si configurée sur Render"></label>
+<button id="connect">Reconnecter</button>
+<small>Observations en direct · Tri par revenu/s · GO sera connecté plus tard</small>
+<div class="table"><table><thead><tr><th>Œuf</th><th>Rareté</th><th>Poids (kg)</th><th>Revenu/s</th><th>Serveur</th><th>Cycle</th><th>Reçu</th><th>Action</th></tr></thead><tbody id="eggs"></tbody></table></div>
 </main>
-</body>
-</html>
+<script>
+"use strict";
+let socket, retry, stopped=false, rows=[];
+const status=document.getElementById("status"), body=document.getElementById("eggs");
+const number=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2});
+function render(){
+ body.replaceChildren();
+ const visible=rows.filter(egg=>!document.getElementById("rarity").value||egg.rarity===document.getElementById("rarity").value);
+ if(!visible.length){const tr=body.insertRow();const td=tr.insertCell();td.colSpan=8;td.textContent="Aucun œuf signalé pour ce filtre.";return;}
+ for(const egg of visible){
+  const tr=body.insertRow();
+  for(const value of [egg.name,egg.rarity,egg.weightKg==null?"?":number.format(egg.weightKg),egg.incomePerSecond==null?"?":number.format(egg.incomePerSecond),egg.jobId,egg.cycleId,new Date(egg.receivedAt).toLocaleTimeString()]){
+   const td=tr.insertCell();td.textContent=String(value);
+  }
+  const button=document.createElement("button");button.textContent="GO";button.disabled=true;button.title="Connexion prévue ultérieurement";tr.insertCell().append(button);
+ }
+}
+function connect(){
+ clearTimeout(retry);stopped=false;
+ const previous=socket;socket=null;if(previous)previous.close();
+ const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/sae/ws");socket=current;
+ status.textContent="Connexion…";
+ current.onopen=()=>current.send(JSON.stringify({version:1,type:"hello",role:"viewer",token:document.getElementById("token").value}));
+ current.onmessage=event=>{
+  if(socket!==current)return;
+  try{const message=JSON.parse(event.data);
+   if(message.type==="eggs.state"){rows=message.eggs;render();status.textContent=rows.length+" œuf(s) · "+message.serverCount+" serveur(s) observé(s)";}
+   else if(message.type==="error")status.textContent=message.message;
+  }catch{status.textContent="Message serveur invalide";}
+ };
+ current.onclose=event=>{
+  if(socket!==current)return;
+  status.textContent="Déconnecté — les lignes affichées sont des observations précédentes.";
+  if(event.code===1008){stopped=true;status.textContent="Accès refusé : renseigne la clé de lecture puis reconnecte.";}
+  if(!stopped)retry=setTimeout(connect,5000);
+ };
+ current.onerror=()=>{};
+}
+document.getElementById("rarity").onchange=render;
+document.getElementById("connect").onclick=connect;
+render();connect();
+</script></body></html>

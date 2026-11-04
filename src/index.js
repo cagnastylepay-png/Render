@@ -1,8 +1,9 @@
 "use strict";
-
-// Scaffold only: not imported by the server.js.
-function mountAutoSAE() {
-  throw new Error("AutoSAE extension is a scaffold; integration is not implemented.");
+const { createEggStore } = require("./store/EggStore");
+const { attachEggGateway } = require("./ws/EggGateway");
+function mountAutoSAE(server, options = {}) {
+  const store = createEggStore(options.store);
+  const gateway = attachEggGateway(server, store, options.gateway);
+  return { store, gateway, close: () => gateway.close() };
 }
-
 module.exports = { mountAutoSAE };
