@@ -214,6 +214,16 @@ test("history counts a server egg once per cycle despite reappearance and metada
  history.clear();assert.equal(history.state().total,0);
 });
 
+test("hourly history accumulates unique observations across days in Paris time and resets",()=>{
+ const {createEggHistory}=require("../src/store/EggHistory");let now=Date.parse("2026-11-04T22:30:00Z");const history=createEggHistory({now:()=>now});
+ const first={...egg,jobId:"hourly",uid:"one",rarity:"Divine",cycleId:"1"};
+ history.append([{action:"appeared",egg:first}]);history.append([{action:"appeared",egg:first}]);
+ now=Date.parse("2026-11-05T22:45:00Z");history.append([{action:"appeared",egg:{...first,uid:"two",cycleId:"2"}}]);
+ now=Date.parse("2026-11-05T23:01:00Z");history.append([{action:"appeared",egg:{...first,uid:"three",rarity:"Eternal",cycleId:"3"}}]);
+ assert.equal(history.state().hourly[23].Divine,2);assert.equal(history.state().hourly[0].Eternal,1);
+ assert.equal(history.state().hourlyTimeZone,"Europe/Paris");history.clear();assert.equal(history.state().hourly.reduce((sum,h)=>sum+h.Divine+h.Eternal,0),0);
+});
+
 test("reporting accepts every observed rarity and retains all eggs",()=>{
  const store=createEggStore();
  const rarities=["Common","Uncommon","Rare","Epic","Legendary","Mythic","Cosmic","Secret","Eternal","Divine"];

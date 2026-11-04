@@ -16,6 +16,15 @@ function deduplicateHistory(rows) {
 function keepHistoryEvent(row) {
   return row?.action === "appeared" && ["Divine", "Eternal"].includes(row.egg?.rarity);
 }
+function hourlyHistory(entries){
+  const hours=Array.from({length:24},(_,hour)=>({hour,Divine:0,Eternal:0}));
+  const clock=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hourCycle:"h23"});
+  for(const row of entries){
+    const date=new Date(row.at);if(!Number.isFinite(date.getTime())||!keepHistoryEvent(row))continue;
+    const hour=Number(clock.format(date));if(hours[hour])hours[hour][row.egg.rarity]++;
+  }
+  return hours;
+}
 function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now } = {}) {
   let entries = [], timer, lastError = null;
   if (filePath && fs.existsSync(filePath)) {
@@ -56,7 +65,7 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
   }
   function state() {
     return { version: 1, type: "history.state", storage: filePath ? "disk" : "memory", total: entries.length, savedToDisk: !!filePath && !lastError,
-      entries: entries.slice(-2000).reverse() };
+      entries: entries.slice(-2000).reverse(),hourly:hourlyHistory(entries),hourlyTimeZone:"Europe/Paris" };
   }
   return { append, state, flush, close: flush, all:()=>entries.slice(),
     clear(){entries=[];if(!flush())throw Error("History could not be cleared on disk");},
@@ -65,5 +74,5 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     }
   };
 }
-module.exports = { createEggHistory, keepHistoryEvent, historyIdentity, deduplicateHistory };
+module.exports = { createEggHistory, keepHistoryEvent, historyIdentity, deduplicateHistory, hourlyHistory };
 

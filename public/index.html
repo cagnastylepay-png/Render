@@ -23,6 +23,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 .table{overflow:auto;border:1px solid #303d53;border-radius:10px}table{border-collapse:collapse;width:100%;white-space:nowrap;text-align:left}td,th{padding:12px;border-bottom:1px solid #303d53}th{background:#1a2538}
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
 [hidden]{display:none!important}@media(max-width:600px){body{padding:14px}.toolbar{align-items:stretch}h1{font-size:23px}}
+.hourly-card{margin:18px 0;padding:18px;border:1px solid #303d53;border-radius:14px;background:#131d2c}.hourly-card h2{margin:0 0 8px;font-size:20px}.hourly-legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px}.hourly-legend span:before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;border-radius:3px}.hourly-divine:before{background:#facc15}.hourly-eternal:before{background:#a855f7}.hourly-scroll{overflow-x:auto;padding-bottom:32px}.hourly-plot{display:grid;grid-template-columns:38px minmax(720px,1fr);padding-top:20px}.hourly-axis{height:200px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:#a9b8cf;transform:translateY(-7px)}.hourly-bars{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:5px;background:repeating-linear-gradient(to top,#303d53 0,#303d53 1px,transparent 1px,transparent 50px);height:200px;border-bottom:1px solid #718096}.hourly-group{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%;position:relative}.hourly-bar{width:38%;max-width:18px;border-radius:3px 3px 0 0;cursor:help}.hourly-bar.divine{background:#facc15}.hourly-bar.eternal{background:#a855f7}.hourly-bar:hover{filter:brightness(1.25)}.hourly-hour{position:absolute;top:208px;font-size:11px;color:#a9b8cf;white-space:nowrap}.hourly-caption{margin:12px 0 0;font-size:13px;color:#a9b8cf}
 </style></head>
 <body><main>
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
@@ -37,6 +38,12 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+<div class="hourly-card">
+<h2>Observations par heure</h2>
+<div class="hourly-legend"><span class="hourly-divine" id="hourly-divine-total">Divine · 0</span><span class="hourly-eternal" id="hourly-eternal-total">Eternal · 0</span></div>
+<div class="hourly-scroll"><div class="hourly-plot"><div class="hourly-axis" id="hourly-axis"></div><div class="hourly-bars" id="hourly-bars" role="img" aria-label="Nombre de premières observations Divine et Eternal par heure"></div></div></div>
+<p class="hourly-caption">Cumul de l’historique conservé · Heures de Paris · Un œuf par serveur et cycle.</p>
+</div>
 <button id="history-clear" title="Supprimer l’historique de MongoDB pour tous les clients">Vider l’historique</button>
 <p class="muted">Une seule première observation par serveur, œuf et cycle. L’heure de détection peut être postérieure au spawn ; elle ne suffit pas à prouver une périodicité.</p>
 <p class="muted" id="history-info">Historique Divine / Eternal : œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
@@ -221,7 +228,30 @@ function renderCards(){
  tick();
 }
 function updateAllRosters(){renderCards();}
+let hourlyCounts=Array.from({length:24},(_,hour)=>({hour,Divine:0,Eternal:0}));
+function renderHourlyHistory(){
+ const bars=document.getElementById("hourly-bars"),axis=document.getElementById("hourly-axis");bars.replaceChildren();axis.replaceChildren();
+ const maximum=Math.max(1,...hourlyCounts.flatMap(row=>[row.Divine,row.Eternal]));
+ const step=Math.max(1,Math.ceil(maximum/4)),ceiling=step*4;
+ for(let i=4;i>=0;i--)axis.append(el("span",String(i*step)));
+ let divine=0,eternal=0;
+ for(const row of hourlyCounts){
+  const group=el("div",null,"hourly-group");
+  for(const rarity of ["Divine","Eternal"]){
+   const count=row[rarity],bar=el("div",null,"hourly-bar "+rarity.toLowerCase());
+   bar.style.height=(count/ceiling*100)+"%";
+   const text=String(row.hour).padStart(2,"0")+" h – "+String((row.hour+1)%24).padStart(2,"0")+" h · "+rarity+" : "+count;
+   bar.title=text;bar.setAttribute("aria-label",text);bar.tabIndex=0;group.append(bar);
+  }
+  group.append(el("span",String(row.hour).padStart(2,"0")+"h","hourly-hour"));bars.append(group);
+  divine+=row.Divine;eternal+=row.Eternal;
+ }
+ setText(document.getElementById("hourly-divine-total"),"Divine · "+divine);
+ setText(document.getElementById("hourly-eternal-total"),"Eternal · "+eternal);
+}
+
 function renderHistory(){
+ renderHourlyHistory();
  const list=[...historyRows.values()].filter(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity)).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
  historyRows=new Map(list.map(row=>[row.id,row]));
  const body=document.getElementById("history");body.replaceChildren();
@@ -278,9 +308,10 @@ function connect(){
     setText(document.getElementById("logs-info"),"Actions des joueurs · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
    }else if(message.type==="logs.append"){for(const row of message.entries)logRows.set(row.id,row);renderLogs();}
    else if(message.type==="history.state"){
+    if(message.hourly)hourlyCounts=message.hourly;
     historyRows=new Map(message.entries.map(row=>[row.id,row]));renderHistory();
     setText(document.getElementById("history-info"),"Historique Divine / Eternal · Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible."));
-   }else if(message.type==="history.append"){for(const row of message.entries)if(row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity))historyRows.set(row.id,row);renderHistory();}
+   }else if(message.type==="history.append"){if(message.hourly)hourlyCounts=message.hourly;for(const row of message.entries)if(row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity))historyRows.set(row.id,row);renderHistory();}
    else if(message.type==="error")setText(status,message.message);
   }catch{setText(status,"Message serveur invalide");}
  };

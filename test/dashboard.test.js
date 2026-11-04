@@ -43,6 +43,18 @@ function harness(){
  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
  return {context,document,sent:FakeSocket.current.sent,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
 }
+test("hourly chart renders 24 paired bars, updates totals and resets with history",()=>{
+ const h=harness(),hourly=Array.from({length:24},(_,hour)=>({hour,Divine:0,Eternal:0}));
+ hourly[23].Divine=2;hourly[23].Eternal=3;hourly[0].Eternal=1;
+ h.emit({type:"history.state",entries:[],hourly,storage:"mongodb"});
+ const bars=h.document.getElementById("hourly-bars");assert.equal(bars.children.length,24);
+ assert.equal(bars.children[23].children[0].title,"23 h – 00 h · Divine : 2");
+ assert.equal(bars.children[23].children[0].style.height,"50%");
+ assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 2");
+ assert.equal(h.document.getElementById("hourly-eternal-total").textContent,"Eternal · 4");
+ hourly[23].Divine=4;h.emit({type:"history.append",entries:[],hourly});assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 4");
+ h.emit({type:"history.state",entries:[],hourly:hourly.map(row=>({...row,Divine:0,Eternal:0})),storage:"mongodb"});assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 0");
+});
 test("WebSocket updates retain image nodes, open sections and use game speed",()=>{
  const h=harness(),egg={key:"123/job/egg",uid:"egg",placeId:"123",jobId:"job",name:"Ice Dragon",rarity:"Eternal",imageUrl:"/eggs/ice.webp",
   incomePerSecond:2e9,weightKg:1400,sellValue:8e12,expiresAt:Date.now()+60000};
