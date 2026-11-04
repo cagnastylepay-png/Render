@@ -6,8 +6,8 @@
   valeur de vente, position, état, mutations et détails complets.
 - UID composé construit côté serveur : jobId/eggUid, avec clé interne placeId/jobId/eggUid.
 - Sous chaque carte : joueurs de ce serveur ; vert = connexion du client du script,
-  gris = joueur observé. L'onglet Players récapitule vitesse, puissance et revenu.
-- Notifications et historique daté des apparitions, disparitions et changements.
+  gris = joueur observé. Liste repliable avec indice de vitesse du jeu et revenu.
+- Notifications des changements ; historique daté affichant uniquement les reçus et réapparitions.
 - Timer global sur le prochain créneau de 5 minutes ; expiration individuelle issue
   de l'horaire du jeu quand fourni, sinon prochain créneau. Expiration retire les observations actives.
 - GO reste désactivé. Aucune commande distante n'est implémentée.
@@ -37,12 +37,16 @@ les tests utilisent un adaptateur simulé, pas un identifiant réel.
 
 ## Clients Roblox
 
-Relancer la dernière version de Sae/Test.lua : Build reporting-v2.
+Relancer la dernière version de Sae/Test.lua : Build reporting-v3.
 Une connexion partagée en lecture/envoi d'observations uniquement, reconnexion automatique.
-Œufs après connexion/reset, changements regroupés et rafraîchissement périodique.
-Players aux arrivées/départs, changements de vitesse/attributs/roster et heartbeat de 15 s.
+Synchronisation complète après connexion et révélation de chaque cycle de cinq minutes.
+Œufs aux apparitions, modifications et disparitions ; joueurs aux arrivées/départs et changements
+répliqués de vitesse/attributs/roster. Envois regroupés et dédupliqués, aucun heartbeat de données.
+Le worker de connexion assure seulement les délais, reconnexions et envois déjà déclenchés.
 Le revenu joueur est la somme MoneyPerSecond du roster répliqué ; non disponible = ?.
-La puissance SpeedPower des autres joueurs n'est affichée que si elle est répliquée.
+La vitesse utilise SpeedPowerProjection pour le joueur local ; les autres indices sont affichés
+seulement s'ils sont répliqués. Aucune conversion depuis WalkSpeed.
+Cartes et images conservées entre messages WebSocket ; nombres abrégés K, M, B, T, Qa, Qi, etc.
 Une couleur verte représente une connexion WebSocket active, pas une preuve d'identité Roblox.
 
 ## Accès et limites
@@ -54,7 +58,7 @@ Clé viewer : champ du dashboard. Aucun token dans les logs ou Git.
 Le lanceur doit réinjecter le token lors d'un changement de serveur si l'accès est restreint.
 
 100 serveurs, 500 œufs par snapshot, 200 sessions, payload JSON texte <=1 MiB,
-20 messages/10 secondes/connexion. Présence expirée après 45 secondes sans heartbeat.
+20 messages/10 secondes/connexion. Présence conservée tant que le socket reste actif ; fermeture et ping/pong détectent les déconnexions.
 Les données clientes sont des observations non autoritaires.
 
 ## Images

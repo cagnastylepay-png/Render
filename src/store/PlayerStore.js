@@ -18,7 +18,7 @@ function validatePresence(message) {
   if (!seen.has(reporterUserId)) throw new Error("Reporter missing from roster");
   return { ...base, revision: message.revision, reporterUserId, players };
 }
-function createPlayerStore({ now = Date.now, ttlMs = 45000, maxSessions = 200 } = {}) {
+function createPlayerStore({ now = Date.now, ttlMs = Infinity, maxSessions = 200 } = {}) {
   const sessions = new Map();
   function prune() {
     let changed = false;

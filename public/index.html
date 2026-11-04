@@ -1,23 +1,23 @@
 <!doctype html>
 <html lang="fr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>M4GIX — Eggs & Players</title>
+<title>M4GIX — Eggs</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0d111a;color:#e6edf7}
 *{box-sizing:border-box}body{margin:0;padding:24px}main{max-width:1560px;margin:auto}
 header,.toolbar,.tabs,.card-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-header{justify-content:space-between}h1{margin:0;font-size:28px}h2{margin:0;font-size:19px}
+header{justify-content:space-between}h1{margin:0;font-size:28px}h2{margin:0;font-size:16px}
 button,input,select{font:inherit;border:1px solid #3b465b;border-radius:8px;background:#1c2536;color:inherit;padding:9px 12px}
 button{cursor:pointer}button:disabled{opacity:.45;cursor:default}.tabs{margin:22px 0}.tabs [aria-selected=true]{background:#b0fa75;color:#142410;border-color:#b0fa75;font-weight:700}
 label{display:inline-flex;gap:8px;align-items:center}.token{max-width:180px}small,.muted{color:#a4b2ca}
-#status{min-height:1.4em}.timer{font-variant-numeric:tabular-nums}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,410px),1fr));gap:18px}
-.card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:12px;padding:18px}
+#status{min-height:1.4em}.timer{font-variant-numeric:tabular-nums}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:12px}
+.card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:10px;padding:12px}
 .card[data-rarity=Divine]{border-top-color:#ffd269}.card[data-rarity=Eternal]{border-top-color:#ff89cf}.card[data-rarity=Cosmic]{border-top-color:#88aaff}
-.egg-art{height:170px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:12px 0}.egg-art img{width:160px;height:160px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:80px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
-.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.metric{background:#1a2538;border-radius:8px;padding:12px}.metric strong{display:block;font-size:20px;margin-top:4px}
-.identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:14px;padding-top:14px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
-.roster{display:grid;gap:7px}.player{border:1px solid #3b465b;background:#1a2435;border-radius:8px;padding:9px;font-size:12px}.player.script{border-color:#6fc788;background:#153427}.player strong{font-size:13px}.badge{float:right;font-size:10px;padding:3px 6px;border-radius:4px;background:#344058}.script .badge{background:#27633d}
-details{margin-top:12px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
+.egg-art{height:105px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:6px 0}.egg-art img{width:100px;height:100px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:56px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.metric{background:#1a2538;border-radius:6px;padding:8px}.metric strong{display:block;font-size:16px;margin-top:3px}
+.identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:10px;padding-top:10px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
+.roster{display:grid;gap:7px}.player{border:1px solid #3b465b;background:#1a2435;border-radius:8px;padding:7px;font-size:11px}.player.script{border-color:#6fc788;background:#153427}.player strong{font-size:13px}.badge{float:right;font-size:10px;padding:3px 6px;border-radius:4px;background:#344058}.script .badge{background:#27633d}
+details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .table{overflow:auto;border:1px solid #303d53;border-radius:10px}table{border-collapse:collapse;width:100%;white-space:nowrap;text-align:left}td,th{padding:12px;border-bottom:1px solid #303d53}th{background:#1a2538}
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
 [hidden]{display:none!important}@media(max-width:600px){body{padding:14px}.toolbar{align-items:stretch}h1{font-size:23px}}
@@ -26,120 +26,160 @@ details{margin-top:12px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><label>Clé de lecture <input class="token" id="token" type="password" autocomplete="off" placeholder="Si configurée"></label><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
-<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-players" role="tab" aria-selected="false" aria-controls="panel-players">Players (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button></nav>
+<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
-<p class="muted">Tri par revenu/s · Les joueurs sous chaque carte appartiennent au serveur de cet œuf · GO reste désactivé.</p>
+<p class="muted">Tri par revenu/s · Joueurs repliables par serveur · GO reste désactivé.</p>
 <div id="cards" class="cards"></div>
 <div class="notifications"><strong>Apparitions et disparitions</strong><ol id="events"><li>En attente d’un changement…</li></ol></div>
 </section>
-<section id="panel-players" role="tabpanel" aria-labelledby="tab-players" hidden><p class="muted">Vitesse : WalkSpeed · Puissance : SpeedPower · Revenu : somme du roster répliqué. « ? » signifie non disponible.</p>
-<div class="table"><table><thead><tr><th>Joueur</th><th>Script</th><th>Serveur</th><th>Vitesse</th><th>Puissance</th><th>Revenu/s</th><th>Observé</th></tr></thead><tbody id="players"></tbody></table></div></section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
-<p class="muted" id="history-info">Historique des observations reçues, apparitions, disparitions et changements. Date et heure locales du navigateur.</p>
+<p class="muted" id="history-info">Historique des œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
 <div class="table"><table><thead><tr><th>Date</th><th>Heure</th><th>Événement</th><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Identifiant serveur/œuf</th><th>Cycle</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
 <p class="muted"><small>Illustrations : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
 <script>
 "use strict";
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0,notifications=[],historyRows=new Map();
+const cardViews=new Map();
 const status=document.getElementById("status"),cards=document.getElementById("cards");
-const number=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2});
-const compact=new Intl.NumberFormat("fr-FR",{notation:"compact",maximumFractionDigits:2});
-const fmt=value=>value==null?"?":number.format(value);
-const money=value=>value==null?"?":compact.format(value);
+const suffixes=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
+const decimal=new Intl.NumberFormat("en-US",{maximumFractionDigits:2,useGrouping:false});
+function formatNumber(value){
+ if(value==null||!Number.isFinite(Number(value)))return "?";
+ const n=Number(value),abs=Math.abs(n);
+ let tier=abs<1000?0:Math.min(suffixes.length-1,Math.floor(Math.log10(abs)/3));
+ let scaled=n/Math.pow(1000,tier);
+ if(Math.abs(Math.round(scaled*100)/100)>=1000&&tier<suffixes.length-1){tier++;scaled=n/Math.pow(1000,tier);}
+ return decimal.format(scaled)+suffixes[tier];
+}
+const fmt=formatNumber,money=formatNumber;
 const el=(tag,text,className)=>{const n=document.createElement(tag);if(text!=null)n.textContent=String(text);if(className)n.className=className;return n;};
+function setText(node,value){const text=String(value);if(node.textContent!==text)node.textContent=text;}
 function rosterFor(egg){return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId);}
-function renderCards(){
- const expanded=new Set([...cards.querySelectorAll("article")].filter(card=>card.querySelector("details")?.open).map(card=>card.dataset.key));
- cards.replaceChildren();
- const visible=rows.filter(egg=>!document.getElementById("rarity").value||egg.rarity===document.getElementById("rarity").value);
- if(!visible.length){cards.append(el("p","Aucun œuf signalé pour ce filtre.","empty"));return;}
- for(const egg of visible){
-  const card=el("article",null,"card");card.dataset.rarity=egg.rarity;card.dataset.key=egg.key;
-  const head=el("div",null,"card-head"),title=el("div");title.append(el("div",egg.rarity,"rarity"),el("h2",egg.name));
-  const go=el("button","GO");go.disabled=true;go.title="Connexion prévue ultérieurement";head.append(title,go);card.append(head);
-  const art=el("div",null,"egg-art");const placeholder=el("span","🥚");art.append(placeholder);
-  if(egg.imageUrl){const image=el("img");image.alt=egg.name;image.loading="lazy";image.referrerPolicy="no-referrer";image.onload=()=>{placeholder.hidden=true;};image.onerror=()=>image.remove();image.src=egg.imageUrl;art.append(image);}card.append(art);
-  const metrics=el("div",null,"metrics");
-  for(const [name,value]of [["Revenu / seconde",money(egg.incomePerSecond)],["Poids",fmt(egg.weightKg)+" kg"],["Valeur de vente",money(egg.sellValue)],["Expiration",null]]){
-   const metric=el("div",null,"metric");metric.append(el("small",name));const strong=el("strong",value);
-   if(name==="Expiration"){strong.className="timer";strong.dataset.expires=String(egg.expiresAt);}
-   metric.append(strong);metrics.append(metric);
-  }
-  card.append(metrics,el("p",egg.globalUid,"identity"),el("p","Cycle "+egg.cycleId+" · "+(egg.state||"État inconnu"),"muted"));
-  const position=egg.position;card.append(el("p",position?"Position : "+[position.x,position.y,position.z].map(fmt).join(", "):"Position : ?","coords"));
-  const roster=el("div",null,"players"),known=rosterFor(egg);roster.append(el("h3","Joueurs de ce serveur ("+known.length+")"));
-  const list=el("div",null,"roster");
-  for(const p of known){const item=el("div",null,"player"+(p.reporterConnected?" script":""));item.append(el("span",p.reporterConnected?"SCRIPT CONNECTÉ":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),el("div","Vitesse "+fmt(p.walkSpeed)+" · Puissance "+money(p.speedPower)+" · "+money(p.incomePerSecond)+"/s"));list.append(item);}
-  if(!known.length)list.append(el("small","Roster du serveur en attente."));roster.append(list);card.append(roster);
-  const details=el("details");details.open=expanded.has(egg.key);details.append(el("summary","Tous les détails"),el("pre",JSON.stringify(egg,null,2)));card.append(details);cards.append(card);
+function createCard(){
+ const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
+ heading.append(rarity,name);
+ const go=el("button","GO");go.disabled=true;go.title="Connexion prévue ultérieurement";head.append(heading,go);node.append(head);
+ const art=el("div",null,"egg-art"),placeholder=el("span","🥚"),image=el("img");image.loading="lazy";image.hidden=true;
+ image.onload=()=>{placeholder.hidden=true;image.hidden=false;};image.onerror=()=>{image.hidden=true;placeholder.hidden=false;};
+ art.append(placeholder,image);node.append(art);
+ const metrics=el("div",null,"metrics"),values={};
+ for(const [key,label]of [["income","Revenu / s"],["weight","Poids"],["sell","Valeur"],["expires","Expiration"]]){
+  const metric=el("div",null,"metric"),value=el("strong");metric.append(el("small",label),value);metrics.append(metric);values[key]=value;
  }
+ values.expires.className="timer";node.append(metrics);
+ const roster=el("details",null,"players"),rosterSummary=el("summary","Joueurs (0)"),rosterList=el("div",null,"roster");roster.append(rosterSummary,rosterList);node.append(roster);
+ const details=el("details"),detailsSummary=el("summary","Tous les détails"),detailsBody=el("pre");details.append(detailsSummary,detailsBody);node.append(details);
+ return {node,rarity,name,image,placeholder,values,roster,rosterSummary,rosterList,rosterSignature:null,details,detailsBody,imageUrl:null};
+}
+function updateRoster(view,egg){
+ const known=rosterFor(egg),signature=JSON.stringify(known);
+ if(view.rosterSignature===signature)return;
+ view.rosterSignature=signature;
+ setText(view.rosterSummary,"Joueurs ("+known.length+")");
+ view.rosterList.replaceChildren();
+ for(const p of known){
+  const item=el("div",null,"player"+(p.reporterConnected?" script":""));
+  item.append(el("span",p.reporterConnected?"SCRIPT":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),
+   el("div","Vitesse "+fmt(p.speedPower)+" · "+money(p.incomePerSecond)+"/s"));
+  view.rosterList.append(item);
+ }
+ if(!known.length)view.rosterList.append(el("small","Roster en attente."));
+}
+function updateCard(view,egg){
+ view.node.dataset.rarity=egg.rarity;
+ setText(view.rarity,egg.rarity);setText(view.name,egg.name);
+ if(view.imageUrl!==(egg.imageUrl||null)){
+  view.imageUrl=egg.imageUrl||null;
+  view.placeholder.hidden=false;view.image.hidden=true;
+  if(view.imageUrl)view.image.src=view.imageUrl;else view.image.removeAttribute("src");
+ }
+ view.image.alt=egg.name;
+ setText(view.values.income,money(egg.incomePerSecond));
+ setText(view.values.weight,fmt(egg.weightKg)+" kg");
+ setText(view.values.sell,money(egg.sellValue));
+ view.values.expires.dataset.expires=String(egg.expiresAt);
+ setText(view.detailsBody,JSON.stringify(egg,null,2));
+ updateRoster(view,egg);
+}
+function renderCards(){
+ const visible=rows.filter(egg=>!document.getElementById("rarity").value||egg.rarity===document.getElementById("rarity").value);
+ const active=new Set();
+ visible.forEach((egg,index)=>{
+  const key=egg.key||JSON.stringify([egg.placeId,egg.jobId,egg.uid]);active.add(key);
+  let view=cardViews.get(key);
+  if(!view){view=createCard();cardViews.set(key,view);}
+  updateCard(view,egg);
+  if(cards.children[index]!==view.node)cards.insertBefore(view.node,cards.children[index]||null);
+ });
+ for(const [key,view]of cardViews)if(!active.has(key)){view.node.remove();cardViews.delete(key);}
+ const empty=document.getElementById("empty-eggs");
+ if(visible.length){if(empty)empty.remove();}
+ else if(!empty){const message=el("p","Aucun œuf signalé pour ce filtre.","empty");message.id="empty-eggs";cards.append(message);}
  tick();
 }
-function renderPlayers(){
- const body=document.getElementById("players");body.replaceChildren();
- for(const p of players){const tr=body.insertRow();if(p.reporterConnected)tr.style.background="#153427";
-  for(const value of [p.displayName+" (@"+p.name+")",p.reporterConnected?"Connecté":"Observé",p.jobId,fmt(p.walkSpeed),money(p.speedPower),money(p.incomePerSecond),new Date(p.receivedAt).toLocaleTimeString()])tr.insertCell().textContent=String(value);
- }
- if(!players.length){const td=body.insertRow().insertCell();td.colSpan=7;td.textContent="Aucun joueur signalé.";}
- document.getElementById("tab-players").textContent="Players ("+players.length+")";
+function updateAllRosters(){
+ for(const egg of rows){const key=egg.key||JSON.stringify([egg.placeId,egg.jobId,egg.uid]);const view=cardViews.get(key);if(view)updateRoster(view,egg);}
 }
 function renderHistory(){
- const rows=[...historyRows.values()].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
- historyRows=new Map(rows.map(row=>[row.id,row]));
+ const list=[...historyRows.values()].filter(row=>row.action==="appeared").sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
+ historyRows=new Map(list.map(row=>[row.id,row]));
  const body=document.getElementById("history");body.replaceChildren();
  const labels={appeared:"Reçu / réapparu",disappeared:"Disparu",updated:"Modifié"};
- for(const row of rows){
+ for(const row of list){
   const tr=body.insertRow(),date=new Date(row.at),egg=row.egg;
   for(const value of [date.toLocaleDateString(),date.toLocaleTimeString(),labels[row.action]||row.action,egg.name,egg.rarity,fmt(egg.weightKg),money(egg.incomePerSecond),egg.globalUid,egg.cycleId])tr.insertCell().textContent=String(value);
  }
- if(!rows.length){const td=body.insertRow().insertCell();td.colSpan=9;td.textContent="Aucun œuf reçu pour le moment.";}
- document.getElementById("tab-history").textContent="Historique ("+rows.length+")";
+ if(!list.length){const td=body.insertRow().insertCell();td.colSpan=9;td.textContent="Aucun œuf reçu pour le moment.";}
+ document.getElementById("tab-history").textContent="Historique ("+list.length+")";
 }
 function tick(){
  const now=Date.now()+timeOffset;
  const display=until=>{const n=Math.max(0,Math.ceil((until-now)/1000));return Math.floor(n/60)+":"+String(n%60).padStart(2,"0");};
- document.getElementById("global-timer").textContent=resetAt?display(resetAt):"--:--";
- for(const target of document.querySelectorAll("[data-expires]"))target.textContent=display(Number(target.dataset.expires));
+ setText(document.getElementById("global-timer"),resetAt?display(resetAt):"--:--");
+ for(const view of cardViews.values())setText(view.values.expires,display(Number(view.values.expires.dataset.expires)));
 }
 function showEvents(message){
  const labels={appeared:"Apparu / réapparu",disappeared:"Disparu",updated:"État / données modifiés"};
- for(const event of message.events)notifications.unshift(new Date(message.serverTime).toLocaleTimeString()+" · "+labels[event.action]+" · "+event.egg.name+" · "+event.egg.globalUid+(event.reason==="cycle-expired"?" · Cycle terminé":""));
+ for(const event of message.events)notifications.unshift(new Date(message.serverTime).toLocaleTimeString()+" · "+labels[event.action]+" · "+event.egg.name+(event.reason==="cycle-expired"?" · Cycle terminé":""));
  notifications=notifications.slice(0,80);const list=document.getElementById("events");list.replaceChildren();for(const line of notifications)list.append(el("li",line));
 }
 function connect(){
  clearTimeout(retry);stopped=false;
  const previous=socket;socket=null;if(previous)previous.close();
- const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/sae/ws");socket=current;status.textContent="Connexion…";
+ const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/sae/ws");socket=current;setText(status,"Connexion…");
  current.onopen=()=>current.send(JSON.stringify({version:1,type:"hello",role:"viewer",token:document.getElementById("token").value}));
  current.onmessage=event=>{
   if(socket!==current)return;
-  try{const message=JSON.parse(event.data);
+  try{
+   const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
-   if(message.type==="eggs.state"){rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;document.getElementById("tab-eggs").textContent="Eggs ("+rows.length+")";renderCards();status.textContent=rows.length+" œuf(s) · "+serverCount+" serveur(s) observé(s)";}
-   else if(message.type==="players.state"){players=message.players;renderPlayers();renderCards();}
+   if(message.type==="eggs.state"){
+    rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
+    setText(document.getElementById("tab-eggs"),"Eggs ("+rows.length+")");renderCards();
+    setText(status,rows.length+" œuf(s) · "+serverCount+" serveur(s) observé(s) · En direct");
+   }else if(message.type==="players.state"){players=message.players;updateAllRosters();}
    else if(message.type==="eggs.events")showEvents(message);
    else if(message.type==="history.state"){
     historyRows=new Map(message.entries.map(row=>[row.id,row]));renderHistory();
-    document.getElementById("history-info").textContent="Historique : "+message.total+" événement(s), 2 000 derniers affichés. Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible.");
-   }
-   else if(message.type==="history.append"){for(const row of message.entries)historyRows.set(row.id,row);renderHistory();}
-   else if(message.type==="error")status.textContent=message.message;
-  }catch{status.textContent="Message serveur invalide";}
+    setText(document.getElementById("history-info"),"Historique des reçus · Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible."));
+   }else if(message.type==="history.append"){for(const row of message.entries)if(row.action==="appeared")historyRows.set(row.id,row);renderHistory();}
+   else if(message.type==="error")setText(status,message.message);
+  }catch{setText(status,"Message serveur invalide");}
  };
  current.onclose=event=>{
   if(socket!==current)return;
-  players=players.map(p=>({...p,reporterConnected:false}));renderPlayers();renderCards();
-  status.textContent="Déconnecté — observations précédentes, présence non confirmée.";
-  if(event.code===1008){stopped=true;status.textContent="Accès refusé : renseigne la clé de lecture puis reconnecte.";}
+  players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
+  setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
+  if(event.code===1008){stopped=true;setText(status,"Accès refusé : renseigne la clé de lecture puis reconnecte.");}
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
-for(const name of ["eggs","players","history"])document.getElementById("tab-"+name).onclick=()=>{
- for(const tab of ["eggs","players","history"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+for(const name of ["eggs","history"])document.getElementById("tab-"+name).onclick=()=>{
+ for(const tab of ["eggs","history"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 };
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
-setInterval(tick,1000);renderCards();renderPlayers();renderHistory();connect();
+setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>
