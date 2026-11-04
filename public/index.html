@@ -28,19 +28,24 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><label>Clé de lecture <input class="token" id="token" type="password" autocomplete="off" placeholder="Si configurée"></label><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
-<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button></nav>
+<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
 <div class="delivery-controls"><label>Envoi aux favoris ≥ <input id="delivery-minimum" value="2B/s" aria-label="Revenu minimum pour les favoris"></label><button id="delivery-apply" disabled>Appliquer</button><span id="delivery-info" class="muted">Chargement des favoris…</span></div>
 <p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO reste désactivé.</p>
 <div id="cards" class="cards"></div>
-<div class="notifications"><strong>Apparitions et disparitions</strong><ol id="events"><li>En attente d’un changement…</li></ol></div>
+
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
 <p class="muted" id="history-info">Historique Divine / Eternal : œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
 <div class="table"><table><thead><tr><th>Date</th><th>Heure</th><th>Événement</th><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Identifiant serveur/œuf</th><th>Cycle</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
 <p class="muted"><small>Illustrations : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
+<section id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
+<p class="muted" id="logs-info">Actions des joueurs · 1 000 dernières lignes.</p>
+<label>Filtrer <input id="logs-filter" placeholder="Joueur, action, œuf ou serveur"></label>
+<pre id="logs-lines" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:70vh;overflow:auto;background:#111a28;padding:16px;border-radius:12px"></pre>
+</section>
 <script>
 "use strict";
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0,notifications=[],historyRows=new Map();
@@ -231,11 +236,16 @@ function tick(){
  setText(document.getElementById("global-timer"),resetAt?display(resetAt):"--:--");
  for(const view of cardViews.values())setText(view.values.expires,display(Number(view.values.expires.dataset.expires)));
 }
-function showEvents(message){
- const labels={appeared:"Apparu / réapparu",disappeared:"Disparu",updated:"État / données modifiés"};
- for(const event of message.events)notifications.unshift(new Date(message.serverTime).toLocaleTimeString()+" · "+labels[event.action]+" · "+event.egg.name+(event.reason==="cycle-expired"?" · Cycle terminé":""));
- notifications=notifications.slice(0,80);const list=document.getElementById("events");list.replaceChildren();for(const line of notifications)list.append(el("li",line));
+let logRows=new Map();
+function renderLogs(){
+ const query=document.getElementById("logs-filter").value.toLowerCase();
+ const lines=[...logRows.values()].sort((a,b)=>a.at.localeCompare(b.at)).slice(-1000);
+ logRows=new Map(lines.map(row=>[row.id,row]));
+ const visible=lines.map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text).filter(line=>line.toLowerCase().includes(query));
+ setText(document.getElementById("logs-lines"),visible.join("\n")||"Aucune action reçue.");
+ setText(document.getElementById("tab-logs"),"Logs ("+lines.length+")");
 }
+document.getElementById("logs-filter").oninput=renderLogs;
 function connect(){
  clearTimeout(retry);stopped=false;deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
  const previous=socket;socket=null;if(previous)previous.close();
@@ -252,7 +262,10 @@ function connect(){
     setText(document.getElementById("tab-eggs"),"Eggs ("+rows.length+")");renderCards();
     setText(status,rows.length+" œuf(s) · "+serverCount+" serveur(s) observé(s) · En direct");
    }else if(message.type==="players.state"){players=message.players;updateAllRosters();}
-   else if(message.type==="eggs.events")showEvents(message);
+   else if(message.type==="logs.state"){
+    logRows=new Map(message.entries.map(row=>[row.id,row]));renderLogs();
+    setText(document.getElementById("logs-info"),"Actions des joueurs · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
+   }else if(message.type==="logs.append"){for(const row of message.entries)logRows.set(row.id,row);renderLogs();}
    else if(message.type==="history.state"){
     historyRows=new Map(message.entries.map(row=>[row.id,row]));renderHistory();
     setText(document.getElementById("history-info"),"Historique Divine / Eternal · Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible."));
@@ -269,8 +282,8 @@ function connect(){
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
-for(const name of ["eggs","history"])document.getElementById("tab-"+name).onclick=()=>{
- for(const tab of ["eggs","history"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+for(const name of ["eggs","history","logs"])document.getElementById("tab-"+name).onclick=()=>{
+ for(const tab of ["eggs","history","logs"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 };
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
@@ -281,3 +294,4 @@ document.getElementById("delivery-apply").onclick=()=>{
 };
 setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>
+

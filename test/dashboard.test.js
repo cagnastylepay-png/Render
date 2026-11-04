@@ -1,6 +1,19 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../public/index.html"),"utf8");
+test("logs tab renders live text, filters and caps 1000 lines without egg events panel",()=>{
+ const h=harness();
+ const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"Alice",jobId:"job",text:i===1004?'<b>Vol Reussi</b>':"Vente "+i}));
+ h.emit({type:"logs.state",entries,limit:1000,storage:"mongodb"});
+ assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
+ assert.match(h.document.getElementById("logs-lines").textContent,/<b>Vol Reussi<\/b>/);
+ assert.equal(h.document.getElementById("logs-lines").children.length,0);
+ h.document.getElementById("logs-filter").value="Vol";h.document.getElementById("logs-filter").oninput();
+ assert.equal(h.document.getElementById("logs-lines").textContent.split("\n").length,1);
+ h.emit({type:"logs.append",entries:[entries.at(-1)]});assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
+ h.document.getElementById("tab-logs").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
+ assert.doesNotMatch(html,/Apparitions et disparitions/);
+});
 function harness(){
  const roots=new Map();
  class Element{
@@ -125,3 +138,4 @@ test("rosters sort by game speed and favorites send the selected income policy",
  assert.equal(h.sent.at(-1).minimumIncomePerSecond,2.5e15);
  assert.equal(h.sent.at(-1).expectedRevision,1);
 });
+
