@@ -19,8 +19,9 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
     await client.connect();
     const target = client.db(database).collection("egg_history");
     await target.createIndex({ at: -1 });
+    await target.createIndex({ "egg.rarity": 1, action: 1, at: -1 });
     await target.createIndex({ id: 1 }, { unique: true });
-    const rows = await target.find({}, { projection: { _id: 0 } }).sort({ at: -1 }).limit(maxEntries).toArray();
+    const rows = await target.find({ action: "appeared", "egg.rarity": { $in: ["Divine", "Eternal"] } }, { projection: { _id: 0 } }).sort({ at: -1 }).limit(maxEntries).toArray();
     memory.hydrate(rows);
     collection = target;
     ready = true;
@@ -55,6 +56,7 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
   }
   function append(events) {
     const rows = memory.append(events);
+    if (!rows.length) return rows;
     for (const row of rows) pending.set(row.id, row);
     while (pending.size > maxEntries) pending.delete(pending.keys().next().value);
     void flush();

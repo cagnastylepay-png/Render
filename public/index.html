@@ -35,7 +35,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <div class="notifications"><strong>Apparitions et disparitions</strong><ol id="events"><li>En attente d’un changement…</li></ol></div>
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
-<p class="muted" id="history-info">Historique des œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
+<p class="muted" id="history-info">Historique Divine / Eternal : œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
 <div class="table"><table><thead><tr><th>Date</th><th>Heure</th><th>Événement</th><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Identifiant serveur/œuf</th><th>Cycle</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
 <p class="muted"><small>Illustrations : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
@@ -179,7 +179,7 @@ function renderCards(){
 }
 function updateAllRosters(){renderCards();}
 function renderHistory(){
- const list=[...historyRows.values()].filter(row=>row.action==="appeared").sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
+ const list=[...historyRows.values()].filter(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity)).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000);
  historyRows=new Map(list.map(row=>[row.id,row]));
  const body=document.getElementById("history");body.replaceChildren();
  const labels={appeared:"Reçu / réapparu",disappeared:"Disparu",updated:"Modifié"};
@@ -219,8 +219,8 @@ function connect(){
    else if(message.type==="eggs.events")showEvents(message);
    else if(message.type==="history.state"){
     historyRows=new Map(message.entries.map(row=>[row.id,row]));renderHistory();
-    setText(document.getElementById("history-info"),"Historique des reçus · Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible."));
-   }else if(message.type==="history.append"){for(const row of message.entries)if(row.action==="appeared")historyRows.set(row.id,row);renderHistory();}
+    setText(document.getElementById("history-info"),"Historique Divine / Eternal · Date et heure locales. "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente de connexion.":message.savedToDisk?"Sauvegarde disque locale active.":"Mémoire uniquement / sauvegarde indisponible."));
+   }else if(message.type==="history.append"){for(const row of message.entries)if(row.action==="appeared"&&["Divine","Eternal"].includes(row.egg?.rarity))historyRows.set(row.id,row);renderHistory();}
    else if(message.type==="error")setText(status,message.message);
   }catch{setText(status,"Message serveur invalide");}
  };

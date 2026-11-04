@@ -2,13 +2,16 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+function keepHistoryEvent(row) {
+  return row?.action === "appeared" && ["Divine", "Eternal"].includes(row.egg?.rarity);
+}
 function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now } = {}) {
   let entries = [], timer, lastError = null;
   if (filePath && fs.existsSync(filePath)) {
     try {
       const saved = JSON.parse(fs.readFileSync(filePath, "utf8"));
       if (!Array.isArray(saved)) throw new Error("Invalid history file");
-      entries = saved.filter(row => row && typeof row.id === "string" && row.egg && typeof row.at === "string").slice(-maxEntries);
+      entries = saved.filter(row => row && typeof row.id === "string" && row.egg && typeof row.at === "string" && keepHistoryEvent(row)).slice(-maxEntries);
     } catch (error) {
       lastError = error.message;
       fs.copyFileSync(filePath, filePath + ".invalid-" + Date.now());
@@ -28,8 +31,9 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     } catch (error) { lastError = error.message; console.error("Egg history save failed:", error.message); return false; }
   }
   function append(events) {
-    const added = events.map(event => ({ id: randomUUID(), at: new Date(now()).toISOString(),
+    const added = events.filter(keepHistoryEvent).map(event => ({ id: randomUUID(), at: new Date(now()).toISOString(),
       action: event.action, reason: event.reason, egg: event.egg }));
+    if (!added.length) return added;
     entries.push(...added);
     if (entries.length > maxEntries) entries = entries.slice(-maxEntries);
     if (filePath && !timer) { timer = setTimeout(flush, 300); timer.unref(); }
@@ -41,9 +45,9 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
   }
   return { append, state, flush, close: flush,
     hydrate(saved) {
-      const merged = new Map([...saved, ...entries].map(row => [row.id, row]));
+      const merged = new Map([...saved, ...entries].filter(keepHistoryEvent).map(row => [row.id, row]));
       entries = [...merged.values()].sort((a,b) => a.at.localeCompare(b.at)).slice(-maxEntries);
     }
   };
 }
-module.exports = { createEggHistory };
+module.exports = { createEggHistory, keepHistoryEvent };

@@ -30,7 +30,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     const entries = history.append(events);
     for (const ws of wss.clients) if (ws.role === "viewer") {
       send(ws, { version: 1, type: "eggs.events", serverTime: Date.now(), events });
-      send(ws, { version: 1, type: "history.append", entries });
+      if (entries.length) send(ws, { version: 1, type: "history.append", entries });
     }
   });
   const unsubscribeHistory = history.onReady?.(() => {

@@ -204,3 +204,27 @@ test("reporting accepts every observed rarity and retains all eggs",()=>{
  assert.throws(()=>store.accept(snapshot({revision:2,eggs:[{...egg,rarity:42}]})),/rarity/);
  assert.throws(()=>store.accept(snapshot({revision:2,eggs:[{...egg,rarity:"x".repeat(65)}]})),/rarity/);
 });
+
+test("history retains only Divine/Eternal receipts on append, hydrate and disk reload",t=>{
+ const fs=require("node:fs"),path=require("node:path");
+ const {createEggHistory}=require("../src/store/EggHistory");
+ const root=fs.mkdtempSync(path.join(process.cwd(),".history-test-")),file=path.join(root,"history.json");
+ t.after(()=>{for(const name of [file,file+".tmp"])if(fs.existsSync(name))fs.unlinkSync(name);fs.rmdirSync(root);});
+ const at="2026-11-04T12:00:00.000Z";
+ const legacy=["Common","Secret","Cosmic","Divine","Eternal"].map((rarity,i)=>({id:"old"+i,at,action:"appeared",egg:{...egg,rarity}}));
+ legacy.push({id:"gone",at,action:"disappeared",egg:{...egg,rarity:"Divine"}});
+ fs.writeFileSync(file,JSON.stringify(legacy));
+ const history=createEggHistory({filePath:file});
+ assert.equal(history.state().total,2);
+ history.hydrate(legacy);
+ assert.equal(history.state().total,2);
+ const events=legacy.map(row=>({action:row.action,egg:row.egg}));
+ const added=history.append(events);
+ assert.equal(added.length,2);
+ assert.equal(history.append([{action:"updated",egg:{...egg,rarity:"Eternal"}}]).length,0);
+ assert.equal(history.append([{action:"appeared",egg:{...egg,rarity:"Common"}}]).length,0);
+ history.close();
+ const rows=JSON.parse(fs.readFileSync(file,"utf8"));
+ assert.equal(rows.length,4);
+ assert.ok(rows.every(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg.rarity)));
+});
