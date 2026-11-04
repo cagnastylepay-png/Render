@@ -34,6 +34,8 @@ test("WebSocket updates retain image nodes, open sections and use game speed",()
  h.emit(eggs());
  const container=h.document.getElementById("cards"),card=container.children[0],image=card.querySelectorAll("img")[0],details=card.querySelectorAll("details");
  details[0].open=true;details[1].open=true;
+ assert.equal(image.loading,"eager");
+ image.onload();assert.equal(image.hidden,false);
  h.emit({type:"players.state",players:[{placeId:"123",jobId:"job",userId:"1",name:"Alice",displayName:"Alice",reporterConnected:true,walkSpeed:16,speedPower:3e12,incomePerSecond:4e15}]});
  egg.incomePerSecond=5e9;
  h.emit(eggs());h.emit(eggs());
