@@ -64,3 +64,40 @@ test("game suffixes and receipts-only history",()=>{
  assert.doesNotMatch(body.textContent,/Disparu|Modifié/);
 });
 
+
+test("server cards select the best egg, expand all eggs and keep expansion across updates",()=>{
+ const h=harness(),now=Date.now(),base={placeId:"123",rarity:"Cosmic",imageUrl:"/eggs/a.webp",expiresAt:now+60000};
+ const eggs=[{...base,uid:"same-id",jobId:"server-a",name:"Low",incomePerSecond:1e9},
+  {...base,uid:"best",jobId:"server-a",name:"Best",incomePerSecond:5e9},
+  {...base,uid:"same-id",jobId:"server-b",name:"Other",incomePerSecond:3e9}];
+ const emit=()=>h.emit({type:"eggs.state",serverCount:2,nextResetAt:now+60000,eggs});
+ emit();
+ const container=h.document.getElementById("cards");
+ assert.equal(container.children.length,2);
+ const first=container.children[0];
+ assert.match(first.textContent,/Best/);
+ const a=vm.runInContext('serverViews.get(JSON.stringify(["123","server-a"]))',h.context);
+ assert.equal(a.view.name.textContent,"Best");
+ assert.equal(a.list.children.length,2);
+ a.expand.open=true;
+ const nested=a.list.children[0],image=nested.querySelectorAll("img")[0];
+ emit();
+ assert.equal(a.expand.open,true);
+ assert.equal(a.list.children[0],nested);
+ assert.equal(image.srcWrites,1);
+ eggs[0].incomePerSecond=8e9;emit();
+ assert.equal(a.view.name.textContent,"Low");
+ assert.equal(a.expand.open,true);
+ eggs.splice(0,1);emit();
+ assert.equal(a.view.name.textContent,"Best");
+ assert.equal(a.list.children.length,1);
+ h.emit({type:"players.state",players:[{placeId:"123",jobId:"empty-server",userId:"9",name:"Bob",displayName:"Bob",reporterConnected:true}]});
+ assert.equal(container.children.length,3);
+ const empty=vm.runInContext('serverViews.get(JSON.stringify(["123","empty-server"]))',h.context);
+ assert.equal(empty.view.name.textContent,"Aucun œuf signalé");
+ assert.equal(empty.expand.hidden,true);
+ assert.match(empty.connection.textContent,/Connecté/);
+ h.document.getElementById("rarity").value="Divine";
+ vm.runInContext("renderCards()",h.context);
+ assert.equal(vm.runInContext("serverViews.size",h.context),0);
+});
