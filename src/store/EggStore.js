@@ -1,6 +1,5 @@
 "use strict";
 const { getEggImage } = require("../assets/EggImages");
-const RARITIES = new Set(["Divine", "Eternal", "Secret", "Cosmic"]);
 function text(value, name, max = 160) {
   if (typeof value !== "string" || !value.length || value.length > max) throw new Error("Invalid " + name);
   return value;
@@ -30,12 +29,13 @@ function validateSnapshot(message) {
   if (!Array.isArray(message.eggs) || message.eggs.length > 500) throw new Error("Invalid eggs");
   const seen = new Set();
   const eggs = message.eggs.map(egg => {
-    if (!egg || !RARITIES.has(egg.rarity)) throw new Error("Invalid rarity");
+    if (!egg) throw new Error("Invalid egg");
+    const rarity = text(egg.rarity, "rarity", 64);
     const uid = text(egg.uid, "uid");
     if (seen.has(uid)) throw new Error("Duplicate UID");
     seen.add(uid);
     const item = { uid, category: text(egg.category, "category"), name: text(egg.name, "name", 240),
-      rarity: egg.rarity, weightKg: metric(egg.weightKg, "weightKg"), incomePerSecond: metric(egg.incomePerSecond, "incomePerSecond"),
+      rarity, weightKg: metric(egg.weightKg, "weightKg"), incomePerSecond: metric(egg.incomePerSecond, "incomePerSecond"),
       sellValue: metric(egg.sellValue, "sellValue"), assetScale: metric(egg.assetScale, "assetScale"),
       position: point(egg.position), ownerUserId: metric(egg.ownerUserId, "ownerUserId"), carrierUserId: metric(egg.carrierUserId, "carrierUserId") };
     for (const key of ["state", "areaId", "zone", "baseMutation", "gender", "personality", "skin", "icon"]) {

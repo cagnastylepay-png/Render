@@ -24,7 +24,7 @@ test("store replaces snapshots, handles independent revisions, clears empty cycl
   assert.equal(store.accept(snapshot({ cycleId: "11", revision: 2, eggs: [{ ...egg, weightKg: null }] })), true);
   clock += 101;
   assert.equal(store.state().serverCount, 0);
-  assert.throws(() => store.accept(snapshot({ eggs: [{ ...egg, rarity: "Common" }] })));
+  assert.throws(() => store.accept(snapshot({ eggs: [{ ...egg, rarity: "" }] })));
   assert.throws(() => store.accept(snapshot({ eggs: [{ ...egg, incomePerSecond: Infinity }] })));
 });
 async function connect(url, role, token) {
@@ -193,4 +193,14 @@ test("Mongo history upserts queued observations and reloads them across instance
  assert.equal(restored.state().entries.length,1);
  assert.equal(restored.state().entries[0].egg.globalUid,"job/egg");
  await restored.close();
+});
+
+test("reporting accepts every observed rarity and retains all eggs",()=>{
+ const store=createEggStore();
+ const rarities=["Common","Uncommon","Rare","Epic","Legendary","Mythic","Cosmic","Secret","Eternal","Divine"];
+ assert.equal(store.accept(snapshot({eggs:rarities.map((rarity,i)=>({...egg,uid:"all-"+i,rarity}))})),true);
+ assert.equal(store.state().eggs.length,rarities.length);
+ assert.deepEqual(new Set(store.state().eggs.map(e=>e.rarity)),new Set(rarities));
+ assert.throws(()=>store.accept(snapshot({revision:2,eggs:[{...egg,rarity:42}]})),/rarity/);
+ assert.throws(()=>store.accept(snapshot({revision:2,eggs:[{...egg,rarity:"x".repeat(65)}]})),/rarity/);
 });
