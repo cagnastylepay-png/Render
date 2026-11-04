@@ -61,7 +61,7 @@ function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
  heading.append(rarity,name);
  const go=el("button","GO");go.disabled=true;go.title="Connexion prévue ultérieurement";head.append(heading,go);node.append(head);
- const art=el("div",null,"egg-art"),placeholder=el("span","🥚"),image=el("img");image.loading="lazy";image.hidden=true;
+ const art=el("div",null,"egg-art"),placeholder=el("span","🥚"),image=el("img");image.loading="eager";image.hidden=true;
  image.onload=()=>{placeholder.hidden=true;image.hidden=false;};image.onerror=()=>{image.hidden=true;placeholder.hidden=false;};
  art.append(placeholder,image);node.append(art);
  const metrics=el("div",null,"metrics"),values={};
