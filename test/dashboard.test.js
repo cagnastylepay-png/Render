@@ -8,10 +8,13 @@ test("logs tab renders live text, filters and caps 1000 lines without egg events
  assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  assert.match(h.document.getElementById("logs-lines").textContent,/<b>Vol Reussi<\/b>/);
  assert.equal(h.document.getElementById("logs-lines").children.length,0);
+ assert.match(h.document.getElementById("logs-lines").textContent.split("\n")[0],/Vol Reussi/);
  h.document.getElementById("logs-filter").value="Vol";h.document.getElementById("logs-filter").oninput();
  assert.equal(h.document.getElementById("logs-lines").textContent.split("\n").length,1);
  h.emit({type:"logs.append",entries:[entries.at(-1)]});assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  h.document.getElementById("tab-logs").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
+ h.document.getElementById("logs-clear").onclick();assert.equal(h.sent.at(-1).type,"logs.clear");
+ h.emit({type:"logs.state",entries:[],limit:1000,storage:"mongodb"});assert.equal(h.document.getElementById("tab-logs").textContent,"Logs (0)");
  assert.doesNotMatch(html,/Apparitions et disparitions/);
 });
 function harness(){

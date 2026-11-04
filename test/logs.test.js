@@ -15,12 +15,14 @@ test("logs use reporter identity, acknowledge, deduplicate and replay to a new v
  await waitFor(()=>reporter.messages.find(m=>m.type==="logs.ack"));reporter.send(batch);
  const next=await peer(url,"viewer");peers.push(next);const state=await waitFor(()=>next.messages.find(m=>m.type==="logs.state"));assert.equal(state.entries.length,1);assert.equal(state.limit,1000);
  viewer.send(batch);await waitFor(()=>viewer.messages.find(m=>m.type==="error"));
+ reporter.send({type:"logs.clear"});await waitFor(()=>reporter.messages.find(m=>m.type==="error"&&m.message.includes("clear")));
+ viewer.send({type:"logs.clear"});await waitFor(()=>next.messages.filter(m=>m.type==="logs.state").at(-1).entries.length===0);
 });
 test("logs persist in Mongo, restore, enforce retention and reject invalid batches atomically",async()=>{
  let saved=[];
  const factory=()=>({async connect(){},async close(){},db(){return {collection(){return {
   async createIndex(){},find(){let skip=0,limit=Infinity;return {sort(){return this},skip(n){skip=n;return this},limit(n){limit=n;return this},async toArray(){return [...saved].reverse().slice(skip,skip+limit)}}},
-  async bulkWrite(ops){for(const op of ops){const row=op.updateOne.update.$setOnInsert;if(!saved.some(old=>old.id===row.id))saved.push(row);}},async deleteMany(filter){saved=saved.filter(row=>!filter.id.$in.includes(row.id));}
+  async bulkWrite(ops){for(const op of ops){const row=op.updateOne.update.$setOnInsert;if(!saved.some(old=>old.id===row.id))saved.push(row);}},async deleteMany(filter){saved=filter.id?saved.filter(row=>!filter.id.$in.includes(row.id)):[];}
  }}}}});
  const identity={userId:"42",name:"Alice",jobId:"job",placeId:"123"},store=createClientLogs({uri:"mongodb://fake",clientFactory:factory,maxEntries:3});
  await new Promise(r=>setTimeout(r,0));
@@ -30,6 +32,7 @@ test("logs persist in Mongo, restore, enforce retention and reject invalid batch
  assert.equal(restored.state().storage,"mongodb");assert.equal(restored.state().entries.length,3);
  assert.equal(restored.append(identity,{...batch,lines:batch.lines.slice(-3)}).length,0);
  assert.throws(()=>restored.append(identity,{...batch,lines:[{sequence:9,text:"ok"},{sequence:10,text:4}]}));assert.equal(restored.state().entries.length,3);
+ await restored.clear();assert.equal(saved.length,0);assert.equal(restored.state().entries.length,0);
  await restored.close();
 });
 

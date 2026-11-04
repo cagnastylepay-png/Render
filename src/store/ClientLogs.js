@@ -2,9 +2,9 @@
 const {MongoClient}=require("mongodb");
 function createClientLogs({uri=process.env.MONGODB_URI,database=process.env.MONGODB_DB||"autosae",maxEntries=1000,clientFactory=uri=>new MongoClient(uri,{serverSelectionTimeoutMS:5000})}={}){
  const rows=new Map(),pending=new Map(),listeners=new Set();
- let client,collection,running,timer,closed=false;
+ let client,collection,running,timer,clearing,closed=false;
  function retain(row){rows.set(row.id,row);while(rows.size>maxEntries)rows.delete(rows.keys().next().value);}
- function schedule(){if(closed||timer||!uri)return;timer=setTimeout(()=>{timer=null;void flush();},collection?500:30000);timer.unref();}
+ function schedule(){if(closed||clearing||timer||!uri)return;timer=setTimeout(()=>{timer=null;void flush();},collection?500:30000);timer.unref();}
  async function persist(){
   if(!uri)return;
   try{
@@ -30,6 +30,18 @@ function createClientLogs({uri=process.env.MONGODB_URI,database=process.env.MONG
  function flush(){if(running)return running;running=persist().finally(()=>{running=null;if(pending.size)schedule();});return running;}
  if(uri)void flush();
  return {
+  async clear(){
+   if(clearing)throw Error("Log clear already in progress");
+   let release;clearing=new Promise(resolve=>{release=resolve;});clearTimeout(timer);timer=null;
+   try{
+    await flush();
+    if(uri&&!collection)throw Error("MongoDB unavailable: logs were not cleared");
+    const ids=[...rows.keys()],pendingIds=[...pending.keys()];
+    if(collection)await collection.deleteMany({});
+    for(const id of ids)rows.delete(id);
+    for(const id of pendingIds)pending.delete(id);
+   }finally{release();clearing=null;if(pending.size)schedule();}
+  },
   append(identity,message){
    if(message.version!==1||typeof message.sessionId!=="string"||message.sessionId.length>100||!Array.isArray(message.lines)||message.lines.length>100)throw Error("Invalid logs batch");
    const entries=message.lines.map(line=>{
@@ -43,7 +55,7 @@ function createClientLogs({uri=process.env.MONGODB_URI,database=process.env.MONG
   },
   state(){return {version:1,type:"logs.state",entries:[...rows.values()],limit:maxEntries,storage:collection?"mongodb":uri?"mongodb-pending":"memory"};},
   onReady(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
-  async close(){closed=true;clearTimeout(timer);await flush();if(client)await client.close().catch(()=>{});}
+  async close(){closed=true;clearTimeout(timer);if(clearing)await clearing;await flush();if(client)await client.close().catch(()=>{});}
  };
 }
 module.exports={createClientLogs};
