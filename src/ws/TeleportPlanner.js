@@ -10,6 +10,6 @@ function planTeleport(identity,settings,eggs,now=Date.now()){
  candidates.sort((a,b)=>b.incomePerSecond-a.incomePerSecond||a.key.localeCompare(b.key));
  const target=candidates[0];
  if(!target)return null;
- return {target,immediate:target.incomePerSecond>=(options.TeleportInstantMin??100e9)};
+ return {target,immediate:target.incomePerSecond>=(options.TeleportInstantMin??50e9)};
 }
 module.exports={planTeleport};

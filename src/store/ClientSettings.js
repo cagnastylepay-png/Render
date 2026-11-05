@@ -6,7 +6,7 @@ function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
  if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
- result.TeleportInstantMin=input.TeleportInstantMin??100e9;
+ result.TeleportInstantMin=input.TeleportInstantMin??50e9;
  if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");
  result.QueueNearest=input.QueueNearest===true;
  for(const key of toggles){if(typeof input[key]!=="boolean")throw Error("Invalid setting "+key);result[key]=input[key];}
