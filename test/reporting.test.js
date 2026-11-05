@@ -45,7 +45,7 @@ async function waitFor(predicate) {
   throw new Error("Timed out waiting for WebSocket message");
 }
 test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer read-only, reconnect", async t => {
-  const server = createServer({ history: { filePath: null }, gateway: { reportToken: "test-report", viewerToken: "test-view" } });
+  const server = createServer({ history: { filePath: null }, gateway: { reportToken: "test-report", viewerToken: "test-view",delivery:{uri:null,filePath:null} } });
   const peers = [];
   t.after(async () => {
     for (const peer of peers) peer.ws.terminate();
@@ -61,6 +61,9 @@ test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer 
   const viewer = await connect(url, "viewer", "test-view"); peers.push(viewer);
   const reporter = await connect(url, "reporter", "test-report"); peers.push(reporter);
   await waitFor(() => reporter.messages.find(m => m.type === "hello.ack"));
+  const policy=await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"));
+  viewer.ws.send(JSON.stringify({type:"delivery.configure",expectedRevision:policy.revision,favoriteUserIds:["1"],minimumIncomePerSecond:0}));
+  await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"&&m.favoriteUserIds.includes("1")));
   reporter.ws.send(JSON.stringify(presence()));
   await waitFor(() => reporter.messages.find(m=>m.type==="players.ack"&&m.accepted));
   await waitFor(() => viewer.messages.find(m=>m.type==="players.state"&&m.players.some(p=>p.reporterConnected)));

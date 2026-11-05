@@ -3,6 +3,7 @@
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
 const {createClientLogs}=require("../store/ClientLogs");
+const {hourlyHistory}=require("../store/EggHistory");
 const { createDeliveryPolicy } = require("../store/DeliveryPolicy");
 function sameToken(provided, expected) {
   if (!expected) return true; // Explicit anonymous test mode when no token is configured.
@@ -15,7 +16,25 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   let closed = false;
   const policy=createDeliveryPolicy(delivery);
   const logs=createClientLogs(logOptions);
-  const unsubscribeLogs=logs.onReady(()=>{for(const ws of wss.clients)if(ws.role==="viewer")send(ws,logs.state());});
+  const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
+  function sendReporterPolicy(ws){
+    const favorite=isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
+    send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendEggs:true,sendPlayers:true});
+  }
+  function logsState(){const state=logs.state();return {...state,entries:state.entries.filter(row=>isFavorite(row.userId))};}
+  function historyState(){
+    const state=history.state(),all=(history.all?.()||state.entries).filter(row=>isFavorite(row.reporterUserId));
+    return {...state,total:all.length,entries:all.slice().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,2000),hourly:hourlyHistory(all),favoritesOnly:true};
+  }
+  function recordFavoriteSnapshot(ws,message){
+    const identity=ws.reporterIdentity;
+    if(!identity||!isFavorite(identity.userId)||identity.jobId!==message.jobId||identity.placeId!==message.placeId)return;
+    const ids=new Set(message.eggs.map(egg=>egg.uid));
+    const eggs=store.state().eggs.filter(egg=>egg.jobId===message.jobId&&egg.placeId===message.placeId&&ids.has(egg.uid));
+    const entries=history.append(eggs.map(egg=>({action:"appeared",reason:"favorite-observation",egg,reporterUserId:identity.userId,reporterName:identity.name})));
+    if(entries.length){const state=historyState();for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,{version:1,type:"history.append",entries,hourly:state.hourly,hourlyTimeZone:state.hourlyTimeZone});}
+  }
+  const unsubscribeLogs=logs.onReady(()=>{for(const ws of wss.clients)if(ws.role==="viewer")send(ws,logsState());});
   function send(ws, message) {
     if (ws.readyState !== WebSocket.OPEN) return;
     if (ws.bufferedAmount > 8388608) { ws.close(1013, "Slow client"); return; }
@@ -36,7 +55,8 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
-    for(const ws of wss.clients)if(ws.role==="viewer")send(ws,config);
+    for(const ws of wss.clients)if(ws.role==="viewer"){send(ws,config);send(ws,historyState());send(ws,logsState());}
+    for(const ws of wss.clients)if(ws.role==="reporter")sendReporterPolicy(ws);
     broadcast();
   });
   let broadcastTimer;
@@ -51,14 +71,12 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     broadcastTimer.unref();
   }
   const unsubscribeEvents = store.onEvents(events => {
-    const entries = history.append(events);
     for (const ws of wss.clients) if (ws.role === "viewer") {
       send(ws, { version: 1, type: "eggs.events", serverTime: Date.now(), events });
-      if (entries.length) send(ws, { version: 1, type: "history.append", entries, hourly:history.state().hourly, hourlyTimeZone:"Europe/Paris" });
     }
   });
   const unsubscribeHistory = history.onReady?.(() => {
-    for (const ws of wss.clients) if (ws.role === "viewer") send(ws, history.state());
+    for (const ws of wss.clients) if (ws.role === "viewer") send(ws, historyState());
   }) || (() => {});
   function upgrade(req, socket, head) {
     if ((req.url || "").split("?")[0] !== "/sae/ws") { socket.destroy(); return; }
@@ -88,22 +106,24 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
             ws.close(1008, "Authentication failed"); return;
           }
           ws.role = message.role;
+          if(ws.role==="reporter"&&typeof message.reporterUserId==="string"&&/^\d{1,20}$/.test(message.reporterUserId))ws.claimedReporterUserId=message.reporterUserId;
           clearTimeout(handshake);
           send(ws, { version: 1, type: "hello.ack", role: ws.role });
-          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, history.state()); send(ws,policy.state()); send(ws,logs.state()); }
+          if(ws.role==="reporter"){await policy.ready;sendReporterPolicy(ws);}
+          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, historyState()); send(ws,policy.state()); send(ws,logsState()); }
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
         if(message.type==="logs.clear"){
           if(ws.role!=="viewer")throw Error("Only dashboard viewers may clear logs");
           await logs.clear();
-          for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,logs.state());
+          for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,logsState());
           return;
         }
         if(message.type==="history.clear"){
           if(ws.role!=="viewer")throw Error("Only dashboard viewers may clear history");
           await history.clear();
-          for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,history.state());
+          for(const viewer of wss.clients)if(viewer.role==="viewer")send(viewer,historyState());
           return;
         }
         if(message.type==="delivery.configure"){
@@ -113,8 +133,13 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           return;
         }
         if (ws.role !== "reporter") throw new Error("Viewer is read-only");
+        await policy.ready;
         if(message.type==="logs.append"){
           if(!ws.reporterIdentity)throw Error("Player identity required before logs");
+          if(!isFavorite(ws.reporterIdentity.userId)){
+            if(!Array.isArray(message.lines)||message.lines.length>100||!message.lines.every(line=>Number.isSafeInteger(line.sequence)&&line.sequence>0))throw Error("Invalid logs batch");
+            send(ws,{version:1,type:"logs.ack",sessionId:message.sessionId,sequence:Math.max(0,...message.lines.map(line=>line.sequence)),accepted:false});return;
+          }
           const entries=logs.append(ws.reporterIdentity,message);
           send(ws,{version:1,type:"logs.ack",sessionId:message.sessionId,sequence:Math.max(0,...message.lines.map(line=>line.sequence))});
           for(const viewer of wss.clients)if(viewer.role==="viewer"&&entries.length)send(viewer,{version:1,type:"logs.append",entries});
@@ -126,6 +151,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           if (accepted) {
             const reporter=message.players.find(player=>player.userId===message.reporterUserId);
             ws.reporterIdentity={name:reporter.displayName||reporter.name,userId:reporter.userId,placeId:message.placeId,jobId:message.jobId};
+            sendReporterPolicy(ws);
             broadcast();
           }
           return;
@@ -133,7 +159,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
         const accepted = store.accept(message);
         send(ws, { version: 1, type: "eggs.ack", sessionId: message.sessionId, cycleId: message.cycleId,
           revision: message.revision, accepted });
-        if (accepted) broadcast();
+        if (accepted) {recordFavoriteSnapshot(ws,message);broadcast();}
       } catch (error) {
         send(ws, { version: 1, type: "error", message: String(error.message).slice(0, 160) });
       }

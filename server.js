@@ -13,7 +13,16 @@ function createServer(options = {}) {
     }
     if (route === "/health") {
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", build: "eggs-players-v2", reporting: "ready", historyStorage: service.history.state().storage, ...service.gateway.info() }));
+      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", build: "eggs-players-v2", reporting: "ready", ...service.gateway.info() }));
+      return;
+    }
+    const nativeImage=route.match(/^\/eggs-native\/(\d+\.png)$/);
+    if(nativeImage){
+      fs.readFile(path.join(__dirname,"public","eggs-native",nativeImage[1]),(error,content)=>{
+        if(error){res.writeHead(error.code==="ENOENT"?404:500);res.end();return;}
+        res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});
+        res.end(req.method==="HEAD"?undefined:content);
+      });
       return;
     }
     const image = route.match(/^\/eggs\/([a-z0-9-]+\.webp)$/);
@@ -60,3 +69,4 @@ if (require.main === module) {
 }
 
 module.exports = { createServer };
+

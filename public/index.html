@@ -42,14 +42,14 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <h2>Observations par heure</h2>
 <div class="hourly-legend"><span class="hourly-divine" id="hourly-divine-total">Divine · 0</span><span class="hourly-eternal" id="hourly-eternal-total">Eternal · 0</span></div>
 <div class="hourly-scroll"><div class="hourly-plot"><div class="hourly-axis" id="hourly-axis"></div><div class="hourly-bars" id="hourly-bars" role="img" aria-label="Nombre de premières observations Divine et Eternal par heure"></div></div></div>
-<p class="hourly-caption">Cumul de l’historique conservé · Heures de Paris · Un œuf par serveur et cycle.</p>
+<p class="hourly-caption">Cumul des observations des joueurs favoris · Heures de Paris · Un œuf par serveur et cycle.</p>
 </div>
 <button id="history-clear" title="Supprimer l’historique de MongoDB pour tous les clients">Vider l’historique</button>
-<p class="muted">Une seule première observation par serveur, œuf et cycle. L’heure de détection peut être postérieure au spawn ; elle ne suffit pas à prouver une périodicité.</p>
+<p class="muted">Seules les observations attribuées aux joueurs favoris sont comptées, une fois par serveur, œuf et cycle. L’heure de détection peut être postérieure au spawn ; elle ne suffit pas à prouver une périodicité.</p>
 <p class="muted" id="history-info">Historique Divine / Eternal : œufs reçus ou réapparus. Date et heure locales du navigateur.</p>
 <div class="table"><table><thead><tr><th>Date</th><th>Heure</th><th>Événement</th><th>Œuf</th><th>Rareté</th><th>Poids</th><th>Revenu/s</th><th>Identifiant serveur/œuf</th><th>Cycle</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
-<p class="muted"><small>Illustrations : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
+<p class="muted"><small>Images du jeu Roblox · Compléments : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
 <section id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
 <p class="muted" id="logs-info">Actions des joueurs · 1 000 dernières lignes.</p>
 <label>Filtrer <input id="logs-filter" placeholder="Joueur, action, œuf ou serveur"></label>
@@ -305,7 +305,7 @@ function connect(){
    }else if(message.type==="players.state"){players=message.players;updateAllRosters();}
    else if(message.type==="logs.state"){
     logRows=new Map(message.entries.map(row=>[row.id,row]));renderLogs();
-    setText(document.getElementById("logs-info"),"Actions des joueurs · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
+    setText(document.getElementById("logs-info"),"Actions des joueurs favoris · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
    }else if(message.type==="logs.append"){for(const row of message.entries)logRows.set(row.id,row);renderLogs();}
    else if(message.type==="history.state"){
     if(message.hourly)hourlyCounts=message.hourly;

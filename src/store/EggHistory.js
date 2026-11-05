@@ -55,7 +55,8 @@ function createEggHistory({ filePath = null, maxEntries = 10000, now = Date.now 
     for(const event of events.filter(keepHistoryEvent)){
       const id=historyIdentity(event.egg);
       if(seen.has(id))continue;
-      seen.add(id);added.push({id,at:new Date(now()).toISOString(),action:event.action,reason:event.reason,egg:event.egg});
+      seen.add(id);added.push({id,at:new Date(now()).toISOString(),action:event.action,reason:event.reason,egg:event.egg,
+        reporterUserId:event.reporterUserId,reporterName:event.reporterName});
     }
     if (!added.length) return added;
     entries.push(...added);

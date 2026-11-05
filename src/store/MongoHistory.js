@@ -70,7 +70,7 @@ function createMongoHistory({ uri, database = "autosae", maxEntries = 10000,
   }
   void flush();
   return {
-    append, flush,
+    append, flush, all:memory.all,
     async clear(){
       if(clearing)throw Error("History clear already in progress");
       let release;clearing=new Promise(resolve=>{release=resolve;});clearTimeout(timer);timer=undefined;
