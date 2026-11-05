@@ -90,8 +90,8 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       if(isFavorite(ws.reporterIdentity.userId)){
         const reason=!saved?"Attente des parametres du favori":!saved.automationActive?"Teleportation bloquee : "+(saved.automationReason||"Auto arrete ou en pause"):
           (!saved.options.AutoEggs&&!saved.options.AutoIndex)?"Teleportation bloquee : AutoEggs et Manquants OFF":
-          plan?"Demande envoyee : "+describeTarget(plan.target)+" Serveur="+plan.target.jobId+" Mode="+(plan.immediate?"immediat":"attente de file vide"):
-          "Aucune cible distante eligible avec place libre et joueurs observes (seuils, index, serveurs visites ou expiration)";
+          plan?"Demande envoyee : "+describeTarget(plan.target)+" Serveur="+plan.target.jobId+" Joueurs="+plan.playerCount+"/7"+(plan.playerCount>=7?" (serveur affiche plein, tentative autorisee)":"")+" Mode="+(plan.immediate?"immediat":"attente de file vide"):
+          "Aucune cible distante eligible avec joueurs observes (seuils, index, serveurs visites ou expiration)";
         const diagnostic=JSON.stringify([reason,plan?.target.cycleId]);
         if(ws.teleportDiagnostic!==diagnostic){ws.teleportDiagnostic=diagnostic;audit(ws.reporterIdentity,reason);}
       }
@@ -285,7 +285,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }, 15000);
   heartbeat.unref();
   return {
-    info: () => ({ executionConfigured:false, teleportSelection:"free-slot-lowest-top-speed", serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
+    info: () => ({ executionConfigured:false, teleportSelection:"lowest-top-speed-allow-full", allowFullFavoriteServers:true, serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
     close() {
       if (closed) return;
       closed = true;

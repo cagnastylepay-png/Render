@@ -20,7 +20,7 @@ function presence(id,job,others=[]){
 
 const {planTeleport}=require("../src/ws/TeleportPlanner");
 
-test("missing index targets bypass income ranges only when enabled and still obey capacity",()=>{
+test("missing index targets bypass income ranges only when enabled and allow a full server",()=>{
  const identity={placeId:"123",jobId:"home"};
  const settings={automationActive:true,options:{...options,AutoEggs:false,AutoIndex:true},missingCategories:{Phoenix:true}};
  const egg={key:"123/remote/egg",placeId:"123",jobId:"remote",category:"Phoenix",incomePerSecond:1,expiresAt:20000};
@@ -31,7 +31,7 @@ test("missing index targets bypass income ranges only when enabled and still obe
  assert.equal(planTeleport(identity,{...settings,automationActive:false},[egg],10000,roster),null);
  assert.equal(planTeleport(identity,settings,[{...egg,carrierUserId:2}],10000,roster),null);
  const full=Array.from({length:7},(_,i)=>({...roster[0],userId:String(i)}));
- assert.equal(planTeleport(identity,settings,[egg],10000,full),null);
+ assert.equal(planTeleport(identity,settings,[egg],10000,full).playerCount,7);
 });
 
 const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true,TeleportInstantMin:10e9};
@@ -62,10 +62,10 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  favorite.send({...settings,revision:2,options:{...options,TeleportInstantMin:3e9}});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.immediate));
  const sixOthers=Array.from({length:6},(_,i)=>({userId:String(i+3),name:"Guest"+i,displayName:"Guest"+i,speedPower:100}));
  ordinary.send({...presence("2","remote",sixOthers),revision:2});
- await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
- const beforeSpace=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
+ await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("7/7")&&row.text.includes("tentative autorisee"))));
+ assert.equal(favorite.messages.filter(m=>m.type==="teleport.request").at(-1).target.jobId,"remote");
  ordinary.send({...presence("2","remote",sixOthers.slice(0,5)),revision:3});
- await waitFor(()=>favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length>beforeSpace);
+ await waitFor(()=>ordinary.messages.find(m=>m.type==="players.ack"&&m.revision===3));
  ordinary.send({...snapshot,revision:2,eggs:[]});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
  await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Oeuf disparu ou observation expiree"))));
  favorite.send({...settings,revision:3,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===3));ordinary.send({...snapshot,revision:3});await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"&&m.revision===3));
@@ -75,16 +75,17 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
 });
 
-test("teleport selection excludes full or unobserved servers, then minimizes the fastest opponent",()=>{
+test("teleport selection allows full servers, requires observations and minimizes the fastest opponent",()=>{
  const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options};
  const egg=(job,income,uid="egg")=>({key:"123/"+job+"/"+uid,placeId:"123",jobId:job,uid,expiresAt:20000,incomePerSecond:income});
  const roster=(job,speeds)=>speeds.map((speed,index)=>({placeId:"123",jobId:job,userId:job+index,speedPower:speed,reporterConnected:index===0}));
  const eggs=[egg("full",50e9),egg("strong",20e9),egg("weak",3e9),egg("weak",4e9,"best")];
  const players=[...roster("full",[1,1,1,1,1,1,1]),...roster("strong",[1,1000]),...roster("weak",[20,10,15,10,10,10])];
- assert.equal(planTeleport(identity,settings,eggs,10000,players).target.key,"123/weak/best");
- assert.equal(planTeleport(identity,settings,[eggs[0]],10000,players),null);
+ assert.equal(planTeleport(identity,settings,eggs,10000,players).target.jobId,"full");
+ assert.equal(planTeleport(identity,settings,eggs.slice(1),10000,players).target.key,"123/weak/best");
+ assert.equal(planTeleport(identity,settings,[eggs[0]],10000,players).playerCount,7);
  assert.equal(planTeleport(identity,settings,eggs,10000,[]),null);
  assert.equal(planTeleport(identity,settings,eggs,10000,players.map(p=>({...p,reporterConnected:false}))),null);
- const unknown=egg("unknown",90e9);assert.equal(planTeleport(identity,settings,[...eggs,unknown],10000,[...players,...roster("unknown",[null])]).target.jobId,"weak");
+ const unknown=egg("unknown",90e9);assert.equal(planTeleport(identity,settings,[...eggs,unknown],10000,[...players,...roster("unknown",[null])]).target.jobId,"full");
  assert.equal(planTeleport(identity,settings,[egg("tieA",3e9),egg("tieB",5e9)],10000,[...roster("tieA",[20]),...roster("tieB",[20])]).target.jobId,"tieB");
 });
