@@ -14,14 +14,14 @@ function sameToken(provided, expected) {
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {}, executionToken=process.env.SAE_EXEC_TOKEN||"" } = {}) {
+function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {} } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1048576, perMessageDeflate: false });
   let closed = false;
   const policy=createDeliveryPolicy(delivery);
   const logs=createClientLogs(logOptions);
   const settings=createClientSettings(settingsOptions);
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
-  const execution=createExecutionBridge({clients:wss.clients,send,isFavorite,token:executionToken,sameToken});
+  const execution=createExecutionBridge({clients:wss.clients,send,isFavorite});
   function sendReporterPolicy(ws){
     const favorite=isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
     send(ws,{version:1,type:"reporting.policy",favorite,executionAllowed:execution.ready(ws),sendLogs:favorite,sendSettings:favorite,sendTeleport:favorite,sendEggs:true,sendPlayers:true});
@@ -142,7 +142,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           clearTimeout(handshake);
           send(ws, { version: 1, type: "hello.ack", role: ws.role });
           if(ws.role==="reporter"){await policy.ready;sendReporterPolicy(ws);}
-          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, historyState()); send(ws,policy.state()); send(ws,logsState()); send(ws,favoritesState()); send(ws,execution.policy(ws)); }
+          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, historyState()); send(ws,policy.state()); send(ws,logsState()); send(ws,favoritesState()); send(ws,execution.policy(ws)); send(ws,execution.state()); }
           return;
         }
         if(execution.handle(ws,message))return;
@@ -215,7 +215,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }, 15000);
   heartbeat.unref();
   return {
-    info: () => ({ executionConfigured:execution.configured, teleportSelection:"free-slot-lowest-top-speed", serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
+    info: () => ({ executionConfigured:execution.configured, executionAuthentication:false, teleportSelection:"free-slot-lowest-top-speed", serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
     close() {
       if (closed) return;
       closed = true;
