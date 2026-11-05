@@ -59,6 +59,7 @@ function createPlayerStore({ now = Date.now, ttlMs = Infinity, maxSessions = 200
       for (const player of s.players) players.push({ ...player, placeId: s.placeId, jobId: s.jobId,
         reporterConnected: connected.has(JSON.stringify([s.placeId, s.jobId, player.userId])),
         observerSnapshot:row.observerSnapshot===true,observationExpiresAt:row.observationExpiresAt||null,
+        observerReporterUserId:row.observerSnapshot?s.reporterUserId:null,
         receivedAt: new Date(row.receivedAt).toISOString() });
     }
     players.sort((a,b) => Number(b.reporterConnected) - Number(a.reporterConnected) || a.name.localeCompare(b.name));

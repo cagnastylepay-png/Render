@@ -68,7 +68,13 @@ test("roaming observer roster survives departure only until reset and keeps targ
  assert.equal(roster[0].observationExpiresAt,600000);
  const egg={key:"123/home/e",placeId:"123",jobId:"home",incomePerSecond:3e9,expiresAt:600000};
  const settings={automationActive:true,options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:10e9}};
- assert.equal(planTeleport({placeId:"123",jobId:"elsewhere"},settings,[egg],now,roster).target.jobId,"home");
+ assert.equal(planTeleport({placeId:"123",jobId:"elsewhere"},settings,[egg],now,roster),null,"a departed lone observer cannot keep the server alive");
+ players.accept("observer",presence(2,[{userId:"2",name:"Guest",displayName:"Guest"}]),{observerOnly:true});
+ players.remove("observer");
+ const populated=players.state().players;
+ assert.equal(planTeleport({placeId:"123",jobId:"elsewhere"},settings,[egg],now,populated).target.jobId,"home");
+ now+=61000;
+ assert.equal(planTeleport({placeId:"123",jobId:"elsewhere"},settings,[egg],now,populated),null,"old capacity observations must not trigger a teleport");
  now=600000;assert.equal(players.state().players.length,0);
  assert.equal(planTeleport({placeId:"123",jobId:"elsewhere"},settings,[{...egg,expiresAt:900000}],now,roster),null);
 });

@@ -13,8 +13,11 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  const competition=new Map();
  for(const [key,roster]of servers){
   const list=[...roster.values()];
+  const connected=list.some(player=>player.reporterConnected);
+  const abandonedSoloObserver=list.length===1&&list[0].observerSnapshot&&list[0].userId===list[0].observerReporterUserId&&!connected;
+  const recentObservation=list.some(player=>player.observerSnapshot&&player.observationExpiresAt>now&&Number.isFinite(Date.parse(player.receivedAt))&&now-Date.parse(player.receivedAt)<=60000);
   // A roaming observer's last roster remains usable only within its egg cycle.
-  if(list.length>=7||!list.some(player=>player.reporterConnected||(player.observerSnapshot&&player.observationExpiresAt>now)))continue;
+  if(list.length>=7||abandonedSoloObserver||(!connected&&!recentObservation))continue;
   const known=list.every(player=>Number.isFinite(player.speedPower)&&player.speedPower>=0);
   competition.set(key,{playerCount:list.length,strongestSpeed:known?Math.max(...list.map(player=>player.speedPower)):Infinity});
  }
