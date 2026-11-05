@@ -75,16 +75,19 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
 });
 
-test("teleport selection excludes full or unobserved servers, then minimizes the fastest opponent",()=>{
+test("teleport selection excludes full or unobserved servers, ranks income first and opponent speed only on ties",()=>{
  const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options};
  const egg=(job,income,uid="egg")=>({key:"123/"+job+"/"+uid,placeId:"123",jobId:job,uid,expiresAt:20000,incomePerSecond:income});
  const roster=(job,speeds)=>speeds.map((speed,index)=>({placeId:"123",jobId:job,userId:job+index,speedPower:speed,reporterConnected:index===0}));
  const eggs=[egg("full",50e9),egg("strong",20e9),egg("weak",3e9),egg("weak",4e9,"best")];
  const players=[...roster("full",[1,1,1,1,1,1,1]),...roster("strong",[1,1000]),...roster("weak",[20,10,15,10,10,10])];
- assert.equal(planTeleport(identity,settings,eggs,10000,players).target.key,"123/weak/best");
+ assert.equal(planTeleport(identity,settings,eggs,10000,players).target.jobId,"strong");
  assert.equal(planTeleport(identity,settings,[eggs[0]],10000,players),null);
  assert.equal(planTeleport(identity,settings,eggs,10000,[]),null);
  assert.equal(planTeleport(identity,settings,eggs,10000,players.map(p=>({...p,reporterConnected:false}))),null);
- const unknown=egg("unknown",90e9);assert.equal(planTeleport(identity,settings,[...eggs,unknown],10000,[...players,...roster("unknown",[null])]).target.jobId,"weak");
+ const unknown=egg("unknown",90e9);assert.equal(planTeleport(identity,settings,[...eggs,unknown],10000,[...players,...roster("unknown",[null])]).target.jobId,"unknown");
  assert.equal(planTeleport(identity,settings,[egg("tieA",3e9),egg("tieB",5e9)],10000,[...roster("tieA",[20]),...roster("tieB",[20])]).target.jobId,"tieB");
+ assert.equal(planTeleport(identity,settings,[egg("fast",4e9),egg("slow",17e9)],10000,[...roster("fast",[1]),...roster("slow",[1e12])]).target.jobId,"slow");
+ assert.equal(planTeleport(identity,settings,[egg("fast",17e9),egg("slow",17e9)],10000,[...roster("fast",[1e12]),...roster("slow",[1])]).target.jobId,"slow");
+ assert.equal(planTeleport(identity,settings,[egg("known",17e9),egg("unknown",17e9)],10000,[...roster("known",[100]),...roster("unknown",[null])]).target.jobId,"known");
 });

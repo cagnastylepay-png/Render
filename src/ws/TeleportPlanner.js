@@ -27,10 +27,11 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
   Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
    (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
  candidates.sort((a,b)=>{
+  if(a.incomePerSecond!==b.incomePerSecond)return b.incomePerSecond-a.incomePerSecond;
   const left=competition.get(JSON.stringify([a.placeId,a.jobId])).strongestSpeed;
   const right=competition.get(JSON.stringify([b.placeId,b.jobId])).strongestSpeed;
   if(left!==right)return left<right?-1:1;
-  return b.incomePerSecond-a.incomePerSecond||a.key.localeCompare(b.key);
+  return a.key.localeCompare(b.key);
  });
  const target=candidates[0];
  if(!target)return null;
