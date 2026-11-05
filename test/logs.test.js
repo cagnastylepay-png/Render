@@ -43,7 +43,10 @@ test("only the reporting favorite contributes history and logs, not another play
  favorite.send(log("1"));await waitFor(()=>viewer.messages.find(m=>m.type==="logs.append"));
  await configure([]);await waitFor(()=>viewer.messages.filter(m=>m.type==="history.state").at(-1).total===0);assert.equal(viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries.length,0);
  await waitFor(()=>favorite.messages.filter(m=>m.type==="reporting.policy").at(-1).sendLogs===false);
- await configure(["1"]);await waitFor(()=>viewer.messages.filter(m=>m.type==="history.state").at(-1).total===1);assert.equal(viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries.length,1);
+ await configure(["1"]);await waitFor(()=>viewer.messages.filter(m=>m.type==="history.state").at(-1).total===1);
+ const retained=viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries;
+ assert.equal(retained.filter(row=>!row.text.startsWith("[Render]")).length,1);
+ assert.ok(retained.every(row=>row.userId==="1"));
 });
 
 test("logs persist in Mongo, restore, enforce retention and reject invalid batches atomically",async()=>{
@@ -63,4 +66,3 @@ test("logs persist in Mongo, restore, enforce retention and reject invalid batch
  await restored.clear();assert.equal(saved.length,0);assert.equal(restored.state().entries.length,0);
  await restored.close();
 });
-

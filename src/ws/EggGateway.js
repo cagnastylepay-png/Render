@@ -20,6 +20,20 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   const logs=createClientLogs(logOptions);
   const settings=createClientSettings(settingsOptions);
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
+  const auditSession="render-"+randomUUID();let auditSequence=0;
+  const lastJobs=new Map();
+  function audit(identity,text){
+    if(!identity||!isFavorite(identity.userId))return;
+    const entries=logs.append(identity,{version:1,sessionId:auditSession,lines:[{sequence:++auditSequence,text:"[Render] "+text}]});
+    for(const viewer of wss.clients)if(viewer.role==="viewer"&&entries.length)send(viewer,{version:1,type:"logs.append",entries});
+  }
+  function numberLabel(value){
+    if(!Number.isFinite(value))return "inconnu";
+    const suffixes=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
+    let unit=0;while(value>=1000&&unit<suffixes.length-1){value/=1000;unit++;}
+    return Number(value.toFixed(2))+suffixes[unit];
+  }
+  function describeTarget(egg){return `${egg.name||egg.category||egg.uid} [Poids=${numberLabel(egg.weightKg)} kg; Revenu=${numberLabel(egg.incomePerSecond)}/s]`;}
   function sendReporterPolicy(ws){
     const favorite=!ws.observerOnly&&isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
     send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendSettings:favorite&&!ws.observerOnly,sendTeleport:favorite&&!ws.observerOnly,sendEggs:true,sendPlayers:true});
@@ -73,9 +87,23 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       const saved=ws.settingsSessionId?settings.get(ws.reporterIdentity.userId):null;
       const enabled=isFavorite(ws.reporterIdentity.userId)&&saved?.sessionId===ws.settingsSessionId;
       const plan=enabled?planTeleport(ws.reporterIdentity,saved,eggs,Date.now(),presence):null;
+      if(isFavorite(ws.reporterIdentity.userId)){
+        const reason=!saved?"Attente des parametres du favori":!saved.automationActive?"Teleportation bloquee : "+(saved.automationReason||"Auto arrete ou en pause"):
+          (!saved.options.AutoEggs&&!saved.options.AutoIndex)?"Teleportation bloquee : AutoEggs et Manquants OFF":
+          plan?"Demande envoyee : "+describeTarget(plan.target)+" Serveur="+plan.target.jobId+" Mode="+(plan.immediate?"immediat":"attente de file vide"):
+          "Aucune cible distante eligible avec place libre et joueurs observes (seuils, index, serveurs visites ou expiration)";
+        const diagnostic=JSON.stringify([reason,plan?.target.cycleId]);
+        if(ws.teleportDiagnostic!==diagnostic){ws.teleportDiagnostic=diagnostic;audit(ws.reporterIdentity,reason);}
+      }
       if(!plan&&!ws.teleportSignature)continue;
       const signature=JSON.stringify(plan?[plan.target.key,plan.target.cycleId,plan.target.incomePerSecond,plan.target.expiresAt,plan.immediate]:null);
       if(signature===ws.teleportSignature)continue;
+      if(ws.teleportTarget&&(!plan||plan.target.key!==ws.teleportTarget.key)){
+        const old=eggs.find(egg=>egg.key===ws.teleportTarget.key);
+        const reason=!old?"Oeuf disparu ou observation expiree":old.carrierUserId||old.state==="Carried"||old.state==="Claimed"?"Oeuf devenu indisponible":"Cible remplacee ou conditions non remplies";
+        audit(ws.reporterIdentity,reason+" : "+describeTarget(ws.teleportTarget)+" Serveur="+ws.teleportTarget.jobId);
+      }
+      ws.teleportTarget=plan?.target||null;
       ws.teleportSignature=signature;
       send(ws,{version:1,type:"teleport.request",requestId:randomUUID(),serverTime:Date.now(),target:plan?.target||null,immediate:plan?.immediate||false});
     }
@@ -202,6 +230,10 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           if (accepted) {
             const reporter=message.players.find(player=>player.userId===message.reporterUserId);
             ws.reporterIdentity={name:reporter.displayName||reporter.name,userId:reporter.userId,placeId:message.placeId,jobId:message.jobId};
+            if(!ws.observerOnly&&isFavorite(reporter.userId)){
+              const previous=lastJobs.get(reporter.userId);
+              if(previous!==message.jobId){audit(ws.reporterIdentity,"Arrivee / connexion sur le serveur "+message.jobId+(previous?" depuis "+previous:""));lastJobs.set(reporter.userId,message.jobId);}
+            }
             sendReporterPolicy(ws);
             broadcast();
           }

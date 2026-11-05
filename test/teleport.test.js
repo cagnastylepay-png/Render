@@ -58,6 +58,7 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  assert.equal(favorite.messages.filter(m=>m.type==="teleport.request").length,0);
  const settings={version:1,type:"settings.snapshot",sessionId:"s1",revision:1,automationActive:true,options};favorite.send(settings);
  const request=await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target));assert.equal(request.target.jobId,"remote");assert.equal(request.immediate,false);assert.equal(typeof request.requestId,"string");assert.equal(ordinary.messages.filter(m=>m.type==="teleport.request").length,0);
+ await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Demande envoyee")&&row.text.includes("3B/s"))));
  favorite.send({...settings,revision:2,options:{...options,TeleportInstantMin:3e9}});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.immediate));
  const sixOthers=Array.from({length:6},(_,i)=>({userId:String(i+3),name:"Guest"+i,displayName:"Guest"+i,speedPower:100}));
  ordinary.send({...presence("2","remote",sixOthers),revision:2});
@@ -66,8 +67,10 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  ordinary.send({...presence("2","remote",sixOthers.slice(0,5)),revision:3});
  await waitFor(()=>favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length>beforeSpace);
  ordinary.send({...snapshot,revision:2,eggs:[]});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
+ await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Oeuf disparu ou observation expiree"))));
  favorite.send({...settings,revision:3,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===3));ordinary.send({...snapshot,revision:3});await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"&&m.revision===3));
  const before=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
+ await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Auto arrete ou en pause"))));
  await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
  favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
 });

@@ -20,7 +20,7 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  }
  const candidates=eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId!==identity.jobId&&!visited.has(egg.jobId)&&
   competition.has(JSON.stringify([egg.placeId,egg.jobId]))&&
-  !egg.carrierUserId&&egg.state!=="Carried"&&!egg.observationOnly&&
+  !egg.carrierUserId&&egg.state!=="Carried"&&egg.state!=="Claimed"&&!egg.observationOnly&&
   Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
    (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
  candidates.sort((a,b)=>{
