@@ -15,6 +15,7 @@ label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 .card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:10px;padding:12px}
 .card[data-rarity=Divine]{border-top-color:#ffd269}.card[data-rarity=Eternal]{border-top-color:#ff89cf}.card[data-rarity=Cosmic]{border-top-color:#88aaff}
 .card.server-favorite{background:#29251a;border-color:#9b7b32;border-top-color:#ffd269;box-shadow:0 0 0 1px #ffd26933}.server-favorite>.server-heading{border-bottom-color:#67552d}.server-favorite>.server-heading strong{color:#ffe29a}
+.server-go{display:inline-block;margin-left:auto;padding:8px 12px;border-radius:8px;background:#b0fa75;color:#142410;text-decoration:none;font-weight:700;font-size:13px}.server-go:hover{background:#c8ff9c}.server-go:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .egg-art{height:105px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:6px 0}.egg-art img{width:100px;height:100px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:56px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.metric{background:#1a2538;border-radius:6px;padding:8px}.metric strong{display:block;font-size:16px;margin-top:3px}
 .identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:10px;padding-top:10px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
@@ -34,7 +35,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
 <p id="delivery-info" class="muted">Chargement des favoris…</p>
-<p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO reste désactivé.</p>
+<p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO ouvre Roblox sur le serveur choisi.</p>
 <div id="cards" class="cards"></div>
 
 </section>
@@ -121,7 +122,7 @@ function renderFavorites(){
 function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
  heading.append(rarity,name);
- const go=el("button","GO");go.disabled=true;go.title="Connexion prévue ultérieurement";head.append(heading,go);node.append(head);
+ head.append(heading);node.append(head);
  const art=el("div",null,"egg-art"),placeholder=el("span","🥚"),image=el("img");image.loading="eager";image.hidden=true;
  image.onload=()=>{placeholder.hidden=true;image.hidden=false;};image.onerror=()=>{image.hidden=true;placeholder.hidden=false;};
  art.append(placeholder,image);node.append(art);
@@ -198,10 +199,13 @@ function groupServers(){
 }
 function createServerView(group){
  const view=createCard(),header=el("div",null,"server-heading"),title=el("strong"),connection=el("small");
- header.append(title,connection);view.node.insertBefore(header,view.node.children[0]);
+ const go=el("a","GO","server-go");
+ go.href="roblox://placeId="+encodeURIComponent(group.placeId)+"&gameInstanceId="+encodeURIComponent(group.jobId);
+ go.title="Ouvrir Roblox sur ce serveur";go.setAttribute("aria-label","Rejoindre le serveur "+group.jobId+" dans Roblox");
+ header.append(title,connection,go);view.node.insertBefore(header,view.node.children[0]);
  const expand=el("details",null,"server-expand"),summary=el("summary"),list=el("div",null,"server-eggs");
  expand.append(summary,list);view.node.append(expand);
- return {view,title,connection,expand,summary,list,eggs:new Map()};
+ return {view,title,connection,go,expand,summary,list,eggs:new Map()};
 }
 function renderCards(){
  const groups=groupServers(),active=new Set();
