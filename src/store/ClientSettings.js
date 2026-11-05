@@ -5,6 +5,8 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");
+ result.QueueNearest=input.QueueNearest===true;
  for(const key of toggles){if(typeof input[key]!=="boolean")throw Error("Invalid setting "+key);result[key]=input[key];}
  for(const key of ranges){
   for(const suffix of ["Min","Max"]){const value=input[key+suffix];if(typeof value!=="number"||!Number.isFinite(value)||value<0||value>1e33)throw Error("Invalid setting "+key+suffix);result[key+suffix]=value;}
