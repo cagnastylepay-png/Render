@@ -29,7 +29,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
-<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button><button id="tab-favorites" role="tab" aria-selected="false" aria-controls="panel-favorites">Favoris (0)</button></nav>
+<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button><button id="tab-favorites" role="tab" aria-selected="false" aria-controls="panel-favorites">Favoris (0)</button><button id="tab-test" role="tab" aria-selected="false" aria-controls="panel-test">Test</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
 <p id="delivery-info" class="muted">Chargement des favoris…</p>
@@ -40,6 +40,15 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <section id="panel-favorites" role="tabpanel" aria-labelledby="tab-favorites" hidden>
 <p id="favorites-info" class="muted">Paramètres des clients favoris · Consultation uniquement.</p>
 <div id="favorites-cards" class="cards"></div>
+</section>
+<section id="panel-test" role="tabpanel" aria-labelledby="tab-test" hidden>
+<p id="execution-info" class="muted">Tests sur un client TestV2 volontaire · Autorisation dédiée requise.</p>
+<div class="toolbar"><label>Clé de test <input id="execution-token" type="password" autocomplete="off"></label><button id="execution-authorize">Autoriser</button></div>
+<p><label>Client TestV2 <select id="execution-client"></select></label> <label>Délai d’attente (s) <input id="execution-timeout" type="number" min="1" max="30" value="10"></label></p>
+<label for="execution-code">Code Lua exécuté sur le client choisi</label>
+<textarea id="execution-code" spellcheck="false" rows="8" style="display:block;width:100%;margin:10px 0;padding:12px;background:#141c2b;color:#e6edf7;border:1px solid #3b465b;border-radius:8px;font-family:monospace">return {jobId = game.JobId, placeId = game.PlaceId}</textarea>
+<button id="execution-run" disabled>Envoyer le test</button>
+<pre id="execution-result">Aucun test envoyé.</pre>
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
 <div class="hourly-card">
@@ -305,6 +314,22 @@ document.getElementById("logs-clear").onclick=()=>{
  if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour vider les logs.");return;}
  socket.send(JSON.stringify({version:1,type:"logs.clear"}));
 };
+let executionAuthorized=false,executionClients=[],executionPending=null;
+function renderExecutionClients(){
+ const select=document.getElementById("execution-client"),selected=select.value;select.replaceChildren();
+ for(const row of executionClients){const option=el("option",row.name+" · "+row.jobId);option.value=row.clientId;select.append(option);}
+ if(executionClients.some(row=>row.clientId===selected))select.value=selected;
+ else if(executionClients.length)select.value=executionClients[0].clientId;
+ document.getElementById("execution-run").disabled=!executionAuthorized||!executionClients.length||!!executionPending;
+}
+document.getElementById("execution-authorize").onclick=()=>{
+ if(!socket||socket.readyState!==WebSocket.OPEN)return;
+ socket.send(JSON.stringify({version:1,type:"execute.authorize",token:document.getElementById("execution-token").value}));
+};
+document.getElementById("execution-run").onclick=()=>{
+ if(!executionAuthorized||executionPending||!socket||socket.readyState!==WebSocket.OPEN)return;
+ socket.send(JSON.stringify({version:1,type:"execute.request",clientId:document.getElementById("execution-client").value,code:document.getElementById("execution-code").value,timeoutMs:Number(document.getElementById("execution-timeout").value)*1000}));
+};
 function connect(){
  clearTimeout(retry);stopped=false;deliveryReady=false;
  const previous=socket;socket=null;if(previous)previous.close();
@@ -315,7 +340,14 @@ function connect(){
   try{
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
-   if(message.type==="delivery.policy"){updateDelivery(message);}
+   if(message.type==="execute.policy"){
+    executionAuthorized=message.authorized===true;
+    if(!executionAuthorized)executionClients=[];
+    setText(document.getElementById("execution-info"),!message.configured?"Tests désactivés : définir SAE_EXEC_TOKEN sur Render (24 caractères minimum).":executionAuthorized?"Autorisé · Seuls les clients TestV2 favoris activés explicitement sont proposés.":"Clé de test requise ou incorrecte.");renderExecutionClients();
+   }else if(message.type==="execute.clients"){executionClients=message.clients;renderExecutionClients();}
+   else if(message.type==="execute.accepted"){executionPending=message.requestId;setText(document.getElementById("execution-result"),JSON.stringify(message,null,2));renderExecutionClients();}
+   else if(message.type==="execute.result"){executionPending=null;setText(document.getElementById("execution-result"),JSON.stringify(message,null,2));renderExecutionClients();}
+   else if(message.type==="delivery.policy"){updateDelivery(message);}
    else if(message.type==="favorites.state"){favoriteEntries=message.entries;favoriteStorage=message.storage;renderFavorites();}
    else if(message.type==="eggs.state"){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
@@ -337,6 +369,7 @@ function connect(){
  current.onclose=event=>{
   if(socket!==current)return;
   deliveryReady=false;
+  executionAuthorized=false;executionClients=[];executionPending=null;renderExecutionClients();
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
   favoriteEntries=favoriteEntries.map(row=>({...row,connected:false}));renderFavorites();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
@@ -345,9 +378,9 @@ function connect(){
  };current.onerror=()=>{};
 }
 function switchPanel(name){
- for(const tab of ["eggs","history","logs","favorites"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+ for(const tab of ["eggs","history","logs","favorites","test"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
-for(const name of ["eggs","history","logs","favorites"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
+for(const name of ["eggs","history","logs","favorites","test"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();renderHistory();connect();

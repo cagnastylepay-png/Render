@@ -161,3 +161,11 @@ test("favorites show saved ranges, offline clients and navigate to filtered logs
  h.emit({type:"logs.state",limit:1000,entries:[{id:"1",userId:"42",playerName:"Alice",jobId:"job",text:"Ouverture",at:new Date().toISOString()},{id:"2",userId:"99",playerName:"Bob",jobId:"job",text:"Vente",at:new Date().toISOString()}]});
  cards.children[0].querySelectorAll("button")[0].onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);assert.match(h.document.getElementById("logs-lines").textContent,/Ouverture/);assert.doesNotMatch(h.document.getElementById("logs-lines").textContent,/Vente/);
 });
+
+test("Test tab sends JSON requests only after dedicated authorization and renders JSON results safely",()=>{
+ const h=harness();h.document.getElementById("execution-token").value="private-test-key";h.document.getElementById("execution-authorize").onclick();assert.equal(h.sent.at(-1).type,"execute.authorize");
+ h.emit({type:"execute.policy",configured:true,authorized:true});h.emit({type:"execute.clients",clients:[{clientId:"client",name:"Tester",jobId:"job"}]});
+ h.document.getElementById("execution-code").value="return 1 + 1";h.document.getElementById("execution-timeout").value="10";h.document.getElementById("execution-run").onclick();assert.equal(h.sent.at(-1).type,"execute.request");assert.equal(h.sent.at(-1).clientId,"client");assert.equal(h.sent.at(-1).timeoutMs,10000);
+ h.emit({type:"execute.accepted",requestId:"test"});assert.equal(h.document.getElementById("execution-run").disabled,true);h.emit({type:"execute.result",requestId:"test",ok:true,result:"<script>not HTML</script>"});assert.match(h.document.getElementById("execution-result").textContent,/not HTML/);assert.equal(h.document.getElementById("execution-result").children.length,0);assert.equal(h.document.getElementById("execution-run").disabled,false);
+ h.document.getElementById("tab-test").onclick();assert.equal(h.document.getElementById("panel-test").hidden,false);
+});
