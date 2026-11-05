@@ -164,3 +164,27 @@ test("favorites show saved ranges, offline clients and navigate to filtered logs
 
 
 test("remote execution panel is removed",()=>{assert.doesNotMatch(html,/id="tab-test"|execution-code|execute.request/);});
+
+test("favorite servers stay first, use a gold card and move priority with the favorite",()=>{
+ const h=harness(),expiry=Date.now()+60000;
+ h.emit({type:"eggs.state",eggs:[
+  {placeId:"123",jobId:"rich",uid:"r",name:"Rich",rarity:"Divine",incomePerSecond:100e9,expiresAt:expiry},
+  {placeId:"123",jobId:"home",uid:"h",name:"Home",rarity:"Common",incomePerSecond:1,expiresAt:expiry}
+ ]});
+ h.emit({type:"players.state",players:[
+  {placeId:"123",jobId:"home",userId:"42",name:"Favorite",displayName:"Favorite",reporterConnected:true},
+  {placeId:"123",jobId:"rich",userId:"1",name:"Observer",displayName:"Observer",reporterConnected:true}
+ ]});
+ h.emit({type:"delivery.policy",revision:1,favoriteUserIds:["42"],minimumIncomePerSecond:0});
+ const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context);
+ const rich=vm.runInContext('serverViews.get(JSON.stringify(["123","rich"]))',h.context);
+ const cards=h.document.getElementById("cards");
+ assert.equal(cards.children[0],home.view.node);
+ assert.match(home.view.node.className,/server-favorite/);assert.match(home.title.textContent,/★ Serveur favori/);
+ home.expand.open=true;const image=home.view.image,srcWrites=image.srcWrites;
+ h.emit({type:"favorites.state",entries:[{userId:"42",placeId:"123",jobId:"rich",connected:true}],storage:"mongodb"});
+ assert.equal(cards.children[0],rich.view.node);assert.doesNotMatch(home.view.node.className,/server-favorite/);
+ assert.match(rich.view.node.className,/server-favorite/);assert.equal(home.expand.open,true);assert.equal(image.srcWrites,srcWrites);
+ h.emit({type:"delivery.policy",revision:2,favoriteUserIds:[],minimumIncomePerSecond:0});
+ assert.doesNotMatch(rich.view.node.className,/server-favorite/);
+});
