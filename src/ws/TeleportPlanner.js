@@ -14,7 +14,7 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  for(const [key,roster]of servers){
   const list=[...roster.values()];
   // A roaming observer's last roster remains usable only within its egg cycle.
-  if(!list.some(player=>player.reporterConnected||(player.observerSnapshot&&player.observationExpiresAt>now)))continue;
+  if(list.length>=7||!list.some(player=>player.reporterConnected||(player.observerSnapshot&&player.observationExpiresAt>now)))continue;
   const known=list.every(player=>Number.isFinite(player.speedPower)&&player.speedPower>=0);
   competition.set(key,{playerCount:list.length,strongestSpeed:known?Math.max(...list.map(player=>player.speedPower)):Infinity});
  }
@@ -31,6 +31,6 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  });
  const target=candidates[0];
  if(!target)return null;
- return {target,playerCount:competition.get(JSON.stringify([target.placeId,target.jobId])).playerCount,immediate:target.incomePerSecond>=(options.TeleportInstantMin??50e9)};
+ return {target,immediate:target.incomePerSecond>=(options.TeleportInstantMin??50e9)};
 }
 module.exports={planTeleport};

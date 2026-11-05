@@ -6,41 +6,16 @@ async function waitFor(fn){
  while(Date.now()<end){const value=fn();if(value)return value;await new Promise(r=>setTimeout(r,10));}
  throw Error("Timed out");
 }
-async function peer(url,role,observerOnly=false,central=false){
+async function peer(url,role,observerOnly=false){
  const ws=new WebSocket(url),messages=[];
  ws.on("message",raw=>messages.push(JSON.parse(raw)));
- await once(ws,"open");ws.send(JSON.stringify({version:1,type:"hello",role,observerOnly,observerRouting:central?"render":undefined}));
+ await once(ws,"open");ws.send(JSON.stringify({version:1,type:"hello",role,observerOnly}));
  await waitFor(()=>messages.find(m=>m.type==="hello.ack"));
  return {ws,messages,send:m=>ws.send(JSON.stringify(m))};
 }
 const presence=(revision,others=[])=>({version:1,type:"players.snapshot",moduleId:"PlayerReporter",
  sessionId:"observer",revision,placeId:"123",jobId:"home",reporterUserId:"1",
  players:[{userId:"1",name:"Observer",displayName:"Observer"},...others]});
-
-test("central observer routing requires a snapshot and reserves different 2-5 player servers",async t=>{
- let calls=0;
- const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null},observerSearch:{random:()=>0,fetchFn:async()=>{
-  calls++;return{status:200,ok:true,json:async()=>({data:[{id:"two",playing:2,maxPlayers:7},{id:"five",playing:5,maxPlayers:7},{id:"six",playing:6,maxPlayers:7}]})};
- }}}}),peers=[];
- server.listen(0,"127.0.0.1");await once(server,"listening");
- t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
- const url="ws://127.0.0.1:"+server.address().port+"/sae/ws";
- const a=await peer(url,"reporter",true,true),b=await peer(url,"reporter",true,true);peers.push(a,b);
- a.send(presence(1));b.send({...presence(1),reporterUserId:"2",jobId:"another",players:[{userId:"2",name:"B",displayName:"B"}]});
- await waitFor(()=>a.messages.find(m=>m.type==="players.ack"));await waitFor(()=>b.messages.find(m=>m.type==="players.ack"));
- a.send({version:1,type:"observer.next",requestId:"early"});await waitFor(()=>a.messages.find(m=>m.type==="error"));
- for(const [p,job]of [[a,"home"],[b,"another"]]){
-  p.send({version:1,type:"eggs.snapshot",moduleId:"EggReporter",sessionId:job,revision:1,placeId:"123",jobId:job,cycleId:"1",observedAt:new Date().toISOString(),cycleEndsAt:Date.now()/1000+120,eggs:[]});
-  await waitFor(()=>p.messages.find(m=>m.type==="eggs.ack"));
- }
- a.send({version:1,type:"observer.next",requestId:"a"});
- const left=await waitFor(()=>a.messages.find(m=>m.type==="observer.destination"&&m.requestId==="a"));
- b.send({version:1,type:"observer.next",requestId:"b"});
- const right=await waitFor(()=>b.messages.find(m=>m.type==="observer.destination"&&m.requestId==="b"));
- assert.equal(left.target.jobId,"two");assert.equal(right.target.jobId,"five");assert.equal(calls,1);
- assert.equal(server.autoSAE.gateway.info().observerRouting,"render");
-});
-
 
 test("lone observer holds an eligible server before ACK, survives favorite handover and leaves after arrival",async t=>{
  const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
@@ -112,7 +87,7 @@ test("observer roams after reporting, excludes favorite and observer servers, an
  assert.equal(observer.messages.findLast(m=>m.type==="reporting.policy").sendTeleport,false);
  assert.equal(observer.messages.findLast(m=>m.type==="reporting.policy").sendSettings,false);
  const initial=await waitFor(()=>observer.messages.find(m=>m.type==="observer.relocate"));
- assert.equal(initial.mode,"roam");assert.equal(initial.routing,"render");assert.equal(initial.minimumPlayers,2);assert.equal(initial.preferredMaximumPlayers,5);assert.equal(initial.minimumFreeSlots,1);assert.equal(initial.relocate,true);
+ assert.equal(initial.mode,"roam");assert.equal(initial.minimumFreeSlots,2);assert.equal(initial.relocate,true);
  observer.send(presence(2,[{userId:"2",name:"Favorite",displayName:"Favorite"}]));
  const relocation=await waitFor(()=>observer.messages.find(m=>m.type==="observer.relocate"&&m.favoriteUserIds.includes("2")));
  assert.deepEqual(relocation.favoriteUserIds,["2"]);assert.equal(relocation.jobId,"home");
