@@ -21,7 +21,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   const settings=createClientSettings(settingsOptions);
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
   function sendReporterPolicy(ws){
-    const favorite=isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
+    const favorite=!ws.observerOnly&&isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
     send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendSettings:favorite&&!ws.observerOnly,sendTeleport:favorite&&!ws.observerOnly,sendEggs:true,sendPlayers:true});
   }
   function favoritesState(){
@@ -40,7 +40,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }
   function recordFavoriteSnapshot(ws,message){
     const identity=ws.reporterIdentity;
-    if(!identity||!isFavorite(identity.userId)||identity.jobId!==message.jobId||identity.placeId!==message.placeId)return;
+    if(ws.observerOnly||!identity||!isFavorite(identity.userId)||identity.jobId!==message.jobId||identity.placeId!==message.placeId)return;
     const ids=new Set(message.eggs.map(egg=>egg.uid));
     const eggs=store.state().eggs.filter(egg=>egg.jobId===message.jobId&&egg.placeId===message.placeId&&ids.has(egg.uid));
     const entries=history.append(eggs.map(egg=>({action:"appeared",reason:"favorite-observation",egg,reporterUserId:identity.userId,reporterName:identity.name})));
@@ -82,15 +82,16 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }
   function relocateObservers(){
     const presence=players.state().players,favorites=new Set(policy.state().favoriteUserIds);
-    const avoidJobIds=[...new Set(presence.filter(p=>favorites.has(p.userId)).map(p=>p.jobId))];
+    const observers=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.observerOnly&&ws.reporterIdentity).map(ws=>ws.reporterIdentity);
     for(const ws of wss.clients){
       const identity=ws.reporterIdentity;
       if(ws.role!=="reporter"||!ws.observerOnly||!identity)continue;
+      const avoidJobIds=[...new Set([...presence.filter(p=>favorites.has(p.userId)),...observers].filter(p=>p.placeId===identity.placeId).map(p=>p.jobId))].sort();
       const others=presence.filter(p=>p.placeId===identity.placeId&&p.jobId===identity.jobId&&p.userId!==identity.userId&&favorites.has(p.userId));
       const signature=JSON.stringify([others.map(p=>p.userId).sort(),avoidJobIds.slice().sort()]);
       if(ws.observerRelocationSignature===signature)continue;
       ws.observerRelocationSignature=signature;
-      send(ws,{version:1,type:"observer.relocate",placeId:identity.placeId,jobId:identity.jobId,relocate:others.length>0,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
+      send(ws,{version:1,type:"observer.relocate",mode:"roam",minimumFreeSlots:2,placeId:identity.placeId,jobId:identity.jobId,relocate:true,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
@@ -186,7 +187,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
         }
         if(message.type==="logs.append"){
           if(!ws.reporterIdentity)throw Error("Player identity required before logs");
-          if(!isFavorite(ws.reporterIdentity.userId)){
+          if(ws.observerOnly||!isFavorite(ws.reporterIdentity.userId)){
             if(!Array.isArray(message.lines)||message.lines.length>100||!message.lines.every(line=>Number.isSafeInteger(line.sequence)&&line.sequence>0))throw Error("Invalid logs batch");
             send(ws,{version:1,type:"logs.ack",sessionId:message.sessionId,sequence:Math.max(0,...message.lines.map(line=>line.sequence)),accepted:false});return;
           }
@@ -196,7 +197,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           return;
         }
         if (message.type === "players.snapshot") {
-          const accepted = players.accept(ws.connectionId, message);
+          const accepted = players.accept(ws.connectionId, message, {observerOnly:ws.observerOnly});
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
           if (accepted) {
             const reporter=message.players.find(player=>player.userId===message.reporterUserId);

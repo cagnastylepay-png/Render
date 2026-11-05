@@ -1,7 +1,7 @@
 "use strict";
 // A typed destination request only: no executable code is sent to reporters.
 function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
- if(!identity||!settings?.automationActive||!settings.options?.AutoEggs)return null;
+ if(!identity||!settings?.automationActive||(!settings.options?.AutoEggs&&!settings.options?.AutoIndex))return null;
  const options=settings.options;
  const visited=new Set(settings.visitedJobIds||[]);
  const servers=new Map();
@@ -13,15 +13,16 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  const competition=new Map();
  for(const [key,roster]of servers){
   const list=[...roster.values()];
-  // An old egg observation alone does not establish current free capacity.
-  if(list.length>=7||!list.some(player=>player.reporterConnected))continue;
+  // A roaming observer's last roster remains usable only within its egg cycle.
+  if(list.length>=7||!list.some(player=>player.reporterConnected||(player.observerSnapshot&&player.observationExpiresAt>now)))continue;
   const known=list.every(player=>Number.isFinite(player.speedPower)&&player.speedPower>=0);
   competition.set(key,{playerCount:list.length,strongestSpeed:known?Math.max(...list.map(player=>player.speedPower)):Infinity});
  }
  const candidates=eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId!==identity.jobId&&!visited.has(egg.jobId)&&
   competition.has(JSON.stringify([egg.placeId,egg.jobId]))&&
   !egg.carrierUserId&&egg.state!=="Carried"&&!egg.observationOnly&&
-  Number.isFinite(egg.incomePerSecond)&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax&&egg.expiresAt>now);
+  Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
+   (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
  candidates.sort((a,b)=>{
   const left=competition.get(JSON.stringify([a.placeId,a.jobId])).strongestSpeed;
   const right=competition.get(JSON.stringify([b.placeId,b.jobId])).strongestSpeed;

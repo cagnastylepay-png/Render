@@ -19,6 +19,21 @@ function presence(id,job,others=[]){
 }
 
 const {planTeleport}=require("../src/ws/TeleportPlanner");
+
+test("missing index targets bypass income ranges only when enabled and still obey capacity",()=>{
+ const identity={placeId:"123",jobId:"home"};
+ const settings={automationActive:true,options:{...options,AutoEggs:false,AutoIndex:true},missingCategories:{Phoenix:true}};
+ const egg={key:"123/remote/egg",placeId:"123",jobId:"remote",category:"Phoenix",incomePerSecond:1,expiresAt:20000};
+ const roster=[{placeId:"123",jobId:"remote",userId:"2",speedPower:5,reporterConnected:true}];
+ assert.equal(planTeleport(identity,settings,[egg],10000,roster).target.category,"Phoenix");
+ assert.equal(planTeleport(identity,{...settings,options:{...settings.options,AutoIndex:false}},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,{...settings,missingCategories:{}},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,{...settings,automationActive:false},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,settings,[{...egg,carrierUserId:2}],10000,roster),null);
+ const full=Array.from({length:7},(_,i)=>({...roster[0],userId:String(i)}));
+ assert.equal(planTeleport(identity,settings,[egg],10000,full),null);
+});
+
 const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true,TeleportInstantMin:10e9};
 for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=100e9;}
 test("teleport planner applies each favorite's running status, ranges, expiry and visited servers",()=>{

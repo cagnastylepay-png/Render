@@ -20,24 +20,32 @@ function validatePresence(message) {
 }
 function createPlayerStore({ now = Date.now, ttlMs = Infinity, maxSessions = 200 } = {}) {
   const sessions = new Map();
+  const observations = new Map();
   function prune() {
     let changed = false;
     for (const [key, value] of sessions) if (now() - value.receivedAt > ttlMs) { sessions.delete(key); changed = true; }
+    for (const [key,row] of observations) if(now()>=row.observationExpiresAt){observations.delete(key);changed=true;}
     return changed;
   }
-  function accept(connectionId, input) {
+  function accept(connectionId, input, {observerOnly=false}={}) {
     const snapshot = validatePresence(input);
     const previous = sessions.get(connectionId);
     if (previous && previous.snapshot.sessionId === snapshot.sessionId && previous.snapshot.revision >= snapshot.revision) return false;
     sessions.delete(connectionId);
-    sessions.set(connectionId, { snapshot, receivedAt: now() });
+    const row={snapshot,receivedAt:now()};
+    if(observerOnly){
+      row.observerSnapshot=true;row.observationExpiresAt=(Math.floor(now()/300000)+1)*300000;
+      observations.set(JSON.stringify([snapshot.placeId,snapshot.jobId]),row);
+      while(observations.size>maxSessions)observations.delete(observations.keys().next().value);
+    }
+    sessions.set(connectionId,row);
     while (sessions.size > maxSessions) sessions.delete(sessions.keys().next().value);
     return true;
   }
   function remove(connectionId) { return sessions.delete(connectionId); }
   function state() {
     prune();
-    const servers = new Map();
+    const servers = new Map(observations);
     const connected = new Set();
     for (const row of sessions.values()) {
       const s = row.snapshot, key = JSON.stringify([s.placeId, s.jobId]);
@@ -50,6 +58,7 @@ function createPlayerStore({ now = Date.now, ttlMs = Infinity, maxSessions = 200
       const s = row.snapshot;
       for (const player of s.players) players.push({ ...player, placeId: s.placeId, jobId: s.jobId,
         reporterConnected: connected.has(JSON.stringify([s.placeId, s.jobId, player.userId])),
+        observerSnapshot:row.observerSnapshot===true,observationExpiresAt:row.observationExpiresAt||null,
         receivedAt: new Date(row.receivedAt).toISOString() });
     }
     players.sort((a,b) => Number(b.reporterConnected) - Number(a.reporterConnected) || a.name.localeCompare(b.name));

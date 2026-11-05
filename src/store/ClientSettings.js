@@ -40,9 +40,11 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
    if(message.version!==1||typeof message.sessionId!=="string"||!message.sessionId.length||message.sessionId.length>100||!Number.isSafeInteger(message.revision)||message.revision<1)throw Error("Invalid settings snapshot");
    if(message.automationActive!==undefined&&typeof message.automationActive!=="boolean")throw Error("Invalid automation status");
    if(message.visitedJobIds!==undefined&&(!Array.isArray(message.visitedJobIds)||message.visitedJobIds.length>500||message.visitedJobIds.some(id=>typeof id!=="string"||!id.length||id.length>128)))throw Error("Invalid visited servers");
+   const missing=message.missingCategories??{};
+   if(!missing||typeof missing!=="object"||Array.isArray(missing)||Object.keys(missing).length>5000||Object.entries(missing).some(([key,value])=>!key.length||key.length>160||value!==true))throw Error("Invalid missing index");
    const options=validateSettings(message.options),old=rows.get(identity.userId);
    if(old?.sessionId===message.sessionId&&old.revision>=message.revision)return false;
-   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),automationActive:message.automationActive===true,visitedJobIds:[...new Set(message.visitedJobIds||[])],options};
+   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),automationActive:message.automationActive===true,visitedJobIds:[...new Set(message.visitedJobIds||[])],missingCategories:{...missing},options};
    rows.set(row.userId,row);pending.set(row.userId,row);schedule();return true;
   },
   get:userId=>rows.get(userId),
