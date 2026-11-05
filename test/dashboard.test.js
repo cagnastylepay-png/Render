@@ -108,6 +108,10 @@ test("server cards select the best egg, expand all eggs and keep expansion acros
  const a=vm.runInContext('serverViews.get(JSON.stringify(["123","server-a"]))',h.context);
  assert.equal(a.view.name.textContent,"Best");
  assert.equal(a.list.children.length,2);
+ const go=a.view.node.querySelectorAll("button").find(button=>button.textContent==="GO");
+ assert.ok(go);go.onclick();
+ assert.deepEqual(JSON.parse(JSON.stringify(h.sent.at(-1))),{version:1,type:"teleport.manual",placeId:"123",jobId:"server-a"});
+ assert.equal(a.list.children.flatMap(card=>card.querySelectorAll("button")).filter(button=>button.textContent==="GO").length,0);
  a.expand.open=true;
  const nested=a.list.children[0],image=nested.querySelectorAll("img")[0];
  emit();

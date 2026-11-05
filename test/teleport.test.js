@@ -73,6 +73,14 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Auto arrete ou en pause"))));
  await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
  favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
+ favorite.send({...settings,revision:5,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===5));
+ viewer.send({type:"teleport.manual",placeId:"123",jobId:"remote"});
+ const forced=await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.force));
+ assert.equal(forced.target.jobId,"remote");assert.equal(forced.immediate,true);
+ const manualAck=await waitFor(()=>viewer.messages.find(m=>m.type==="teleport.manual.ack"));assert.equal(manualAck.count,1);
+ assert.equal(ordinary.messages.some(m=>m.force),false);
+ ordinary.send({type:"teleport.manual",placeId:"123",jobId:"home"});
+ await waitFor(()=>ordinary.messages.find(m=>m.type==="error"&&m.message.includes("dashboard")));
 });
 
 test("teleport selection excludes full or unobserved servers, ranks income first and opponent speed only on ties",()=>{

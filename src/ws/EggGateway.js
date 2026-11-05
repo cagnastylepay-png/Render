@@ -84,6 +84,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     const eggs=store.state().eggs,presence=players.state().players;
     for(const ws of wss.clients){
       if(ws.role!=="reporter"||!ws.reporterIdentity||ws.observerOnly)continue;
+      if(ws.manualTeleportUntil>Date.now())continue;
       const saved=ws.settingsSessionId?settings.get(ws.reporterIdentity.userId):null;
       const enabled=isFavorite(ws.reporterIdentity.userId)&&saved?.sessionId===ws.settingsSessionId;
       const plan=enabled?planTeleport(ws.reporterIdentity,saved,eggs,Date.now(),presence):null;
@@ -212,6 +213,28 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
+        if(message.type==="teleport.manual"){
+          if(ws.role!=="viewer")throw Error("Only dashboard viewers may force a teleport");
+          await policy.ready;
+          if(typeof message.placeId!=="string"||typeof message.jobId!=="string"||!message.jobId||message.jobId.length>128)throw Error("Invalid destination");
+          const now=Date.now(),eggs=store.state().eggs.filter(e=>e.placeId===message.placeId&&e.jobId===message.jobId&&e.expiresAt>now);
+          const roster=players.state().players.filter(p=>p.placeId===message.placeId&&p.jobId===message.jobId);
+          if(!eggs.length&&!roster.length)throw Error("Destination inconnue ou expiree");
+          const best=eggs.sort((a,b)=>(b.incomePerSecond||0)-(a.incomePerSecond||0))[0];
+          const target={...best,placeId:message.placeId,jobId:message.jobId,expiresAt:now+30000,incomePerSecond:best?.incomePerSecond||0,name:best?.name||"Serveur choisi manuellement"};
+          const recipients=new Map();
+          for(const client of wss.clients){
+            const identity=client.reporterIdentity;
+            if(client.readyState===WebSocket.OPEN&&client.role==="reporter"&&!client.observerOnly&&identity&&isFavorite(identity.userId)&&identity.placeId===message.placeId&&identity.jobId!==message.jobId)recipients.set(identity.userId,client);
+          }
+          for(const client of recipients.values()){
+            client.manualTeleportUntil=now+30000;
+            send(client,{version:1,type:"teleport.request",requestId:randomUUID(),serverTime:now,target,immediate:true,force:true});
+            audit(client.reporterIdentity,"GO manuel : teleportation forcee vers "+message.jobId+" pour "+describeTarget(target));
+          }
+          send(ws,{version:1,type:"teleport.manual.ack",count:recipients.size,jobId:message.jobId});
+          return;
+        }
         if(message.type==="logs.clear"){
           if(ws.role!=="viewer")throw Error("Only dashboard viewers may clear logs");
           await logs.clear();
