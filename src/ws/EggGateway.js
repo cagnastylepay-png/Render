@@ -145,7 +145,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       const signature=JSON.stringify([others.map(p=>p.userId).sort(),avoidJobIds,waitingFor]);
       if(ws.observerRelocationSignature===signature)continue;
       ws.observerRelocationSignature=signature;
-      send(ws,{version:1,type:"observer.relocate",mode:hold?"hold":"roam",waitingForUserIds:waitingFor,minimumFreeSlots:2,placeId:identity.placeId,jobId:identity.jobId,relocate:!hold,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
+      send(ws,{version:1,type:"observer.relocate",mode:hold?"hold":"roam",waitingForUserIds:waitingFor,minimumPlayers:2,preferredMaximumPlayers:5,minimumFreeSlots:1,placeId:identity.placeId,jobId:identity.jobId,relocate:!hold,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
