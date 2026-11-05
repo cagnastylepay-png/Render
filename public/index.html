@@ -9,7 +9,7 @@ header,.toolbar,.tabs,.card-head{display:flex;gap:16px;align-items:center;flex-w
 header{justify-content:space-between}h1{margin:0;font-size:28px}h2{margin:0;font-size:16px}
 button,input,select{font:inherit;border:1px solid #3b465b;border-radius:8px;background:#1c2536;color:inherit;padding:9px 12px}
 button{cursor:pointer}button:disabled{opacity:.45;cursor:default}.tabs{margin:22px 0}.tabs [aria-selected=true]{background:#b0fa75;color:#142410;border-color:#b0fa75;font-weight:700}
-label{display:inline-flex;gap:8px;align-items:center}.token{max-width:180px}small,.muted{color:#a4b2ca}
+label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 #status{min-height:1.4em}.timer{font-variant-numeric:tabular-nums}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:12px}
 .cards{align-items:start}.server-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #303d53}.server-heading strong{font-size:12px}.server-heading small{font-size:11px}.server-eggs{display:grid;gap:10px;margin-top:12px}.server-eggs .players{display:none}.server-eggs .card{padding:10px;background:#101826}.server-expand>summary{font-size:13px;color:#b0fa75;padding:10px 0}.server-empty .egg-art,.server-empty .metrics{display:none}
 .card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:10px;padding:12px}
@@ -17,7 +17,7 @@ label{display:inline-flex;gap:8px;align-items:center}.token{max-width:180px}smal
 .egg-art{height:105px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:6px 0}.egg-art img{width:100px;height:100px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:56px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.metric{background:#1a2538;border-radius:6px;padding:8px}.metric strong{display:block;font-size:16px;margin-top:3px}
 .identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:10px;padding-top:10px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
-.favorite{float:right;padding:2px 6px;margin-left:5px;font-size:18px;line-height:1.1;background:transparent;border:0;color:#8d9cb4}.favorite[aria-pressed=true]{color:#ffd269}.delivery-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0;padding:12px;border:1px solid #303d53;border-radius:10px}.delivery-controls input{width:150px}
+.favorite{float:right;padding:2px 6px;margin-left:5px;font-size:18px;line-height:1.1;background:transparent;border:0;color:#8d9cb4}.favorite[aria-pressed=true]{color:#ffd269}
 .roster{display:grid;gap:7px}.player{border:1px solid #3b465b;background:#1a2435;border-radius:8px;padding:7px;font-size:11px}.player.script{border-color:#6fc788;background:#153427}.player strong{font-size:13px}.badge{float:right;font-size:10px;padding:3px 6px;border-radius:4px;background:#344058}.script .badge{background:#27633d}
 details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .table{overflow:auto;border:1px solid #303d53;border-radius:10px}table{border-collapse:collapse;width:100%;white-space:nowrap;text-align:left}td,th{padding:12px;border-bottom:1px solid #303d53}th{background:#1a2538}
@@ -28,11 +28,11 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <body><main>
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
-<div class="toolbar"><label>Clé de lecture <input class="token" id="token" type="password" autocomplete="off" placeholder="Si configurée"></label><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
+<div class="toolbar"><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
 <nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button><button id="tab-favorites" role="tab" aria-selected="false" aria-controls="panel-favorites">Favoris (0)</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
-<div class="delivery-controls"><label>Envoi aux favoris ≥ <input id="delivery-minimum" value="2B/s" aria-label="Revenu minimum pour les favoris"></label><button id="delivery-apply" disabled>Appliquer</button><span id="delivery-info" class="muted">Chargement des favoris…</span></div>
+<p id="delivery-info" class="muted">Chargement des favoris…</p>
 <p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO reste désactivé.</p>
 <div id="cards" class="cards"></div>
 
@@ -84,13 +84,6 @@ function rosterFor(egg){
  return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId).sort((a,b)=>
   (b.speedPower??-1)-(a.speedPower??-1)||String(a.name).localeCompare(String(b.name)));
 }
-function parseIncome(value){
- const match=String(value).replace(/\s/g,"").replace(/\/s$/i,"").match(/^(\d+(?:[.,]\d+)?)(K|M|B|T|Qa|Qi|Sx|Sp|Oc|No|Dc)?$/i);
- if(!match)return null;
- const tier=suffixes.findIndex(s=>s.toLowerCase()===(match[2]||"").toLowerCase());
- const number=Number(match[1].replace(",","."))*Math.pow(1000,tier);
- return Number.isFinite(number)&&number>=0?number:null;
-}
 function configureDelivery(ids,minimum){
  if(!deliveryReady||!socket||socket.readyState!==WebSocket.OPEN)return;
  socket.send(JSON.stringify({version:1,type:"delivery.configure",expectedRevision:deliveryRevision,
@@ -99,8 +92,6 @@ function configureDelivery(ids,minimum){
 function updateDelivery(message){
  favoriteUsers=new Set(message.favoriteUserIds);deliveryRevision=message.revision;
  deliveryMinimum=message.minimumIncomePerSecond;deliveryReady=true;
- document.getElementById("delivery-apply").disabled=false;
- document.getElementById("delivery-minimum").value=fmt(deliveryMinimum)+"/s";
  setText(document.getElementById("delivery-info"),favoriteUsers.size+" favori(s) · "+(message.storage==="mongodb"?"Sauvegarde MongoDB":message.storage==="disk"?"Sauvegarde locale":"Mémoire uniquement"));
  updateAllRosters();
 }
@@ -315,10 +306,10 @@ document.getElementById("logs-clear").onclick=()=>{
  socket.send(JSON.stringify({version:1,type:"logs.clear"}));
 };
 function connect(){
- clearTimeout(retry);stopped=false;deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
+ clearTimeout(retry);stopped=false;deliveryReady=false;
  const previous=socket;socket=null;if(previous)previous.close();
  const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/sae/ws");socket=current;setText(status,"Connexion…");
- current.onopen=()=>current.send(JSON.stringify({version:1,type:"hello",role:"viewer",token:document.getElementById("token").value}));
+ current.onopen=()=>current.send(JSON.stringify({version:1,type:"hello",role:"viewer"}));
  current.onmessage=event=>{
   if(socket!==current)return;
   try{
@@ -345,11 +336,11 @@ function connect(){
  };
  current.onclose=event=>{
   if(socket!==current)return;
-  deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
+  deliveryReady=false;
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
   favoriteEntries=favoriteEntries.map(row=>({...row,connected:false}));renderFavorites();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
-  if(event.code===1008){stopped=true;setText(status,"Accès refusé : renseigne la clé de lecture puis reconnecte.");}
+  if(event.code===1008){stopped=true;setText(status,"Accès refusé par le serveur.");}
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
@@ -359,10 +350,5 @@ function switchPanel(name){
 for(const name of ["eggs","history","logs","favorites"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
-document.getElementById("delivery-apply").onclick=()=>{
- const minimum=parseIncome(document.getElementById("delivery-minimum").value);
- if(minimum===null){setText(document.getElementById("delivery-info"),"Revenu invalide : exemple 2B/s ou 500M/s.");return;}
- configureDelivery(favoriteUsers,minimum);
-};
 setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>

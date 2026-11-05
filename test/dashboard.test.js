@@ -131,7 +131,7 @@ test("server cards select the best egg, expand all eggs and keep expansion acros
  assert.equal(vm.runInContext("serverViews.size",h.context),0);
 });
 
-test("rosters sort by game speed and favorites send the selected income policy",()=>{
+test("rosters sort by game speed and favorite stars work without obsolete global inputs",()=>{
  const h=harness();
  h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"job",uid:"egg",name:"Egg",rarity:"Divine",expiresAt:Date.now()+60000}]});
  h.emit({type:"players.state",players:[
@@ -149,10 +149,10 @@ test("rosters sort by game speed and favorites send the selected income policy",
  assert.equal(h.sent.at(-1).minimumIncomePerSecond,2e9);
  h.emit({type:"delivery.policy",revision:1,favoriteUserIds:["2"],minimumIncomePerSecond:2e9,storage:"mongodb"});
  assert.match(roster.children[0].textContent,/★/);
- h.document.getElementById("delivery-minimum").value="2.5Qa/s";
- h.document.getElementById("delivery-apply").onclick();
- assert.equal(h.sent.at(-1).minimumIncomePerSecond,2.5e15);
+ star.onclick();
+ assert.deepEqual(h.sent.at(-1).favoriteUserIds,[]);
  assert.equal(h.sent.at(-1).expectedRevision,1);
+ assert.doesNotMatch(html,/id="(?:delivery-minimum|delivery-apply|token)"/);
 });
 
 test("favorites show saved ranges, offline clients and navigate to filtered logs",()=>{
