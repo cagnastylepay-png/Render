@@ -87,7 +87,7 @@ test("observer roams after reporting, excludes favorite and observer servers, an
  assert.equal(observer.messages.findLast(m=>m.type==="reporting.policy").sendTeleport,false);
  assert.equal(observer.messages.findLast(m=>m.type==="reporting.policy").sendSettings,false);
  const initial=await waitFor(()=>observer.messages.find(m=>m.type==="observer.relocate"));
- assert.equal(initial.mode,"roam");assert.equal(initial.minimumPlayers,2);assert.equal(initial.preferredMaximumPlayers,5);assert.equal(initial.minimumFreeSlots,1);assert.equal(initial.relocate,true);
+ assert.equal(initial.mode,"roam");assert.equal(initial.requiredPlayers,3);assert.equal(initial.minimumPlayers,3);assert.equal(initial.preferredMaximumPlayers,3);assert.equal(initial.minimumFreeSlots,1);assert.equal(initial.relocate,true);
  observer.send(presence(2,[{userId:"2",name:"Favorite",displayName:"Favorite"}]));
  const relocation=await waitFor(()=>observer.messages.find(m=>m.type==="observer.relocate"&&m.favoriteUserIds.includes("2")));
  assert.deepEqual(relocation.favoriteUserIds,["2"]);assert.equal(relocation.jobId,"home");
