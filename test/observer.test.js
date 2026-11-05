@@ -17,7 +17,7 @@ const presence=(revision,others=[])=>({version:1,type:"players.snapshot",moduleI
  sessionId:"observer",revision,placeId:"123",jobId:"home",reporterUserId:"1",
  players:[{userId:"1",name:"Observer",displayName:"Observer"},...others]});
 
-test("lone observer holds an eligible server before ACK, survives favorite handover and leaves after arrival",async t=>{
+test("observer holds populated eligible servers, leaves full servers and releases after favorite arrival",async t=>{
  const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");
  t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
@@ -39,6 +39,14 @@ test("lone observer holds an eligible server before ACK, survives favorite hando
  assert.equal(hold.relocate,false);assert.deepEqual(hold.waitingForUserIds,["2"]);
  await waitFor(()=>observer.messages.find(m=>m.type==="eggs.ack"&&m.revision===1));
  assert.ok(observer.messages.indexOf(hold)<observer.messages.findIndex(m=>m.type==="eggs.ack"&&m.revision===1));
+ observer.send(presence(2,[{userId:"3",name:"Guest",displayName:"Guest"}]));
+ await waitFor(()=>observer.messages.find(m=>m.type==="players.ack"&&m.revision===2));
+ await new Promise(r=>setTimeout(r,250));
+ assert.equal(observer.messages.findLast(m=>m.type==="observer.relocate").mode,"hold");
+ observer.send(presence(3,Array.from({length:6},(_,i)=>({userId:String(i+3),name:"Guest"+i,displayName:"Guest"+i}))));
+ await waitFor(()=>observer.messages.findLast(m=>m.type==="observer.relocate")?.mode==="roam");
+ observer.send(presence(4,[{userId:"3",name:"Guest",displayName:"Guest"}]));
+ await waitFor(()=>observer.messages.findLast(m=>m.type==="observer.relocate")?.mode==="hold");
  let before=observer.messages.length;
  observer.send({...snapshot,revision:2,eggs:[]});
  await waitFor(()=>observer.messages.slice(before).find(m=>m.type==="observer.relocate"&&m.mode==="roam"));
@@ -51,7 +59,7 @@ test("lone observer holds an eligible server before ACK, survives favorite hando
  favorite.ws.close();await new Promise(r=>setTimeout(r,300));
  assert.equal(observer.messages.findLast(m=>m.type==="observer.relocate").mode,"hold");
  before=observer.messages.length;
- observer.send(presence(2,[{userId:"2",name:"Favorite",displayName:"Favorite"}]));
+ observer.send(presence(5,[{userId:"2",name:"Favorite",displayName:"Favorite"}]));
  await waitFor(()=>observer.messages.slice(before).find(m=>m.type==="observer.relocate"&&m.mode==="roam"));
 });
 

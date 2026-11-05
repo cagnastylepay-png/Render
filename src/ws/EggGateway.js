@@ -121,8 +121,8 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       const localEggs=eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId===identity.jobId);
       const holds=ws.observerHolds||new Map();
       const waitingFor=[];
-      if(roster.length===1&&roster[0].userId===identity.userId){
-        // Keep the server alive during the favorite's disconnection/teleport handover.
+      if(others.length===0&&roster.length<7){
+        // Keep a live observer on eligible targets until the favorite arrives; leave full servers.
         for(const [userId,held]of holds){
           const saved=settings.get(userId)||held.settings;
           const explicitlyStopped=saved.automationActive===false&&saved.automationReason&&saved.automationReason!=="Teleportation en cours";
