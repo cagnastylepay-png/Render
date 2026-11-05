@@ -29,13 +29,17 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><label>Clé de lecture <input class="token" id="token" type="password" autocomplete="off" placeholder="Si configurée"></label><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
-<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button></nav>
+<nav class="tabs" role="tablist"><button id="tab-eggs" role="tab" aria-selected="true" aria-controls="panel-eggs">Eggs (0)</button><button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">Historique (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Logs (0)</button><button id="tab-favorites" role="tab" aria-selected="false" aria-controls="panel-favorites">Favoris (0)</button></nav>
 <section id="panel-eggs" role="tabpanel" aria-labelledby="tab-eggs">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
 <div class="delivery-controls"><label>Envoi aux favoris ≥ <input id="delivery-minimum" value="2B/s" aria-label="Revenu minimum pour les favoris"></label><button id="delivery-apply" disabled>Appliquer</button><span id="delivery-info" class="muted">Chargement des favoris…</span></div>
 <p class="muted">Une carte par serveur · Meilleur œuf par revenu/s · Déroulez pour voir tous ses œufs · GO reste désactivé.</p>
 <div id="cards" class="cards"></div>
 
+</section>
+<section id="panel-favorites" role="tabpanel" aria-labelledby="tab-favorites" hidden>
+<p id="favorites-info" class="muted">Paramètres des clients favoris · Consultation uniquement.</p>
+<div id="favorites-cards" class="cards"></div>
 </section>
 <section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
 <div class="hourly-card">
@@ -60,6 +64,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 "use strict";
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0,notifications=[],historyRows=new Map();
 const cardViews=new Map(),serverViews=new Map();
+let favoriteEntries=[],favoriteStorage="memory";
 let favoriteUsers=new Set(),deliveryRevision=0,deliveryMinimum=2e9,deliveryReady=false;
 const status=document.getElementById("status"),cards=document.getElementById("cards");
 const suffixes=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
@@ -98,6 +103,25 @@ function updateDelivery(message){
  document.getElementById("delivery-minimum").value=fmt(deliveryMinimum)+"/s";
  setText(document.getElementById("delivery-info"),favoriteUsers.size+" favori(s) · "+(message.storage==="mongodb"?"Sauvegarde MongoDB":message.storage==="disk"?"Sauvegarde locale":"Mémoire uniquement"));
  updateAllRosters();
+}
+function renderFavorites(){
+ const container=document.getElementById("favorites-cards");container.replaceChildren();
+ setText(document.getElementById("tab-favorites"),"Favoris ("+favoriteEntries.length+")");
+ setText(document.getElementById("favorites-info"),"Derniers paramètres reçus · Consultation uniquement · "+(favoriteStorage==="mongodb"?"Sauvegarde MongoDB active.":favoriteStorage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
+ for(const row of favoriteEntries){
+  const card=el("article",null,"card"),heading=el("h2",row.playerName),state=el("p",row.connected?"● Connecté":"○ Déconnecté");
+  state.style.color=row.connected?"#b0fa75":"#a4b2ca";
+  card.append(heading,state,el("p","ID joueur : "+row.userId,"identity"),el("p","Serveur : "+(row.jobId||"—"),"identity"),el("p",row.at?"Paramètres reçus le "+new Date(row.at).toLocaleString():"En attente des paramètres du client.","muted"));
+  if(row.options){
+   for(const [key,label]of [["AutoEggs","AutoEggs"],["AutoIndex","AutoIndex · Manquants"],["AutoTreadmill","AutoTreadmill"],["AutoPapillon","AutoPapillon"],["AutoSell","AutoSell"],["AutoFuse","AutoFuse"],["AutoOpen","AutoOpen"],["AutoPlace","AutoPlace"]]){
+    let text=label+" : "+(row.options[key]?"ON":"OFF");
+    if(row.options[key+"Min"]!=null)text+=" · "+fmt(row.options[key+"Min"])+"/s → "+fmt(row.options[key+"Max"])+"/s";
+    card.append(el("p",text));
+   }
+  }
+  const logs=el("button","Voir les logs");logs.onclick=()=>{document.getElementById("logs-filter").value=row.userId;renderLogs();switchPanel("logs");};card.append(logs);container.append(card);
+ }
+ if(!favoriteEntries.length)container.append(el("p","Ajoutez un joueur aux favoris avec l’étoile sur une carte serveur.","empty"));
 }
 function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
@@ -274,7 +298,7 @@ function renderLogs(){
  const query=document.getElementById("logs-filter").value.toLowerCase();
  const lines=[...logRows.values()].reverse().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,1000);
  logRows=new Map([...lines].reverse().map(row=>[row.id,row]));
- const visible=lines.map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text).filter(line=>line.toLowerCase().includes(query));
+ const visible=lines.filter(row=>[row.userId,row.playerName,row.jobId,row.text].join(" ").toLowerCase().includes(query)).map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text);
  setText(document.getElementById("logs-lines"),visible.join("\n")||"Aucune action reçue.");
  setText(document.getElementById("tab-logs"),"Logs ("+lines.length+")");
 }
@@ -298,6 +322,7 @@ function connect(){
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
    if(message.type==="delivery.policy"){updateDelivery(message);}
+   else if(message.type==="favorites.state"){favoriteEntries=message.entries;favoriteStorage=message.storage;renderFavorites();}
    else if(message.type==="eggs.state"){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
     setText(document.getElementById("tab-eggs"),"Eggs ("+rows.length+")");renderCards();
@@ -319,14 +344,16 @@ function connect(){
   if(socket!==current)return;
   deliveryReady=false;document.getElementById("delivery-apply").disabled=true;
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
+  favoriteEntries=favoriteEntries.map(row=>({...row,connected:false}));renderFavorites();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
   if(event.code===1008){stopped=true;setText(status,"Accès refusé : renseigne la clé de lecture puis reconnecte.");}
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
-for(const name of ["eggs","history","logs"])document.getElementById("tab-"+name).onclick=()=>{
- for(const tab of ["eggs","history","logs"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
-};
+function switchPanel(name){
+ for(const tab of ["eggs","history","logs","favorites"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+}
+for(const name of ["eggs","history","logs","favorites"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
 document.getElementById("delivery-apply").onclick=()=>{
@@ -336,4 +363,3 @@ document.getElementById("delivery-apply").onclick=()=>{
 };
 setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>
-

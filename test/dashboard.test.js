@@ -155,3 +155,9 @@ test("rosters sort by game speed and favorites send the selected income policy",
  assert.equal(h.sent.at(-1).expectedRevision,1);
 });
 
+test("favorites show saved ranges, offline clients and navigate to filtered logs",()=>{
+ const h=harness();h.emit({type:"favorites.state",storage:"mongodb",entries:[{userId:"42",playerName:"Alice",connected:true,jobId:"job",at:new Date().toISOString(),options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33}},{userId:"99",playerName:"Bob",connected:false,options:null}]});
+ const cards=h.document.getElementById("favorites-cards");assert.equal(cards.children.length,2);assert.match(cards.textContent,/Connecté/);assert.match(cards.textContent,/Déconnecté/);assert.match(cards.textContent,/2B\/s/);assert.match(cards.textContent,/1Dc\/s/);assert.match(cards.textContent,/attente/);
+ h.emit({type:"logs.state",limit:1000,entries:[{id:"1",userId:"42",playerName:"Alice",jobId:"job",text:"Ouverture",at:new Date().toISOString()},{id:"2",userId:"99",playerName:"Bob",jobId:"job",text:"Vente",at:new Date().toISOString()}]});
+ cards.children[0].querySelectorAll("button")[0].onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);assert.match(h.document.getElementById("logs-lines").textContent,/Ouverture/);assert.doesNotMatch(h.document.getElementById("logs-lines").textContent,/Vente/);
+});

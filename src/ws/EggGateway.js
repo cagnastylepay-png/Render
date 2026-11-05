@@ -2,6 +2,7 @@
 
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
+const {createClientSettings}=require("../store/ClientSettings");
 const {createClientLogs}=require("../store/ClientLogs");
 const {hourlyHistory}=require("../store/EggHistory");
 const { createDeliveryPolicy } = require("../store/DeliveryPolicy");
@@ -11,16 +12,26 @@ function sameToken(provided, expected) {
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {} } = {}) {
+function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {} } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1048576, perMessageDeflate: false });
   let closed = false;
   const policy=createDeliveryPolicy(delivery);
   const logs=createClientLogs(logOptions);
+  const settings=createClientSettings(settingsOptions);
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
   function sendReporterPolicy(ws){
     const favorite=isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
-    send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendEggs:true,sendPlayers:true});
+    send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendSettings:favorite,sendEggs:true,sendPlayers:true});
   }
+  function favoritesState(){
+    return {version:1,type:"favorites.state",storage:settings.storage(),entries:policy.state().favoriteUserIds.map(userId=>{
+      const saved=settings.get(userId),connections=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.role==="reporter"&&ws.reporterIdentity?.userId===userId);
+      const identity=connections.at(-1)?.reporterIdentity;
+      return {userId,playerName:identity?.name||saved?.playerName||userId,connected:connections.length>0,jobId:identity?.jobId||saved?.jobId||null,placeId:identity?.placeId||saved?.placeId||null,at:saved?.at||null,options:saved?.options||null};
+    })};
+  }
+  function broadcastFavorites(){const state=favoritesState();for(const ws of wss.clients)if(ws.role==="viewer")send(ws,state);}
+  const unsubscribeSettings=settings.onReady(broadcastFavorites);
   function logsState(){const state=logs.state();return {...state,entries:state.entries.filter(row=>isFavorite(row.userId))};}
   function historyState(){
     const state=history.state(),all=(history.all?.()||state.entries).filter(row=>isFavorite(row.reporterUserId));
@@ -55,7 +66,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
-    for(const ws of wss.clients)if(ws.role==="viewer"){send(ws,config);send(ws,historyState());send(ws,logsState());}
+    for(const ws of wss.clients)if(ws.role==="viewer"){send(ws,config);send(ws,historyState());send(ws,logsState());send(ws,favoritesState());}
     for(const ws of wss.clients)if(ws.role==="reporter")sendReporterPolicy(ws);
     broadcast();
   });
@@ -66,6 +77,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       broadcastTimer = undefined;
       const state = store.state(), presence = players.state();
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, state); send(ws, presence); }
+      broadcastFavorites();
       deliverTargets();
     }, 200);
     broadcastTimer.unref();
@@ -91,7 +103,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     ws.on("error", () => {}); // Socket closure drives client retries.
     const handshake = setTimeout(() => ws.close(1008, "Hello required"), 10000);
     handshake.unref();
-    ws.on("close", () => { clearTimeout(handshake); if (players.remove(ws.connectionId)) broadcast(); });
+    ws.on("close", () => { clearTimeout(handshake); players.remove(ws.connectionId); broadcast(); });
     let windowAt = Date.now(), messages = 0;
     ws.on("message", async (raw, binary) => {
       try {
@@ -110,7 +122,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           clearTimeout(handshake);
           send(ws, { version: 1, type: "hello.ack", role: ws.role });
           if(ws.role==="reporter"){await policy.ready;sendReporterPolicy(ws);}
-          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, historyState()); send(ws,policy.state()); send(ws,logsState()); }
+          if (ws.role === "viewer") { send(ws, store.state()); send(ws, players.state()); send(ws, historyState()); send(ws,policy.state()); send(ws,logsState()); send(ws,favoritesState()); }
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
@@ -134,6 +146,13 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
         }
         if (ws.role !== "reporter") throw new Error("Viewer is read-only");
         await policy.ready;
+        if(message.type==="settings.snapshot"){
+          if(!ws.reporterIdentity)throw Error("Player identity required before settings");
+          const accepted=isFavorite(ws.reporterIdentity.userId)?settings.accept(ws.reporterIdentity,message):false;
+          send(ws,{version:1,type:"settings.ack",sessionId:message.sessionId,revision:message.revision,accepted});
+          if(accepted)broadcastFavorites();
+          return;
+        }
         if(message.type==="logs.append"){
           if(!ws.reporterIdentity)throw Error("Player identity required before logs");
           if(!isFavorite(ws.reporterIdentity.userId)){
@@ -182,13 +201,13 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       unsubscribeHistory();
       unsubscribePolicy();
       unsubscribeLogs();
+      unsubscribeSettings();
       clearInterval(heartbeat); clearTimeout(broadcastTimer);
       server.removeListener("upgrade", upgrade);
       for (const ws of wss.clients) ws.terminate();
       wss.close();
-      return Promise.all([policy.close(),logs.close()]);
+      return Promise.all([policy.close(),logs.close(),settings.close()]);
     }
   };
 }
 module.exports = { attachEggGateway, sameToken };
-
