@@ -22,14 +22,15 @@ const {planTeleport}=require("../src/ws/TeleportPlanner");
 const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true,TeleportInstantMin:10e9};
 for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=100e9;}
 test("teleport planner applies each favorite's running status, ranges, expiry and visited servers",()=>{
+ const roster=[{placeId:"123",jobId:"remote",userId:"2",reporterConnected:true,speedPower:100},{placeId:"123",jobId:"another",userId:"3",reporterConnected:true,speedPower:100}];
  const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options},egg={key:"123/remote/egg",placeId:"123",jobId:"remote",expiresAt:20000,incomePerSecond:3e9};
- assert.equal(planTeleport(identity,settings,[egg],10000).immediate,false);
- assert.equal(planTeleport(identity,settings,[{...egg,incomePerSecond:10e9}],10000).immediate,true);
- for(const bad of [{...egg,placeId:"other"},{...egg,jobId:"home"},{...egg,incomePerSecond:1e9},{...egg,incomePerSecond:200e9},{...egg,expiresAt:10000},{...egg,carrierUserId:3},{...egg,state:"Carried"}])assert.equal(planTeleport(identity,settings,[bad],10000),null);
- assert.equal(planTeleport(identity,{...settings,automationActive:false},[egg],10000),null);
- assert.equal(planTeleport(identity,{...settings,options:{...options,AutoEggs:false}},[egg],10000),null);
- assert.equal(planTeleport(identity,{...settings,visitedJobIds:["remote"]},[egg],10000),null);
- assert.equal(planTeleport(identity,settings,[egg,{...egg,key:"123/another/egg",jobId:"another",incomePerSecond:5e9}],10000).target.jobId,"another");
+ assert.equal(planTeleport(identity,settings,[egg],10000,roster).immediate,false);
+ assert.equal(planTeleport(identity,settings,[{...egg,incomePerSecond:10e9}],10000,roster).immediate,true);
+ for(const bad of [{...egg,placeId:"other"},{...egg,jobId:"home"},{...egg,incomePerSecond:1e9},{...egg,incomePerSecond:200e9},{...egg,expiresAt:10000},{...egg,carrierUserId:3},{...egg,state:"Carried"}])assert.equal(planTeleport(identity,settings,[bad],10000,roster),null);
+ assert.equal(planTeleport(identity,{...settings,automationActive:false},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,{...settings,options:{...options,AutoEggs:false}},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,{...settings,visitedJobIds:["remote"]},[egg],10000,roster),null);
+ assert.equal(planTeleport(identity,settings,[egg,{...egg,key:"123/another/egg",jobId:"another",incomePerSecond:5e9}],10000,roster).target.jobId,"another");
 });
 test("gateway sends typed teleport requests only to active favorites with fresh settings and cancels stale targets",async t=>{
  const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
@@ -43,9 +44,29 @@ test("gateway sends typed teleport requests only to active favorites with fresh 
  const settings={version:1,type:"settings.snapshot",sessionId:"s1",revision:1,automationActive:true,options};favorite.send(settings);
  const request=await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target));assert.equal(request.target.jobId,"remote");assert.equal(request.immediate,false);assert.equal(typeof request.requestId,"string");assert.equal(ordinary.messages.filter(m=>m.type==="teleport.request").length,0);
  favorite.send({...settings,revision:2,options:{...options,TeleportInstantMin:3e9}});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.immediate));
+ const sixOthers=Array.from({length:6},(_,i)=>({userId:String(i+3),name:"Guest"+i,displayName:"Guest"+i,speedPower:100}));
+ ordinary.send({...presence("2","remote",sixOthers),revision:2});
+ await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
+ const beforeSpace=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
+ ordinary.send({...presence("2","remote",sixOthers.slice(0,5)),revision:3});
+ await waitFor(()=>favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length>beforeSpace);
  ordinary.send({...snapshot,revision:2,eggs:[]});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
  favorite.send({...settings,revision:3,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===3));ordinary.send({...snapshot,revision:3});await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"&&m.revision===3));
  const before=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
  await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
  favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
+});
+
+test("teleport selection excludes full or unobserved servers, then minimizes the fastest opponent",()=>{
+ const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options};
+ const egg=(job,income,uid="egg")=>({key:"123/"+job+"/"+uid,placeId:"123",jobId:job,uid,expiresAt:20000,incomePerSecond:income});
+ const roster=(job,speeds)=>speeds.map((speed,index)=>({placeId:"123",jobId:job,userId:job+index,speedPower:speed,reporterConnected:index===0}));
+ const eggs=[egg("full",50e9),egg("strong",20e9),egg("weak",3e9),egg("weak",4e9,"best")];
+ const players=[...roster("full",[1,1,1,1,1,1,1]),...roster("strong",[1,1000]),...roster("weak",[20,10,15,10,10,10])];
+ assert.equal(planTeleport(identity,settings,eggs,10000,players).target.key,"123/weak/best");
+ assert.equal(planTeleport(identity,settings,[eggs[0]],10000,players),null);
+ assert.equal(planTeleport(identity,settings,eggs,10000,[]),null);
+ assert.equal(planTeleport(identity,settings,eggs,10000,players.map(p=>({...p,reporterConnected:false}))),null);
+ const unknown=egg("unknown",90e9);assert.equal(planTeleport(identity,settings,[...eggs,unknown],10000,[...players,...roster("unknown",[null])]).target.jobId,"weak");
+ assert.equal(planTeleport(identity,settings,[egg("tieA",3e9),egg("tieB",5e9)],10000,[...roster("tieA",[20]),...roster("tieB",[20])]).target.jobId,"tieB");
 });

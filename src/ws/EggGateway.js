@@ -67,12 +67,12 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     }
   }
   function deliverTeleportRequests(){
-    const eggs=store.state().eggs;
+    const eggs=store.state().eggs,presence=players.state().players;
     for(const ws of wss.clients){
       if(ws.role!=="reporter"||!ws.reporterIdentity)continue;
       const saved=ws.settingsSessionId?settings.get(ws.reporterIdentity.userId):null;
       const enabled=isFavorite(ws.reporterIdentity.userId)&&saved?.sessionId===ws.settingsSessionId;
-      const plan=enabled?planTeleport(ws.reporterIdentity,saved,eggs):null;
+      const plan=enabled?planTeleport(ws.reporterIdentity,saved,eggs,Date.now(),presence):null;
       if(!plan&&!ws.teleportSignature)continue;
       const signature=JSON.stringify(plan?[plan.target.key,plan.target.cycleId,plan.target.incomePerSecond,plan.target.expiresAt,plan.immediate]:null);
       if(signature===ws.teleportSignature)continue;
@@ -209,7 +209,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   }, 15000);
   heartbeat.unref();
   return {
-    info: () => ({ clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
+    info: () => ({ teleportSelection:"free-slot-lowest-top-speed", serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
     close() {
       if (closed) return;
       closed = true;
