@@ -113,6 +113,8 @@ function renderFavorites(){
   state.style.color=row.connected?"#b0fa75":"#a4b2ca";
   card.append(heading,state,el("p","ID joueur : "+row.userId,"identity"),el("p","Serveur : "+(row.jobId||"—"),"identity"),el("p",row.at?"Paramètres reçus le "+new Date(row.at).toLocaleString():"En attente des paramètres du client.","muted"));
   if(row.options){
+   card.append(el("p","Auto actif : "+(row.automationActive?"ON":"OFF")));
+   card.append(el("p","Téléportation immédiate ≥ "+fmt(row.options.TeleportInstantMin??100e9)+"/s"));
    card.append(el("p","Tri de la file : "+(row.options.QueueNearest?"Plus proche":"Revenu décroissant")));
    for(const [key,label]of [["AutoEggs","AutoEggs"],["AutoIndex","AutoIndex · Manquants"],["AutoTreadmill","AutoTreadmill"],["AutoPapillon","AutoPapillon"],["AutoSell","AutoSell"],["AutoFuse","AutoFuse"],["AutoOpen","AutoOpen"],["AutoPlace","AutoPlace"]]){
     let text=label+" : "+(row.options[key]?"ON":"OFF");

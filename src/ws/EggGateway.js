@@ -2,6 +2,7 @@
 
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
+const {planTeleport}=require("./TeleportPlanner");
 const {createClientSettings}=require("../store/ClientSettings");
 const {createClientLogs}=require("../store/ClientLogs");
 const {hourlyHistory}=require("../store/EggHistory");
@@ -21,13 +22,13 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
   function sendReporterPolicy(ws){
     const favorite=isFavorite(ws.reporterIdentity?.userId||ws.claimedReporterUserId);
-    send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendSettings:favorite,sendEggs:true,sendPlayers:true});
+    send(ws,{version:1,type:"reporting.policy",favorite,sendLogs:favorite,sendSettings:favorite,sendTeleport:favorite,sendEggs:true,sendPlayers:true});
   }
   function favoritesState(){
     return {version:1,type:"favorites.state",storage:settings.storage(),entries:policy.state().favoriteUserIds.map(userId=>{
       const saved=settings.get(userId),connections=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.role==="reporter"&&ws.reporterIdentity?.userId===userId);
       const identity=connections.at(-1)?.reporterIdentity;
-      return {userId,playerName:identity?.name||saved?.playerName||userId,connected:connections.length>0,jobId:identity?.jobId||saved?.jobId||null,placeId:identity?.placeId||saved?.placeId||null,at:saved?.at||null,options:saved?.options||null};
+      return {userId,playerName:identity?.name||saved?.playerName||userId,connected:connections.length>0,jobId:identity?.jobId||saved?.jobId||null,placeId:identity?.placeId||saved?.placeId||null,at:saved?.at||null,automationActive:saved?.automationActive===true,options:saved?.options||null};
     })};
   }
   function broadcastFavorites(){const state=favoritesState();for(const ws of wss.clients)if(ws.role==="viewer")send(ws,state);}
@@ -65,6 +66,20 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       send(ws,{version:1,type:"eggs.targets",enabled,minimumIncomePerSecond:config.minimumIncomePerSecond,serverTime:Date.now(),eggs});
     }
   }
+  function deliverTeleportRequests(){
+    const eggs=store.state().eggs;
+    for(const ws of wss.clients){
+      if(ws.role!=="reporter"||!ws.reporterIdentity)continue;
+      const saved=ws.settingsSessionId?settings.get(ws.reporterIdentity.userId):null;
+      const enabled=isFavorite(ws.reporterIdentity.userId)&&saved?.sessionId===ws.settingsSessionId;
+      const plan=enabled?planTeleport(ws.reporterIdentity,saved,eggs):null;
+      if(!plan&&!ws.teleportSignature)continue;
+      const signature=JSON.stringify(plan?[plan.target.key,plan.target.cycleId,plan.target.incomePerSecond,plan.target.expiresAt,plan.immediate]:null);
+      if(signature===ws.teleportSignature)continue;
+      ws.teleportSignature=signature;
+      send(ws,{version:1,type:"teleport.request",requestId:randomUUID(),serverTime:Date.now(),target:plan?.target||null,immediate:plan?.immediate||false});
+    }
+  }
   const unsubscribePolicy=policy.onChange(config=>{
     for(const ws of wss.clients)if(ws.role==="viewer"){send(ws,config);send(ws,historyState());send(ws,logsState());send(ws,favoritesState());}
     for(const ws of wss.clients)if(ws.role==="reporter")sendReporterPolicy(ws);
@@ -79,6 +94,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, state); send(ws, presence); }
       broadcastFavorites();
       deliverTargets();
+      deliverTeleportRequests();
     }, 200);
     broadcastTimer.unref();
   }
@@ -150,7 +166,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           if(!ws.reporterIdentity)throw Error("Player identity required before settings");
           const accepted=isFavorite(ws.reporterIdentity.userId)?settings.accept(ws.reporterIdentity,message):false;
           send(ws,{version:1,type:"settings.ack",sessionId:message.sessionId,revision:message.revision,accepted});
-          if(accepted)broadcastFavorites();
+          if(accepted){ws.settingsSessionId=message.sessionId;broadcastFavorites();broadcast();}
           return;
         }
         if(message.type==="logs.append"){

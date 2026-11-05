@@ -5,6 +5,8 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
+ result.TeleportInstantMin=input.TeleportInstantMin??100e9;
  if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");
  result.QueueNearest=input.QueueNearest===true;
  for(const key of toggles){if(typeof input[key]!=="boolean")throw Error("Invalid setting "+key);result[key]=input[key];}
@@ -36,9 +38,11 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
  return {
   accept(identity,message){
    if(message.version!==1||typeof message.sessionId!=="string"||!message.sessionId.length||message.sessionId.length>100||!Number.isSafeInteger(message.revision)||message.revision<1)throw Error("Invalid settings snapshot");
+   if(message.automationActive!==undefined&&typeof message.automationActive!=="boolean")throw Error("Invalid automation status");
+   if(message.visitedJobIds!==undefined&&(!Array.isArray(message.visitedJobIds)||message.visitedJobIds.length>500||message.visitedJobIds.some(id=>typeof id!=="string"||!id.length||id.length>128)))throw Error("Invalid visited servers");
    const options=validateSettings(message.options),old=rows.get(identity.userId);
    if(old?.sessionId===message.sessionId&&old.revision>=message.revision)return false;
-   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),options};
+   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),automationActive:message.automationActive===true,visitedJobIds:[...new Set(message.visitedJobIds||[])],options};
    rows.set(row.userId,row);pending.set(row.userId,row);schedule();return true;
   },
   get:userId=>rows.get(userId),
