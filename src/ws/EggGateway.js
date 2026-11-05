@@ -3,6 +3,7 @@
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
 const {planTeleport}=require("./TeleportPlanner");
+const {createObserverServerPool}=require("./ObserverServerPool");
 const {createClientSettings}=require("../store/ClientSettings");
 const {createClientLogs}=require("../store/ClientLogs");
 const {hourlyHistory}=require("../store/EggHistory");
@@ -13,12 +14,19 @@ function sameToken(provided, expected) {
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {} } = {}) {
+function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {}, observerSearch={} } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1048576, perMessageDeflate: false });
   let closed = false;
   const policy=createDeliveryPolicy(delivery);
   const logs=createClientLogs(logOptions);
   const settings=createClientSettings(settingsOptions);
+  const observerPool=createObserverServerPool(observerSearch);
+  function observerAvoid(identity){
+    const jobs=new Set([identity.jobId]);
+    for(const p of players.state().players)if(p.placeId===identity.placeId&&isFavorite(p.userId))jobs.add(p.jobId);
+    for(const client of wss.clients)if(client.readyState===WebSocket.OPEN&&client.observerOnly&&client.reporterIdentity?.placeId===identity.placeId)jobs.add(client.reporterIdentity.jobId);
+    return jobs;
+  }
   const isFavorite=userId=>policy.state().favoriteUserIds.includes(String(userId||""));
   const auditSession="render-"+randomUUID();let auditSequence=0;
   const lastJobs=new Map();
@@ -142,10 +150,12 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       waitingFor.push(...holds.keys());
       waitingFor.sort();
       const hold=waitingFor.length>0;
+      ws.observerHolding=hold;
+      if(hold&&ws.centralObserver)observerPool.release(identity.userId);
       const signature=JSON.stringify([others.map(p=>p.userId).sort(),avoidJobIds,waitingFor]);
       if(ws.observerRelocationSignature===signature)continue;
       ws.observerRelocationSignature=signature;
-      send(ws,{version:1,type:"observer.relocate",mode:hold?"hold":"roam",waitingForUserIds:waitingFor,requiredPlayers:3,minimumPlayers:3,preferredMaximumPlayers:3,minimumFreeSlots:1,placeId:identity.placeId,jobId:identity.jobId,relocate:!hold,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
+      send(ws,{version:1,type:"observer.relocate",mode:hold?"hold":"roam",routing:"render",waitingForUserIds:waitingFor,minimumPlayers:2,preferredMaximumPlayers:5,minimumFreeSlots:1,placeId:identity.placeId,jobId:identity.jobId,relocate:!hold,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
@@ -204,6 +214,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           }
           ws.role = message.role;
           ws.observerOnly=ws.role==="reporter"&&message.observerOnly===true;
+          ws.centralObserver=ws.observerOnly&&message.observerRouting==="render";
           if(ws.role==="reporter"&&typeof message.reporterUserId==="string"&&/^\d{1,20}$/.test(message.reporterUserId))ws.claimedReporterUserId=message.reporterUserId;
           clearTimeout(handshake);
           send(ws, { version: 1, type: "hello.ack", role: ws.role });
@@ -232,6 +243,27 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
         }
         if (ws.role !== "reporter") throw new Error("Viewer is read-only");
         await policy.ready;
+        if(message.type==="observer.next"){
+          if(!ws.centralObserver||!ws.reporterIdentity||!ws.observerSnapshotReady)throw Error("Observer identity and snapshot required");
+          if(typeof message.requestId!=="string"||message.requestId.length>100||!message.requestId.length)throw Error("Invalid observer request");
+          if(ws.observerRequestRunning)return;
+          const identity=ws.reporterIdentity;
+          if(ws.observerHolding||Date.now()<(ws.nextObserverRequestAt||0)){
+            send(ws,{version:1,type:"observer.destination",requestId:message.requestId,placeId:identity.placeId,jobId:identity.jobId,target:null,retryAfter:5});return;
+          }
+          ws.observerRequestRunning=true;ws.nextObserverRequestAt=Date.now()+5000;
+          try{
+            const target=await observerPool.reserve(identity.userId,identity.placeId,()=>observerAvoid(identity));
+            if(ws.readyState!==WebSocket.OPEN||ws.observerHolding||ws.reporterIdentity?.jobId!==identity.jobId||ws.reporterIdentity?.placeId!==identity.placeId){if(target)observerPool.release(identity.userId,target.leaseId);return;}
+            send(ws,{version:1,type:"observer.destination",requestId:message.requestId,placeId:identity.placeId,jobId:identity.jobId,serverTime:Date.now(),target,retryAfter:Math.max(5,Math.ceil((observerPool.state().nextRequestAt-Date.now())/1000)),status:observerPool.state().lastError});
+          }finally{ws.observerRequestRunning=false;}
+          return;
+        }
+        if(message.type==="observer.result"){
+          if(!ws.centralObserver||!ws.reporterIdentity||typeof message.leaseId!=="string")throw Error("Invalid observer result");
+          if(message.failed===true)observerPool.failed(ws.reporterIdentity.userId,message.leaseId);
+          return;
+        }
         if(message.type==="settings.snapshot"){
           if(!ws.reporterIdentity)throw Error("Player identity required before settings");
           const accepted=isFavorite(ws.reporterIdentity.userId)&&!ws.observerOnly?settings.accept(ws.reporterIdentity,message):false;
@@ -256,6 +288,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           if (accepted) {
             const reporter=message.players.find(player=>player.userId===message.reporterUserId);
             ws.reporterIdentity={name:reporter.displayName||reporter.name,userId:reporter.userId,placeId:message.placeId,jobId:message.jobId};
+            if(ws.centralObserver)observerPool.arrived(reporter.userId,message.placeId,message.jobId);
             if(!ws.observerOnly&&isFavorite(reporter.userId)){
               const previous=lastJobs.get(reporter.userId);
               if(previous!==message.jobId){audit(ws.reporterIdentity,"Arrivee / connexion sur le serveur "+message.jobId+(previous?" depuis "+previous:""));lastJobs.set(reporter.userId,message.jobId);}
@@ -266,6 +299,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           return;
         }
         const accepted = store.accept(message);
+        if(accepted&&ws.centralObserver)ws.observerSnapshotReady=true;
         // Hold/roam must precede the ACK: the observer may leave as soon as its snapshot is acknowledged.
         if(accepted&&ws.observerOnly)relocateObservers();
         send(ws, { version: 1, type: "eggs.ack", sessionId: message.sessionId, cycleId: message.cycleId,
@@ -284,8 +318,14 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
     if (store.prune() || players.prune()) broadcast();
   }, 15000);
   heartbeat.unref();
+  let searchPlaceIndex=0;
+  const observerSearchTimer=setInterval(()=>{
+    const places=[...new Set([...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.centralObserver&&ws.reporterIdentity).map(ws=>ws.reporterIdentity.placeId))];
+    if(places.length)void observerPool.refresh(places[searchPlaceIndex++%places.length]);
+  },3000);
+  observerSearchTimer.unref();
   return {
-    info: () => ({ executionConfigured:false, teleportSelection:"lowest-top-speed-allow-full", allowFullFavoriteServers:true, serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
+    info: () => ({ observerRouting:"render",observerSearch:observerPool.state(),executionConfigured:false, teleportSelection:"lowest-top-speed-allow-full", allowFullFavoriteServers:true, serverPlayerLimit:7, clients: wss.clients.size, reportAuthentication: !!reportToken, viewerAuthentication: !!viewerToken, deliveryStorage:policy.state().storage, favoriteClients:policy.state().favoriteUserIds.length, logsStorage:logs.state().storage, logsLimit:logs.state().limit }),
     close() {
       if (closed) return;
       closed = true;
@@ -295,6 +335,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
       unsubscribeLogs();
       unsubscribeSettings();
       clearInterval(heartbeat); clearTimeout(broadcastTimer);
+      clearInterval(observerSearchTimer);observerPool.close();
       server.removeListener("upgrade", upgrade);
       for (const ws of wss.clients) ws.terminate();
       wss.close();
