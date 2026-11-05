@@ -169,7 +169,12 @@ test("GO deep link belongs only to the server header, never individual eggs",()=
  const h=harness(),eggs=[1,2].map(i=>({placeId:"123",jobId:"server-id",uid:String(i),name:"Egg "+i,rarity:"Divine",incomePerSecond:i,expiresAt:Date.now()+60000}));
  h.emit({type:"eggs.state",eggs});
  const server=vm.runInContext('serverViews.get(JSON.stringify(["123","server-id"]))',h.context);
- assert.equal(server.go.href,"roblox://placeId=123&gameInstanceId=server-id");
+ const link=new URL(server.go.href);
+ assert.equal(link.origin,"https://ro.blox.com");assert.equal(link.pathname,"/Ebh5");
+ assert.equal(link.searchParams.get("deep_link_value"),"roblox://experiences/start?placeId=123&gameInstanceId=server-id");
+ assert.equal(link.searchParams.get("af_dp"),link.searchParams.get("deep_link_value"));
+ assert.equal(link.searchParams.get("af_web_dp"),"https://www.roblox.com/games/start?placeId=123&gameInstanceId=server-id");
+ assert.equal(link.searchParams.get("af_force_deeplink"),"true");
  assert.equal(server.go.textContent,"GO");assert.match(server.go["aria-label"],/server-id/);
  assert.equal(server.view.node.querySelectorAll("a").length,1);
  for(const view of server.eggs.values()){assert.equal(view.node.querySelectorAll("a").length,0);assert.ok(!view.node.querySelectorAll("button").some(button=>button.textContent==="GO"));}

@@ -197,10 +197,16 @@ function groupServers(){
  visible.sort((a,b)=>Number(b.hasFavorite)-Number(a.hasFavorite)||(b.eggs[0]?.incomePerSecond??-1)-(a.eggs[0]?.incomePerSecond??-1)||a.key.localeCompare(b.key));
  return visible;
 }
+function serverJoinUrl(placeId,jobId){
+ const query="placeId="+encodeURIComponent(placeId)+"&gameInstanceId="+encodeURIComponent(jobId);
+ const direct="roblox://experiences/start?"+query;
+ const web="https://www.roblox.com/games/start?"+query;
+ return "https://ro.blox.com/Ebh5?af_dp="+encodeURIComponent(direct)+"&af_web_dp="+encodeURIComponent(web)+"&deep_link_value="+encodeURIComponent(direct)+"&af_force_deeplink=true";
+}
 function createServerView(group){
  const view=createCard(),header=el("div",null,"server-heading"),title=el("strong"),connection=el("small");
  const go=el("a","GO","server-go");
- go.href="roblox://placeId="+encodeURIComponent(group.placeId)+"&gameInstanceId="+encodeURIComponent(group.jobId);
+ go.href=serverJoinUrl(group.placeId,group.jobId);
  go.title="Ouvrir Roblox sur ce serveur";go.setAttribute("aria-label","Rejoindre le serveur "+group.jobId+" dans Roblox");
  header.append(title,connection,go);view.node.insertBefore(header,view.node.children[0]);
  const expand=el("details",null,"server-expand"),summary=el("summary"),list=el("div",null,"server-eggs");
