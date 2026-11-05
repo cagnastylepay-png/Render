@@ -17,6 +17,45 @@ const presence=(revision,others=[])=>({version:1,type:"players.snapshot",moduleI
  sessionId:"observer",revision,placeId:"123",jobId:"home",reporterUserId:"1",
  players:[{userId:"1",name:"Observer",displayName:"Observer"},...others]});
 
+test("lone observer holds an eligible server before ACK, survives favorite handover and leaves after arrival",async t=>{
+ const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ server.listen(0,"127.0.0.1");await once(server,"listening");
+ t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
+ const url="ws://127.0.0.1:"+server.address().port+"/sae/ws";
+ const viewer=await peer(url,"viewer"),observer=await peer(url,"reporter",true),favorite=await peer(url,"reporter");peers.push(viewer,observer,favorite);
+ const config=await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"));
+ viewer.send({type:"delivery.configure",expectedRevision:config.revision,favoriteUserIds:["2"],minimumIncomePerSecond:0});
+ observer.send(presence(1));
+ favorite.send({...presence(1),sessionId:"f",jobId:"favorite-home",reporterUserId:"2",players:[{userId:"2",name:"Favorite",displayName:"Favorite"}]});
+ await waitFor(()=>favorite.messages.find(m=>m.type==="reporting.policy"&&m.sendSettings));
+ const options={AutoEggs:true,AutoIndex:true,AutoTreadmill:false,AutoSell:false,AutoFuse:false,AutoOpen:false,AutoPlace:false,AutoPapillon:false};
+ for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=100e9;}
+ const settings={version:1,type:"settings.snapshot",sessionId:"f",revision:1,automationActive:true,options};
+ favorite.send(settings);await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"));
+ const snapshot={version:1,type:"eggs.snapshot",moduleId:"EggReporter",sessionId:"observer",revision:1,placeId:"123",jobId:"home",
+ cycleId:"1",observedAt:new Date().toISOString(),cycleEndsAt:Date.now()/1000+120,eggs:[{uid:"e",category:"Cat",name:"Cat",rarity:"Secret",incomePerSecond:3e9}]};
+ observer.send(snapshot);
+ const hold=await waitFor(()=>observer.messages.find(m=>m.type==="observer.relocate"&&m.mode==="hold"));
+ assert.equal(hold.relocate,false);assert.deepEqual(hold.waitingForUserIds,["2"]);
+ await waitFor(()=>observer.messages.find(m=>m.type==="eggs.ack"&&m.revision===1));
+ assert.ok(observer.messages.indexOf(hold)<observer.messages.findIndex(m=>m.type==="eggs.ack"&&m.revision===1));
+ let before=observer.messages.length;
+ observer.send({...snapshot,revision:2,eggs:[]});
+ await waitFor(()=>observer.messages.slice(before).find(m=>m.type==="observer.relocate"&&m.mode==="roam"));
+ observer.send({...snapshot,revision:3});await waitFor(()=>observer.messages.findLast(m=>m.type==="observer.relocate")?.mode==="hold");
+ favorite.send({...settings,revision:2,automationActive:false,automationReason:"Mode AUTO OFF"});
+ await waitFor(()=>observer.messages.findLast(m=>m.type==="observer.relocate")?.mode==="roam");
+ favorite.send({...settings,revision:3});await waitFor(()=>observer.messages.findLast(m=>m.type==="observer.relocate")?.mode==="hold");
+ favorite.send({...settings,revision:4,automationActive:false,automationReason:"Teleportation en cours",visitedJobIds:["home"]});
+ await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));
+ favorite.ws.close();await new Promise(r=>setTimeout(r,300));
+ assert.equal(observer.messages.findLast(m=>m.type==="observer.relocate").mode,"hold");
+ before=observer.messages.length;
+ observer.send(presence(2,[{userId:"2",name:"Favorite",displayName:"Favorite"}]));
+ await waitFor(()=>observer.messages.slice(before).find(m=>m.type==="observer.relocate"&&m.mode==="roam"));
+});
+
+
 test("roaming observer roster survives departure only until reset and keeps targets selectable",()=>{
  const {createPlayerStore}=require("../src/store/PlayerStore");
  const {planTeleport}=require("../src/ws/TeleportPlanner");

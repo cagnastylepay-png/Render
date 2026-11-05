@@ -111,15 +111,41 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   function relocateObservers(){
     const presence=players.state().players,favorites=new Set(policy.state().favoriteUserIds);
     const observers=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN&&ws.observerOnly&&ws.reporterIdentity).map(ws=>ws.reporterIdentity);
+    const eggs=store.state().eggs;
     for(const ws of wss.clients){
       const identity=ws.reporterIdentity;
       if(ws.role!=="reporter"||!ws.observerOnly||!identity)continue;
       const avoidJobIds=[...new Set([...presence.filter(p=>favorites.has(p.userId)),...observers].filter(p=>p.placeId===identity.placeId).map(p=>p.jobId))].sort();
       const others=presence.filter(p=>p.placeId===identity.placeId&&p.jobId===identity.jobId&&p.userId!==identity.userId&&favorites.has(p.userId));
-      const signature=JSON.stringify([others.map(p=>p.userId).sort(),avoidJobIds.slice().sort()]);
+      const roster=presence.filter(p=>p.placeId===identity.placeId&&p.jobId===identity.jobId);
+      const localEggs=eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId===identity.jobId);
+      const holds=ws.observerHolds||new Map();
+      const waitingFor=[];
+      if(roster.length===1&&roster[0].userId===identity.userId){
+        // Keep the server alive during the favorite's disconnection/teleport handover.
+        for(const [userId,held]of holds){
+          const saved=settings.get(userId)||held.settings;
+          const explicitlyStopped=saved.automationActive===false&&saved.automationReason&&saved.automationReason!=="Teleportation en cours";
+          const inTransit=!explicitlyStopped&&(!([...wss.clients].some(client=>client.readyState===WebSocket.OPEN&&client.reporterIdentity?.userId===userId))||saved.automationReason==="Teleportation en cours");
+          const effective=inTransit?{...saved,automationActive:true,visitedJobIds:(saved.visitedJobIds||[]).filter(job=>job!==identity.jobId)}:saved;
+          if(!isFavorite(userId)||!planTeleport(held.identity,effective,localEggs.filter(egg=>egg.key===held.key),Date.now(),presence))holds.delete(userId);
+        }
+        for(const favorite of wss.clients){
+          if(favorite.role!=="reporter"||favorite.observerOnly||!favorite.reporterIdentity||!isFavorite(favorite.reporterIdentity.userId))continue;
+          const saved=favorite.settingsSessionId?settings.get(favorite.reporterIdentity.userId):null;
+          if(!saved||saved.sessionId!==favorite.settingsSessionId)continue;
+          const plan=planTeleport(favorite.reporterIdentity,saved,localEggs,Date.now(),presence);
+          if(plan)holds.set(favorite.reporterIdentity.userId,{identity:favorite.reporterIdentity,settings:saved,key:plan.target.key});
+        }
+      }else holds.clear();
+      ws.observerHolds=holds;
+      waitingFor.push(...holds.keys());
+      waitingFor.sort();
+      const hold=waitingFor.length>0;
+      const signature=JSON.stringify([others.map(p=>p.userId).sort(),avoidJobIds,waitingFor]);
       if(ws.observerRelocationSignature===signature)continue;
       ws.observerRelocationSignature=signature;
-      send(ws,{version:1,type:"observer.relocate",mode:"roam",minimumFreeSlots:2,placeId:identity.placeId,jobId:identity.jobId,relocate:true,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
+      send(ws,{version:1,type:"observer.relocate",mode:hold?"hold":"roam",waitingForUserIds:waitingFor,minimumFreeSlots:2,placeId:identity.placeId,jobId:identity.jobId,relocate:!hold,favoriteUserIds:others.map(p=>p.userId),avoidJobIds});
     }
   }
   const unsubscribePolicy=policy.onChange(config=>{
@@ -240,6 +266,8 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
           return;
         }
         const accepted = store.accept(message);
+        // Hold/roam must precede the ACK: the observer may leave as soon as its snapshot is acknowledged.
+        if(accepted&&ws.observerOnly)relocateObservers();
         send(ws, { version: 1, type: "eggs.ack", sessionId: message.sessionId, cycleId: message.cycleId,
           revision: message.revision, accepted });
         if (accepted) {recordFavoriteSnapshot(ws,message);broadcast();}
