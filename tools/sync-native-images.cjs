@@ -20,4 +20,14 @@ for(const id of [...ids].sort()){
 }
 const manifest={source:'https://rbxdl.johnmarctumulak.com/',method:'Normal free web interface; individual downloads with countdown respected',updatedAt:new Date().toISOString(),catalogEntries:Object.keys(catalog).length,eggTotal:eggs.size,animalTotal:animals.size,images,pendingEggs,pendingAnimals};
 fs.writeFileSync(path.join(root,'docs','native-images-download-progress.json'),JSON.stringify(manifest,null,2)+'\n');
+const failuresPath=path.join(root,'docs','native-image-failures.json');
+const attempts=fs.existsSync(failuresPath)?JSON.parse(fs.readFileSync(failuresPath,'utf8')).attempts:[];
+const csv=[['Type','Nom','Asset ID','Tentatives','Dernier resultat']];
+for(const [kind,pending]of [['egg',pendingEggs],['animal',pendingAnimals]])for(const id of pending){
+ const names=[...new Set(Object.values(catalog).filter(r=>r[kind]===id).map(r=>r.displayName))];
+ const history=attempts.filter(r=>r.id===id&&r.kind===kind);
+ csv.push([kind==='egg'?'Oeuf':'Animal',names.join(' / '),id,Math.max(0,...history.map(r=>r.attempt||0)),history.at(-1)?.result||'Pas encore tente']);
+}
+const quote=value=>'"'+String(value).replaceAll('"','""')+'"';
+fs.writeFileSync(path.join(root,'docs','images-a-recuperer.csv'),'\uFEFF'+csv.map(row=>row.map(quote).join(';')).join('\n')+'\n');
 console.log(JSON.stringify({imported,eggs:eggs.size-pendingEggs.length,eggTotal:eggs.size,animals:animals.size-pendingAnimals.length,animalTotal:animals.size,pendingEggs:pendingEggs.length,pendingAnimals:pendingAnimals.length}));

@@ -21,4 +21,6 @@ The Admin Images view reported 300 current game categories. The static catalogue
 
 The new inventory and download status is in `docs/native-images-download-progress.json`. Both image roles still use the existing numeric `/eggs-native/<id>.png` route; the directory name does not determine the role. Files are imported by their actual filename asset ID, checked for PNG signature, and hashed. The normal rbxdl UI currently returns recurring expired security-token errors after partial downloads. Midnight Mimic's egg was separately reported unavailable. Remaining eggs and animals are explicitly listed as pending, not completed. `tools/sync-native-images.cjs` safely imports additional downloads and refreshes the manifest without overwriting existing files.
 
+The resumed egg pass added 13 more PNGs (including the user's Nebuloth Kraken download), bringing current egg coverage to 197/204. The seven remaining egg IDs were retried in fresh tabs and still reported unavailable. `docs/native-image-failures.json` retains attempts and exact rbxdl error messages; `docs/images-a-recuperer.csv` lists missing images with names, roles, IDs, attempt counts and last messages. Animal downloads follow next, with one fresh-tab retry after each asset refusal and old tabs closed.
+
 
