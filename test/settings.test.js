@@ -8,7 +8,7 @@ const {createClientSettings}=require("../src/store/ClientSettings");
 const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true};
 for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=1e33;}
 test("favorite settings are gated, updated, replayed and show real socket presence",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws",reporter=await peer(url,"reporter"),viewer=await peer(url,"viewer");peers.push(reporter,viewer);
  const snapshot={version:1,type:"settings.snapshot",sessionId:"settings",revision:1,options};
@@ -36,3 +36,4 @@ test("settings persist latest values in Mongo and reject invalid snapshots atomi
  store.accept(identity,{...snapshot,revision:2,options:{...options,AutoEggs:false}});await store.close();assert.equal(saved.length,1);
  const restored=createClientSettings({uri:"fake",clientFactory:factory});await new Promise(r=>setTimeout(r,0));assert.equal(restored.storage(),"mongodb");assert.equal(restored.get("42").options.AutoEggs,false);await restored.close();
 });
+

@@ -18,7 +18,7 @@ const presence=(revision,others=[])=>({version:1,type:"players.snapshot",moduleI
  players:[{userId:"1",name:"Observer",displayName:"Observer"},...others]});
 
 test("observer holds populated eligible servers, leaves full servers and releases after favorite arrival",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");
  t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws";
@@ -88,7 +88,7 @@ test("roaming observer roster survives departure only until reset and keeps targ
 });
 
 test("observer roams after reporting, excludes favorite and observer servers, and never enables automation",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");
  t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws";
@@ -121,3 +121,4 @@ test("observer roams after reporting, excludes favorite and observer servers, an
  await waitFor(()=>viewer.messages.find(m=>m.type==="error"));
  assert.equal(observer.messages.some(m=>m.type.startsWith("execute.")),false);
 });
+

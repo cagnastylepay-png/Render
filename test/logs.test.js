@@ -4,7 +4,7 @@ const {WebSocket}=require("ws"),{createServer}=require("../server"),{createClien
 async function waitFor(fn){const until=Date.now()+4000;while(Date.now()<until){const value=fn();if(value)return value;await new Promise(r=>setTimeout(r,10));}throw Error("Timeout");}
 async function peer(url,role){const ws=new WebSocket(url),messages=[];ws.on("message",data=>messages.push(JSON.parse(data)));await once(ws,"open");ws.send(JSON.stringify({version:1,type:"hello",role}));await waitFor(()=>messages.find(m=>m.type==="hello.ack"));return {ws,messages,send:message=>ws.send(JSON.stringify(message))};}
 test("logs use reporter identity, acknowledge, deduplicate and replay to a new viewer",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws",reporter=await peer(url,"reporter"),viewer=await peer(url,"viewer");peers.push(reporter,viewer);
  const batch={version:1,type:"logs.append",sessionId:"test",lines:[{sequence:1,text:'Vol de "Dragon" Reussi'}]};
@@ -22,7 +22,7 @@ test("logs use reporter identity, acknowledge, deduplicate and replay to a new v
  viewer.send({type:"logs.clear"});await waitFor(()=>next.messages.filter(m=>m.type==="logs.state").at(-1).entries.length===0);
 });
 test("only the reporting favorite contributes history and logs, not another player observing a favorite",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws",viewer=await peer(url,"viewer"),favorite=await peer(url,"reporter"),ordinary=await peer(url,"reporter");peers.push(viewer,favorite,ordinary);
  let policy=viewer.messages.find(m=>m.type==="delivery.policy");

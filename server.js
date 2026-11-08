@@ -4,17 +4,20 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { mountAutoSAE } = require("./src");
+const { createDashboardAuth } = require("./src/DashboardAuth");
 
 function createServer(options = {}) {
+  const dashboardAuth = options.dashboardAuth === false ? null : createDashboardAuth(options.dashboardAuth);
   const server = http.createServer((req, res) => {
     const route = (req.url || "/").split("?")[0];
+    if (route === "/health" && (req.method === "GET" || req.method === "HEAD")) {
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", reporting: "ready", dashboardAuthentication: dashboardAuth?.configured === true }));
+      return;
+    }
+    if (dashboardAuth && dashboardAuth.handle(req, res)) return;
     if (req.method !== "GET" && req.method !== "HEAD") {
       res.writeHead(405, { Allow: "GET, HEAD" }); res.end(); return;
-    }
-    if (route === "/health") {
-      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", build: "eggs-players-v2", reporting: "ready", ...service.gateway.info() }));
-      return;
     }
     const nativeImage=route.match(/^\/eggs-native\/(\d+\.png)$/);
     if(nativeImage){
@@ -45,7 +48,7 @@ function createServer(options = {}) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end(req.method === "HEAD" ? undefined : "Not found");
   });
-  const service = mountAutoSAE(server, options);
+  const service = mountAutoSAE(server, { ...options, gateway: { ...options.gateway, dashboardAuth } });
   server.on("close", () => service.close());
   server.autoSAE = service;
   return server;
@@ -69,4 +72,5 @@ if (require.main === module) {
 }
 
 module.exports = { createServer };
+
 

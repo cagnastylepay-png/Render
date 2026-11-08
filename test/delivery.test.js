@@ -18,7 +18,7 @@ function presence(id,job,others=[]){
   reporterUserId:id,players:[{userId:id,name:"User"+id,displayName:"User"+id},...others]};
 }
 test("only favorite reporter sockets receive income-filtered eggs from other servers",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");
  t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws";
@@ -73,3 +73,4 @@ test("favorite policy survives disk and Mongo restart, validates bounds and reje
  const mongoReload=createDeliveryPolicy({uri:"mongodb://fake",clientFactory:factory,filePath:null});await mongoReload.ready;
  assert.deepEqual(mongoReload.state().favoriteUserIds,["7"]);assert.equal(mongoReload.state().storage,"mongodb");await mongoReload.close();
 });
+

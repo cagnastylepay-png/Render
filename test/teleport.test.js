@@ -48,7 +48,7 @@ test("teleport planner applies each favorite's running status, ranges, expiry an
  assert.equal(planTeleport(identity,settings,[egg,{...egg,key:"123/another/egg",jobId:"another",incomePerSecond:5e9}],10000,roster).target.jobId,"another");
 });
 test("gateway sends typed teleport requests only to active favorites with fresh settings and cancels stale targets",async t=>{
- const server=createServer({history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
+ const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
  server.listen(0,"127.0.0.1");await once(server,"listening");t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
  const url="ws://127.0.0.1:"+server.address().port+"/sae/ws",viewer=await peer(url,"viewer"),favorite=await peer(url,"reporter"),ordinary=await peer(url,"reporter");peers.push(viewer,favorite,ordinary);
  favorite.send(presence("1","home"));ordinary.send(presence("2","remote"));await waitFor(()=>favorite.messages.find(m=>m.type==="players.ack"));await waitFor(()=>ordinary.messages.find(m=>m.type==="players.ack"));
@@ -99,3 +99,4 @@ test("teleport selection excludes full or unobserved servers, ranks income first
  assert.equal(planTeleport(identity,settings,[egg("fast",17e9),egg("slow",17e9)],10000,[...roster("fast",[1e12]),...roster("slow",[1])]).target.jobId,"slow");
  assert.equal(planTeleport(identity,settings,[egg("known",17e9),egg("unknown",17e9)],10000,[...roster("known",[100]),...roster("unknown",[null])]).target.jobId,"known");
 });
+

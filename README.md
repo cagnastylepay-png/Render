@@ -10,7 +10,7 @@
 - Notifications des changements ; historique daté affichant uniquement les reçus et réapparitions.
 - Timer global sur le prochain créneau de 5 minutes ; expiration individuelle issue
   de l'horaire du jeu quand fourni, sinon prochain créneau. Expiration retire les observations actives.
-- GO reste désactivé. Aucune commande distante n'est implémentée.
+- GO sur une carte serveur demande la téléportation des favoris connectés.
 
 ## Démarrage
 
@@ -19,7 +19,7 @@ npm test
 npm start
 
 Node >=22. PORT est fourni par Render, sinon 3000 ; écoute sur 0.0.0.0.
-GET /, /eggs : dashboard. GET /health : build eggs-players-v2.
+GET /, /eggs : dashboard privé. GET /health : état minimal public du service.
 WebSocket : wss://m4gix-ws.onrender.com/sae/ws.
 
 ## Historique MongoDB Atlas
@@ -51,11 +51,20 @@ Une couleur verte représente une connexion WebSocket active, pas une preuve d'i
 
 ## Accès et limites
 
-Sans SAE_REPORT_TOKEN/SAE_VIEW_TOKEN : mode de test anonyme.
-Définir ces variables pour restreindre l'envoi et/ou la lecture.
-Clé reporter : shared.__AutoSAEReportingOptions.Token, en mémoire avant le lanceur.
-Clé viewer : champ du dashboard. Aucun token dans les logs ou Git.
-Le lanceur doit réinjecter le token lors d'un changement de serveur si l'accès est restreint.
+Définir `SECRET_MDP` exclusivement dans les variables privées du service Render.
+La page demande ce mot de passe via un formulaire ; aucune valeur réelle ne doit être ajoutée à Git.
+La connexion crée un cookie signé HttpOnly, SameSite=Strict et Secure sur HTTPS, valable 12 heures.
+Les connexions WebSocket viewer exigent cette session et une origine identique à celle du service.
+Les sessions expirées sont refusées et changer SECRET_MDP invalide les sessions précédentes.
+En l'absence de SECRET_MDP, le dashboard reste fermé (503), sans arrêter les observateurs ni /health.
+Les tentatives de connexion sont limitées à dix par minute et par adresse.
+
+L'authentification de la page est distincte de celle des scripts : les reporters existants continuent
+de transmettre leurs observations. SAE_REPORT_TOKEN reste une restriction optionnelle séparée.
+SAE_VIEW_TOKEN est une restriction protocolaire additionnelle pour les intégrations existantes ;
+elle ne remplace pas la session du dashboard. Ne jamais distribuer SECRET_MDP aux scripts clients.
+L'option JavaScript `dashboardAuth:false` sert uniquement aux tests du protocole historique ;
+elle n'est pas configurable depuis HTTP ou une variable d'environnement.
 
 100 serveurs, 500 œufs par snapshot, 200 sessions, payload JSON texte <=1 MiB,
 20 messages/10 secondes/connexion. Présence conservée tant que le socket reste actif ; fermeture et ping/pong détectent les déconnexions.
@@ -99,3 +108,4 @@ Protocole du futur script parallèle :
 Chaque message remplace la liste précédente. enabled=false ou eggs=[] la vide.
 Aucune commande Lua, collecte ou téléportation n'est exécutée par ce protocole.
 Test.lua et OVORA n'ont pas été modifiés : ils ignorent ce nouveau type de message en attendant le script parallèle.
+

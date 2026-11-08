@@ -4,7 +4,7 @@ const {getGameImageIds,getEggImage}=require("../src/assets/EggImages");
 const catalog=require("../src/assets/roblox-images.json");
 test("Render serves native PNG images with cache headers and validates the route",async t=>{
  const {once}=require("node:events"),{createServer}=require("../server");
- const server=createServer({history:{uri:null,filePath:null},gateway:{delivery:{uri:null,filePath:null},logs:{uri:null}}});
+ const server=createServer({dashboardAuth:false,history:{uri:null,filePath:null},gateway:{delivery:{uri:null,filePath:null},logs:{uri:null}}});
  server.listen(0,"127.0.0.1");await once(server,"listening");
  t.after(async()=>{await server.autoSAE.close();await new Promise(resolve=>server.close(resolve));});
  const base="http://127.0.0.1:"+server.address().port;
@@ -23,4 +23,5 @@ test("native image catalog separates egg and animal IDs and serves the downloade
  assert.equal(getGameImageIds({category:"unknown"}),null);
  assert.equal(getEggImage({category:"Dog"}),"/eggs-native/123926130544109.png");
 });
+
 

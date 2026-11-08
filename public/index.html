@@ -350,7 +350,7 @@ function connect(){
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
   favoriteEntries=favoriteEntries.map(row=>({...row,connected:false}));renderFavorites();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
-  if(event.code===1008){stopped=true;setText(status,"Accès refusé par le serveur.");}
+  if(event.code===1008){stopped=true;setText(status,"Session expirée ou accès refusé. Reconnexion au tableau de bord…");location.href="/login";}
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
@@ -362,3 +362,4 @@ document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();renderHistory();connect();
 </script></body></html>
+

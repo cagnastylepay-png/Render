@@ -5,7 +5,7 @@
   "description": "AutoSAE live egg cards player presence and history",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js && node --check src/store/PlayerStore.js && node --check src/store/EggHistory.js && node --check src/assets/EggImages.js && node --check src/store/MongoHistory.js",
+    "check": "node --check server.js && node --check src/DashboardAuth.js && node --check src/index.js && node --check src/ws/EggGateway.js && node --check src/store/EggStore.js && node --check src/store/PlayerStore.js && node --check src/store/EggHistory.js && node --check src/assets/EggImages.js && node --check src/store/MongoHistory.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {
@@ -16,3 +16,4 @@
     "ws": "^8.13.0"
   }
 }
+

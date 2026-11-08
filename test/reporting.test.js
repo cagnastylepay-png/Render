@@ -45,7 +45,7 @@ async function waitFor(predicate) {
   throw new Error("Timed out waiting for WebSocket message");
 }
 test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer read-only, reconnect", async t => {
-  const server = createServer({ history: { filePath: null }, gateway: { reportToken: "test-report", viewerToken: "test-view",delivery:{uri:null,filePath:null} } });
+  const server = createServer({dashboardAuth:false, history: { filePath: null }, gateway: { reportToken: "test-report", viewerToken: "test-view",delivery:{uri:null,filePath:null} } });
   const peers = [];
   t.after(async () => {
     for (const peer of peers) peer.ws.terminate();
@@ -260,4 +260,5 @@ test("history retains only Divine/Eternal receipts on append, hydrate and disk r
  assert.equal(rows.length,2);
  assert.ok(rows.every(row=>row.action==="appeared"&&["Divine","Eternal"].includes(row.egg.rarity)));
 });
+
 

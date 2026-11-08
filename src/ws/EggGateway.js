@@ -13,7 +13,7 @@ function sameToken(provided, expected) {
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", delivery = {}, logs:logOptions = {}, settings:settingsOptions = {} } = {}) {
+function attachEggGateway(server, store, players, history, { reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", dashboardAuth = null, delivery = {}, logs:logOptions = {}, settings:settingsOptions = {} } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1048576, perMessageDeflate: false });
   let closed = false;
   const policy=createDeliveryPolicy(delivery);
@@ -63,6 +63,7 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   const unsubscribeLogs=logs.onReady(()=>{for(const ws of wss.clients)if(ws.role==="viewer")send(ws,logsState());});
   function send(ws, message) {
     if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.role === "viewer" && dashboardAuth && !dashboardAuth.authenticated(ws.dashboardRequest)) { ws.close(1008, "Dashboard login required"); return; }
     if (ws.bufferedAmount > 8388608) { ws.close(1013, "Slow client"); return; }
     ws.send(JSON.stringify(message));
   }
@@ -179,10 +180,11 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   function upgrade(req, socket, head) {
     if ((req.url || "").split("?")[0] !== "/sae/ws") { socket.destroy(); return; }
     if (wss.clients.size >= 200) { socket.destroy(); return; }
-    wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws));
+    wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
   }
   server.on("upgrade", upgrade);
-  wss.on("connection", ws => {
+  wss.on("connection", (ws, req) => {
+    ws.dashboardRequest = req;
     ws.connectionId = randomUUID();
     ws.alive = true;
     ws.on("pong", () => { ws.alive = true; });
@@ -197,9 +199,13 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
         if (Date.now() - windowAt > 10000) { windowAt = Date.now(); messages = 0; }
         if (++messages > 20) { ws.close(1008, "Rate limit"); return; }
         const message = JSON.parse(raw.toString());
+        if (ws.role === "viewer" && dashboardAuth && !dashboardAuth.authenticated(req)) { ws.close(1008, "Dashboard login required"); return; }
         if (!ws.role) {
           if (!message || message.version !== 1 || message.type !== "hello" || !["reporter", "viewer"].includes(message.role))
             throw new Error("Invalid hello");
+          if (message.role === "viewer" && dashboardAuth && (!dashboardAuth.authenticated(req) || !dashboardAuth.sameOrigin(req))) {
+            ws.close(1008, "Dashboard login required"); return;
+          }
           if (!sameToken(message.token, message.role === "reporter" ? reportToken : viewerToken)) {
             ws.close(1008, "Authentication failed"); return;
           }
@@ -326,3 +332,4 @@ function attachEggGateway(server, store, players, history, { reportToken = proce
   };
 }
 module.exports = { attachEggGateway, sameToken };
+
