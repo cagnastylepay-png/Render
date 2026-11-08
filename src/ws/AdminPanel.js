@@ -65,7 +65,7 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
      payload.uid=item.uid;
      if(m.action==='egg.mutate'){
       const mutation=inventory.mutationConsumables.find(r=>r.id===m.mutationId&&r.count>0);
-      if(!mutation||!['Boss','Scrambled','Enchanted','Nitro','Spectral'].includes(m.mutationId)||item.baseMutation===m.mutationId||item.mutations.includes(m.mutationId))throw Error('Mutation absente ou déjà appliquée');
+      if(!mutation||!['Boss','Scrambled','Enchanted','Nitro','Spectral','Musical','Alien','DarkMatter'].includes(m.mutationId)||item.baseMutation===m.mutationId||item.mutations.includes(m.mutationId))throw Error('Mutation absente ou déjà appliquée');
       payload.mutationId=m.mutationId;
      }
      if(m.action==='animal.fuse'){

@@ -14,7 +14,7 @@ function validateSettings(input){
  const animalEnabled=input.AutoSellAnimals??false,animalMin=input.AutoSellAnimalsMin??0,animalMax=input.AutoSellAnimalsMax??2e9;
  if(typeof animalEnabled!=='boolean'||typeof animalMin!=='number'||typeof animalMax!=='number'||!Number.isFinite(animalMin)||!Number.isFinite(animalMax)||animalMin<0||animalMax>1e33||animalMin>animalMax)throw Error('Invalid animal sale settings');
  result.AutoSellAnimals=animalEnabled;result.AutoSellAnimalsMin=animalMin;result.AutoSellAnimalsMax=animalMax;
- for(const id of ['Boss','Scrambled','Enchanted','Nitro','Spectral']){
+ for(const id of ['Boss','Scrambled','Enchanted','Nitro','Spectral','Musical','Alien','DarkMatter']){
   const prefix='Mutation'+id,enabled=input[prefix+'Enabled']??false,min=input[prefix+'Min']??0,attempts=input[prefix+'Attempts']??1;
   if(typeof enabled!=='boolean'||typeof min!=='number'||!Number.isFinite(min)||min<0||min>1e33||!Number.isSafeInteger(attempts)||attempts<1||attempts>100)throw Error('Invalid mutation settings');
   result[prefix+'Enabled']=enabled;result[prefix+'Min']=min;result[prefix+'Attempts']=attempts;

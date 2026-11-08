@@ -73,7 +73,7 @@ function rosterFor(egg){
 let adminLastResult=null;
 let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminEggLocation="plot",adminAnimalLocation="plot",adminWaiting=false;
 let settingsDraft=null,settingsBase=null,settingsDirty=false,settingsForm=null,settingsTab="eggs",adminTickNodes=[];
-const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral"};
+const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral",Musical:"Musical",Alien:"Abducted",DarkMatter:"Dark Matter"};
 function mutationLabel(m){return m.name+" · x"+m.count+" · "+(m.successPercent==null?"Chance inconnue":m.successPercent+" %")+" · "+(m.multiplier==null?"Multiplicateur inconnu":"×"+m.multiplier);}
 function openMutationModal(uid){
  const modal=document.getElementById("mutation-modal");modal.replaceChildren();modal.hidden=false;
