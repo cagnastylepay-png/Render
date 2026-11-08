@@ -1,6 +1,6 @@
 {
   "source": "https://rbxdl.johnmarctumulak.com/",
-  "updatedAt": "2026-11-08T14:48:40.256Z",
+  "updatedAt": "2026-11-08T20:12:55.880Z",
   "attempts": [
     {
       "id": "102352363396880",
@@ -106,6 +106,21 @@
       "attempt": 2,
       "result": "Asset unavailable. It may be restricted by the creator or does not exist.",
       "context": "New rbxdl tab after page reset"
+    },
+    {
+      "id": "70369321977430",
+      "kind": "animal",
+      "attempt": 1,
+      "result": null,
+      "observation": "No download result or refusal message remained after 3 minutes",
+      "resolved": true
+    },
+    {
+      "id": "105844713430269",
+      "kind": "animal",
+      "attempt": 1,
+      "result": "Single-use security token is invalid or expired. Please refresh the page.",
+      "resolved": true
     }
   ]
 }

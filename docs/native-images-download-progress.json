@@ -1,7 +1,7 @@
 {
   "source": "https://rbxdl.johnmarctumulak.com/",
   "method": "Normal free web interface; individual downloads with countdown respected",
-  "updatedAt": "2026-11-08T20:00:49.946Z",
+  "updatedAt": "2026-11-08T20:12:11.948Z",
   "catalogEntries": 302,
   "eggTotal": 204,
   "animalTotal": 291,
@@ -377,6 +377,26 @@
       "sha256": "658436db02ea5d62a244a387338c3563d7465566a84adf23c164134be5ed5f89"
     },
     {
+      "id": "105844713430269",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 182273,
+      "width": 500,
+      "height": 500,
+      "sha256": "16b7b31c29f19dce6fe367aaa6500cbc3ad7d0405e3369fc94b5fb8e7b7a6c9f"
+    },
+    {
+      "id": "105973236680021",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 170394,
+      "width": 512,
+      "height": 512,
+      "sha256": "c3e83f580445ee6470444d6bf23035f3434c6c6f6c39c1c290c40f22962e785d"
+    },
+    {
       "id": "106162253439995",
       "roles": [
         "egg"
@@ -387,6 +407,46 @@
       "sha256": "ee65f98214e9119fa5a1a1343448447d6ae42398e777ae5377653a650f2682d4"
     },
     {
+      "id": "106242839438595",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 45468,
+      "width": 251,
+      "height": 428,
+      "sha256": "74ca7f8b14221088de08358591f1dc02f6e4aeb7cccbdf109cb89dbe6bbee39b"
+    },
+    {
+      "id": "106487844892815",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 206361,
+      "width": 512,
+      "height": 512,
+      "sha256": "fb26470ab7afea95a5934fe42893425b33f03d92a50c92efc7304809bd1db1ce"
+    },
+    {
+      "id": "106915629844884",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 186415,
+      "width": 500,
+      "height": 500,
+      "sha256": "398c684401884bc2acc35f748ddda4b64af2a3561bf255c436e8f2991df29392"
+    },
+    {
+      "id": "107020024158813",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 290379,
+      "width": 512,
+      "height": 512,
+      "sha256": "4928a551690b4eb91461ad79dae4f4059e2c80e63967383ceb71007e6bf5521a"
+    },
+    {
       "id": "107132653319667",
       "roles": [
         "egg"
@@ -395,6 +455,26 @@
       "width": 542,
       "height": 542,
       "sha256": "76a1d8b422f789f2342c5a73eb3dcb7e7bd3d83ae2344acaa29ab7aa656016ca"
+    },
+    {
+      "id": "107145283169125",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 70633,
+      "width": 517,
+      "height": 279,
+      "sha256": "9d57dca4d9b1ad7dbfe3da4a15cd4313469763d2d00530ddf3483fd66599e67e"
+    },
+    {
+      "id": "107384783072333",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 104171,
+      "width": 500,
+      "height": 500,
+      "sha256": "a78a31640e0f37b8828406b06a30b12b1fc3dfd6f8373178925b31b6d3f8cfad"
     },
     {
       "id": "107397947617386",
@@ -427,6 +507,66 @@
       "sha256": "9346ef4ee6902353e69e9b3b45b3b7087dafca44f4cd2e2178c45b66335c2230"
     },
     {
+      "id": "107550069720597",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 91757,
+      "width": 500,
+      "height": 500,
+      "sha256": "9c265846d30df66f6457f16bb537df089ecef5a6ea9cf1bcfcc32db41fc54344"
+    },
+    {
+      "id": "107805660657502",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 127176,
+      "width": 501,
+      "height": 501,
+      "sha256": "81af8290c5e55898a39cb5d12d2c767e3a844409f5a10925b95ec9b29f2fdd0e"
+    },
+    {
+      "id": "107826369852616",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 110968,
+      "width": 500,
+      "height": 500,
+      "sha256": "186791757fedd30804d0426ca4f296725c09aa7abf8c43549306bdaa64c8dfc7"
+    },
+    {
+      "id": "107842067813602",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 206499,
+      "width": 501,
+      "height": 501,
+      "sha256": "379964a0f014580a6c2fc03d82ad63dbb6a031946e8c0a7c3fd2d2f993a5dce5"
+    },
+    {
+      "id": "107923370723949",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 136553,
+      "width": 605,
+      "height": 590,
+      "sha256": "c29e8c641102d36d280337ae6cdbb28f484292e764d8538dcaea0007f5f384f3"
+    },
+    {
+      "id": "108116064354872",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 218687,
+      "width": 512,
+      "height": 512,
+      "sha256": "648884daf1d359b353d4b81a90ca72a1eebc652c07bb1ba19b389462073dce99"
+    },
+    {
       "id": "108172622989366",
       "roles": [
         "egg"
@@ -435,6 +575,16 @@
       "width": 1024,
       "height": 1024,
       "sha256": "dce7aa51409bb845bc19cabf3c15e8e07f693dbf1d3e90da9f165ed1529f1710"
+    },
+    {
+      "id": "108292252918607",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 251267,
+      "width": 512,
+      "height": 512,
+      "sha256": "9fcd88eb0e2a7defab2da9a1c666fae9d3f3b43355d4d508fa1b8f84d9e827d7"
     },
     {
       "id": "108314641239947",
@@ -447,6 +597,26 @@
       "sha256": "ca8698c4a55b8d697ff345d7c3e8a390b0ae2065b1afb03615287fe842282bf1"
     },
     {
+      "id": "108381104532032",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 238454,
+      "width": 512,
+      "height": 512,
+      "sha256": "0a6d88d50c5dc0a7797ce20d2df254e0e0e2eb46c062b20c4d6e0d53f6e3095f"
+    },
+    {
+      "id": "108383625211833",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 66356,
+      "width": 500,
+      "height": 500,
+      "sha256": "13819fc5feba971c85d3ceeae95ba68a5d5383138986324d2af26f3bf92d7aab"
+    },
+    {
       "id": "108447968078067",
       "roles": [
         "egg"
@@ -455,6 +625,46 @@
       "width": 542,
       "height": 542,
       "sha256": "2d04d45567b2d6cc7f572b53351e81b90c16e6bbbaa70d02086789880b22fec4"
+    },
+    {
+      "id": "108570702029867",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 253962,
+      "width": 512,
+      "height": 512,
+      "sha256": "5ddf5bc4304fe735f843ce40db54aeb6bed1f7dcbb98c4e433596e74a98b8f74"
+    },
+    {
+      "id": "108762713931799",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 55550,
+      "width": 340,
+      "height": 364,
+      "sha256": "ee61651397db06e1cffaf720ff1fbadb022a4ff66295d927996c0d1aa7b0ce58"
+    },
+    {
+      "id": "108876887480947",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 73285,
+      "width": 371,
+      "height": 467,
+      "sha256": "f30643196bf64cbfe8af25fcd57f32df229504cc02ae09d2dc8ed4ff78dfc9a0"
+    },
+    {
+      "id": "108886286163010",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 310463,
+      "width": 512,
+      "height": 512,
+      "sha256": "4ff2e845dcce98269c5235dac6b7b5d59697aca3d326a81e29a66baf587e1120"
     },
     {
       "id": "108942186680593",
@@ -2237,27 +2447,6 @@
     "88679175422694"
   ],
   "pendingAnimals": [
-    "105844713430269",
-    "105973236680021",
-    "106242839438595",
-    "106487844892815",
-    "106915629844884",
-    "107020024158813",
-    "107145283169125",
-    "107384783072333",
-    "107550069720597",
-    "107805660657502",
-    "107826369852616",
-    "107842067813602",
-    "107923370723949",
-    "108116064354872",
-    "108292252918607",
-    "108381104532032",
-    "108383625211833",
-    "108570702029867",
-    "108762713931799",
-    "108876887480947",
-    "108886286163010",
     "109336297710127",
     "109908891899435",
     "110223564095836",
