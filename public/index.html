@@ -29,7 +29,6 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <div class="toolbar"><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
 <nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
-<label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
 <p id="delivery-info" class="muted">Chargement de l’admin…</p>
 <p class="muted">Une carte par serveur · GO téléporte immédiatement l’admin connecté vers ce serveur.</p>
 <div id="cards" class="cards"></div>
@@ -42,7 +41,6 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <p class="muted"><small>Images du jeu Roblox · Compléments : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
 <section id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
 <p class="muted" id="logs-info">Résultats des vols · 1 000 dernières lignes.</p>
-<label>Filtrer <input id="logs-filter" placeholder="Joueur, action, œuf ou serveur"></label>
 <button id="logs-clear" title="Supprimer les vols de MongoDB pour tous les clients">Vider les vols</button>
 <pre id="logs-lines" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:70vh;overflow:auto;background:#111a28;padding:16px;border-radius:12px"></pre>
 </section>
@@ -88,7 +86,7 @@ function renderAdmin(){
     card.append(el("p",text));
    }
   }
-  const logs=el("button","Voir les vols");logs.onclick=()=>{document.getElementById("logs-filter").value=row.userId;renderLogs();switchPanel("logs");};card.append(logs);container.append(card);
+  const logs=el("button","Voir les vols");logs.onclick=()=>{renderLogs();switchPanel("logs");};card.append(logs);container.append(card);
  }
  if(!adminEntries.length)container.append(el("p","En attente du compte admin.","empty"));
 }
@@ -139,7 +137,7 @@ function updateCard(view,egg){
  updateRoster(view,egg);
 }
 function groupServers(){
- const groups=new Map(),filter=document.getElementById("rarity").value;
+ const groups=new Map();
  const adminPlayer=players.filter(p=>p.name?.toLowerCase()===adminUsername.toLowerCase()).sort((a,b)=>Number(Boolean(b.reporterConnected))-Number(Boolean(a.reporterConnected))||String(b.receivedAt||"").localeCompare(String(a.receivedAt||"")))[0];
  const adminLocation=adminPlayer?JSON.stringify([adminPlayer.placeId,adminPlayer.jobId]):null;
  const get=(placeId,jobId)=>{
@@ -152,11 +150,10 @@ function groupServers(){
  const visible=[];
  for(const group of groups.values()){
   const total=group.eggs.length;
-  group.eggs=group.eggs.filter(egg=>!filter||egg.rarity===filter);
   group.eggs.sort((a,b)=>(b.incomePerSecond??-1)-(a.incomePerSecond??-1)||String(a.uid).localeCompare(String(b.uid)));
   group.connected=group.players.some(p=>p.reporterConnected);
   group.hasAdmin=adminLocation===group.key;
-  if(!filter||group.eggs.length)visible.push(group);
+  visible.push(group);
   group.totalEggs=total;
  }
  visible.sort((a,b)=>Number(b.hasAdmin)-Number(a.hasAdmin)||(b.eggs[0]?.incomePerSecond??-1)-(a.eggs[0]?.incomePerSecond??-1)||a.key.localeCompare(b.key));
@@ -221,7 +218,7 @@ function renderCards(){
  }
  const empty=document.getElementById("empty-eggs");
  if(groups.length){if(empty)empty.remove();}
- else if(!empty){const message=el("p","Aucun serveur signalé pour ce filtre.","empty");message.id="empty-eggs";cards.append(message);}
+ else if(!empty){const message=el("p","Aucun serveur signalé.","empty");message.id="empty-eggs";cards.append(message);}
  tick();
 }
 function updateAllRosters(){renderCards();}
@@ -233,14 +230,12 @@ function tick(){
 }
 let logRows=new Map();
 function renderLogs(){
- const query=document.getElementById("logs-filter").value.toLowerCase();
  const lines=[...logRows.values()].filter(row=>row.playerName?.toLowerCase()===adminUsername.toLowerCase()&&/^\[Auto_SAE\]\[\d+\]\[[^\]]+\]\[FLIGHT_RESULT\]\[/.test(row.text)).reverse().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,1000);
  logRows=new Map([...lines].reverse().map(row=>[row.id,row]));
- const visible=lines.filter(row=>[row.userId,row.playerName,row.jobId,row.text].join(" ").toLowerCase().includes(query)).map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text);
+ const visible=lines.map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text);
  setText(document.getElementById("logs-lines"),visible.join("\n")||"Aucun résultat de vol reçu.");
  setText(document.getElementById("tab-logs"),"Vols ("+lines.length+")");
 }
-document.getElementById("logs-filter").oninput=renderLogs;
 document.getElementById("logs-clear").onclick=()=>{
  if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour vider les logs.");return;}
  socket.send(JSON.stringify({version:1,type:"logs.clear"}));
@@ -283,7 +278,6 @@ function switchPanel(name){
  for(const tab of ["servers","logs","admin"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
 for(const name of ["servers","logs","admin"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
-document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();connect();
 </script></body></html>

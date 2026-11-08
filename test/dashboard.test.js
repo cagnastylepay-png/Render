@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../public/index.html"),"utf8");
-test("logs tab renders live text, filters and caps 1000 lines without egg events panel",()=>{
+test("logs tab renders live text and caps 1000 lines without egg events panel",()=>{
  const h=harness();
  const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));
  h.emit({type:"logs.state",entries,limit:1000,storage:"mongodb"});
@@ -9,8 +9,7 @@ test("logs tab renders live text, filters and caps 1000 lines without egg events
  assert.match(h.document.getElementById("logs-lines").textContent,/<b>Vol Reussi<\/b>/);
  assert.equal(h.document.getElementById("logs-lines").children.length,0);
  assert.match(h.document.getElementById("logs-lines").textContent.split("\n")[0],/Vol Reussi/);
- h.document.getElementById("logs-filter").value="Reussi";h.document.getElementById("logs-filter").oninput();
- assert.equal(h.document.getElementById("logs-lines").textContent.split("\n").length,1);
+ assert.equal(h.document.getElementById("logs-lines").textContent.split("\n").length,1000);
  h.emit({type:"logs.append",entries:[entries.at(-1)]});assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  h.document.getElementById("tab-logs").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
  h.document.getElementById("logs-clear").onclick();assert.equal(h.sent.at(-1).type,"logs.clear");
@@ -148,9 +147,7 @@ test("server cards select the best egg, expand all eggs and keep expansion acros
  assert.equal(empty.view.name.textContent,"Aucun œuf signalé");
  assert.equal(empty.expand.hidden,true);
  assert.match(empty.connection.textContent,/Connecté/);
- h.document.getElementById("rarity").value="Divine";
- vm.runInContext("renderCards()",h.context);
- assert.equal(vm.runInContext("serverViews.size",h.context),0);
+ assert.equal(vm.runInContext("serverViews.size",h.context),3);
 });
 
 
