@@ -24,6 +24,8 @@ function harness(t){
 }
 test('inventory preserves exact game metrics and rejects malformed/duplicate/oversized records',()=>{
  const value=validateInventory(inventory());assert.equal(value.stats.offlinePerDay,3e9*3600);assert.equal(value.eggs[0].ready,true);
+ assert.equal(validateInventory({...inventory(),automationStatus:'Placement : trajet bloque'}).automationStatus,'Placement : trajet bloque');
+ assert.throws(()=>validateInventory({...inventory(),automationStatus:'x'.repeat(501)}));
  assert.throws(()=>validateInventory({...inventory(),eggs:{}}));assert.throws(()=>validateInventory({...inventory(),eggs:[item('a'),item('a')]}));
  assert.throws(()=>validateInventory({...inventory(),stats:{money:NaN}}));assert.throws(()=>validateInventory({...inventory(),animals:[item('x','other')]}));
  assert.throws(()=>validateInventory({...inventory(),eggs:Array.from({length:5001},(_,i)=>item(String(i)))}));

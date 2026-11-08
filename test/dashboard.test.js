@@ -119,7 +119,7 @@ test('Mutations inventory, one-attempt popup and grouped settings keep draft val
  const options={AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33};
  h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,automationEnabled:false,settingsSessionId:'s',settingsRevision:1,options}});
  const state={type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[{uid:'e',name:'Cat',category:'Cat',location:'plot',mutations:[]}],mutationConsumables:[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}]}};
- h.emit(state);find('Mutations').onclick();assert.match(root.textContent,/Disponibles : 3/);assert.match(root.textContent,/10 %/);assert.match(root.textContent,/×2.75/);
+ h.emit({...state,inventory:{...state.inventory,automationStatus:'Placement en attente : collecte prioritaire'}});assert.match(root.textContent,/Placement en attente : collecte prioritaire/);find('Mutations').onclick();assert.match(root.textContent,/Disponibles : 3/);assert.match(root.textContent,/10 %/);assert.match(root.textContent,/×2.75/);
  find('Mes Œufs').onclick();find('Ajouter une mutation').onclick();const modal=h.document.getElementById('mutation-modal');assert.equal(modal.hidden,false);
  modal.querySelectorAll('button').find(b=>b.textContent.startsWith('Fractured')).onclick();assert.equal(h.sent.at(-1).action,'egg.mutate');assert.equal(h.sent.at(-1).mutationId,'Boss');assert.equal(modal.hidden,true);
  h.emit(state);find('Paramètres').onclick();find('AutoMutations').onclick();const field=root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin');field.value='10B';field.oninput();

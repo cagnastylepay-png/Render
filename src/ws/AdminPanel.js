@@ -23,7 +23,8 @@ function validateInventory(m){
   return {id:r.id,name:r.name,count:r.count,successPercent,multiplier};
  });
  if(m.mutationStatus!=null&&(typeof m.mutationStatus!=='string'||m.mutationStatus.length>500))throw Error('Invalid mutation status');
- return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal'),mutationConsumables:mutations,mutationStatus:m.mutationStatus||null};
+ if(m.automationStatus!=null&&(typeof m.automationStatus!=='string'||m.automationStatus.length>500))throw Error('Invalid automation status');
+ return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal'),mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();

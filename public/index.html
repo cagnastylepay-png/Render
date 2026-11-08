@@ -191,6 +191,7 @@ function renderAdmin(){
  for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
  summary.append(adminButton(row?.automationEnabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer","automation.set",{enabled:!row?.automationEnabled}));
  summary.append(el("p","Coupe AUTO avant les actions manuelles sur l’inventaire.","muted"));
+ if(inventory?.automationStatus)summary.append(el("p",inventory.automationStatus,"muted"));
  if(inventory?.stats?.offlineDurationSeconds!=null)summary.append(el("small","Hors ligne : calcul du jeu, durée "+fmt(inventory.stats.offlineDurationSeconds)+" s × coefficient "+inventory.stats.offlineRateMultiplier));
  const logs=el("button","Voir les vols");logs.onclick=()=>{renderLogs();switchPanel("logs");};summary.append(logs);container.append(summary);
  const actionStatus=el("p",adminWaiting?"Envoi…":adminInventory.pending?"Action en cours…":adminInventory.result?(adminInventory.result.status==="confirmed"?"✓ ":"⚠ ")+adminInventory.result.message:"","muted");actionStatus.id="admin-action-status";container.append(actionStatus);
