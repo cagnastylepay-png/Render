@@ -37,6 +37,15 @@ test('admin images distinguish eggs and animals, preserve mutations and reject u
  assert.throws(()=>validateInventory({...snapshot,eggs:[{...snapshot.eggs[0],mutations:{}}]}));
  assert.throws(()=>validateInventory({...snapshot,eggs:[{...snapshot.eggs[0],baseMutation:4}]}));
 });
+
+test('new game image IDs fill missing catalog entries and invalid snapshots never extend the allowlist',()=>{
+ const {getGameImageIds,isAllowedGameImage}=require('../src/assets/EggImages');
+ const fresh={category:'Viridian-new-test',name:'Viridian Prowler update test',eggImageAssetId:'98765432101234',animalImageAssetId:'98765432101235'};
+ const result=validateInventory({...inventory(),imageCatalog:[fresh],eggs:[{...item('new'),category:fresh.category,name:fresh.name}]});
+ assert.equal(result.eggs[0].imageUrl,'/animals/'+fresh.eggImageAssetId+'.png');assert.equal(getGameImageIds(fresh).animal,fresh.animalImageAssetId);assert.equal(isAllowedGameImage(fresh.animalImageAssetId),true);
+ assert.throws(()=>validateInventory({...inventory(),imageCatalog:[{...fresh,eggImageAssetId:'98765432101999'},{...fresh,animalImageAssetId:'https://evil.invalid/image'}]}));
+ assert.equal(isAllowedGameImage('98765432101999'),false);
+});
 test('commands revalidate ownership, placement, readiness, freshness, fusion membership and options',t=>{
  const h=harness(t);h.panel.accept(h.admin,inventory());
  for(const [action,extra]of [['egg.open',{uid:'egg'}],['egg.sell',{uid:'open'}],['egg.open',{uid:'growing'}],['animal.sell',{uid:'worn'}],['animal.sell',{uid:'locked'}],['animal.fuse',{uid:'a',uids:['a','a','c']}],['animal.fuse',{uid:'a',uids:['a','b','worn']}],['egg.sell',{uid:'missing'}]])assert.throws(()=>h.command(action,extra));

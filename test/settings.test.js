@@ -17,6 +17,13 @@ test('AutoMutations defaults off and accepts independent minimums and bounded in
  assert.throws(()=>validateSettings({...custom,MutationBossMin:-1}));
 });
 
+test('animal auto sale has an independent disabled default and validates its income range',()=>{
+ assert.equal(validateSettings(options).AutoSellAnimals,false);
+ const v=validateSettings({...options,AutoSellAnimals:true,AutoSellAnimalsMin:10e9,AutoSellAnimalsMax:20e9});
+ assert.equal(v.AutoSellAnimals,true);assert.equal(v.AutoSellAnimalsMin,10e9);assert.equal(v.AutoSellAnimalsMax,20e9);
+ for(const patch of [{AutoSellAnimals:'on'},{AutoSellAnimalsMin:NaN},{AutoSellAnimalsMin:-1},{AutoSellAnimalsMax:-1},{AutoSellAnimalsMin:30e9,AutoSellAnimalsMax:20e9}])assert.throws(()=>validateSettings({...options,...patch}));
+});
+
 test("settings persist latest values in Mongo and reject invalid snapshots atomically",async()=>{
  let saved=[];const factory=()=>({async connect(){},async close(){},db(){return {collection(){return {async createIndex(){},find(){return {async toArray(){return saved;}}},async bulkWrite(ops){for(const op of ops){const row=op.updateOne.update.$set;saved=saved.filter(old=>old.userId!==row.userId);saved.push(row);}}};}}}});
  const identity={userId:"42",name:"Alice",jobId:"job",placeId:"123"};

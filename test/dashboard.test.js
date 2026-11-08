@@ -117,14 +117,22 @@ test("Admin uses Servers card art and metrics without server controls; mutations
 test('Mutations inventory, one-attempt popup and grouped settings keep draft values across updates',()=>{
  const h=harness(),root=h.document.getElementById('admin-cards'),buttons=()=>root.querySelectorAll('button'),find=n=>buttons().find(b=>b.textContent===n);
  const options={AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33};
- h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,automationEnabled:false,settingsSessionId:'s',settingsRevision:1,options}});
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,automationEnabled:true,settingsSessionId:'s',settingsRevision:1,options}});
  const state={type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[{uid:'e',name:'Cat',category:'Cat',location:'plot',mutations:[]}],mutationConsumables:[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}]}};
  h.emit({...state,inventory:{...state.inventory,automationStatus:'Placement en attente : collecte prioritaire'}});assert.match(root.textContent,/Placement en attente : collecte prioritaire/);find('Mutations').onclick();assert.match(root.textContent,/Disponibles : 3/);assert.match(root.textContent,/10 %/);assert.match(root.textContent,/×2.75/);
  find('Mes Œufs').onclick();find('Ajouter une mutation').onclick();const modal=h.document.getElementById('mutation-modal');assert.equal(modal.hidden,false);
- modal.querySelectorAll('button').find(b=>b.textContent.startsWith('Fractured')).onclick();assert.equal(h.sent.at(-1).action,'egg.mutate');assert.equal(h.sent.at(-1).mutationId,'Boss');assert.equal(modal.hidden,true);
+ const apply=modal.querySelectorAll('button').find(b=>b.textContent.startsWith('Fractured'));assert.ok(!apply.disabled,'manual mutation stays available with AUTO ON');apply.onclick();assert.equal(h.sent.at(-1).action,'egg.mutate');assert.equal(h.sent.at(-1).mutationId,'Boss');assert.equal(modal.hidden,true);
  h.emit(state);find('Paramètres').onclick();find('AutoMutations').onclick();const field=root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin');field.value='10B';field.oninput();
- find('Fusion').onclick();find('AutoMutations').onclick();h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin'),field);assert.equal(field.value,'10B');
- find('Enregistrer').onclick();assert.equal(h.sent.at(-1).options.MutationBossMin,10e9);assert.equal(h.sent.at(-1).options.AutoMutations,false);
+ find('Vente').onclick();const animalMin=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimalsMin');animalMin.value='12B';animalMin.oninput();const animalMax=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimalsMax');animalMax.value='20B';animalMax.oninput();const animalToggle=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimals');animalToggle.checked=true;animalToggle.onchange();find('Fusion').onclick();find('AutoMutations').onclick();h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin'),field);assert.equal(field.value,'10B');
+ find('Enregistrer').onclick();assert.equal(h.sent.at(-1).options.MutationBossMin,10e9);assert.equal(h.sent.at(-1).options.AutoMutations,false);assert.equal(h.sent.at(-1).options.AutoSellAnimals,true);assert.equal(h.sent.at(-1).options.AutoSellAnimalsMin,12e9);
+});
+
+test('Images collects the current game catalog and exposes separate egg and animal IDs',()=>{
+ const h=harness(),root=h.document.getElementById('admin-cards'),button=n=>root.querySelectorAll('button').find(b=>b.textContent===n);
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true,automationEnabled:true}});
+ h.emit({type:'admin.inventory.state',connected:true,inventory:{sessionId:'s',revision:1,receivedAt:Date.now(),stats:{},eggs:[],animals:[],imageCatalog:[{category:'Viridian',name:'Viridian Prowler',eggImageAssetId:'123456789',animalImageAssetId:'987654321'}]}});
+ button('Images').onclick();assert.match(root.textContent,/Viridian Prowler/);assert.match(root.textContent,/Œuf : 123456789/);assert.match(root.textContent,/Animal : 987654321/);
+ button('Récupérer les IDs d’image').onclick();assert.equal(h.sent.at(-1).action,'images.collect');
 });
 
 test("egg location tabs persist and every Admin inventory group sorts by descending income",()=>{

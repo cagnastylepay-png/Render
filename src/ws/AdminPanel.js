@@ -1,8 +1,9 @@
 "use strict";
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
-const {getEggImage,getAnimalImage}=require('../assets/EggImages');
-const actions=new Set(['egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
+const {getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
+const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
+function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateInventory(m){
  if(m.version!==1||typeof m.sessionId!=='string'||!m.sessionId||m.sessionId.length>100||!Number.isSafeInteger(m.revision)||m.revision<1)throw Error('Invalid admin inventory');
  const metric=v=>v==null?null:typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1e100?v:(()=>{throw Error('Invalid metric');})();
@@ -12,7 +13,8 @@ function validateInventory(m){
    if(r.rarity!=null&&(typeof r.rarity!=='string'||r.rarity.length>40))throw Error('Invalid rarity');
    if(r.mutations!=null&&(!Array.isArray(r.mutations)||r.mutations.length>32||r.mutations.some(v=>typeof v!=='string'||!v||v.length>100)))throw Error('Invalid mutations');
    if(r.baseMutation!=null&&(typeof r.baseMutation!=='string'||r.baseMutation.length>100))throw Error('Invalid base mutation');
-   return {uid:r.uid,name:r.name,category:r.category,rarity:r.rarity||'Unknown',mutations:r.mutations||[],baseMutation:r.baseMutation||null,imageUrl:kind==='egg'?getEggImage(r):getAnimalImage(r),location:r.location,incomePerSecond:metric(r.incomePerSecond),weightKg:metric(r.weightKg),sellValue:metric(r.sellValue),remainingSeconds:kind==='egg'?metric(r.remainingSeconds):null,ready:r.ready===true,locked:r.locked===true};});
+   const value={uid:r.uid,name:r.name,category:r.category,rarity:r.rarity||'Unknown',mutations:r.mutations||[],baseMutation:r.baseMutation||null,eggImageAssetId:imageId(r.eggImageAssetId),animalImageAssetId:imageId(r.animalImageAssetId),location:r.location,incomePerSecond:metric(r.incomePerSecond),weightKg:metric(r.weightKg),sellValue:metric(r.sellValue),remainingSeconds:kind==='egg'?metric(r.remainingSeconds):null,ready:r.ready===true,locked:r.locked===true};
+   return value;});
  };
  const stats={};for(const key of ['speedPower','money','incomePerSecond','offlinePerDay','offlineDurationSeconds','offlineRateMultiplier'])stats[key]=metric(m.stats?.[key]);
  const ids=new Set();const mutationConsumables=m.mutationConsumables??[];
@@ -24,7 +26,13 @@ function validateInventory(m){
  });
  if(m.mutationStatus!=null&&(typeof m.mutationStatus!=='string'||m.mutationStatus.length>500))throw Error('Invalid mutation status');
  if(m.automationStatus!=null&&(typeof m.automationStatus!=='string'||m.automationStatus.length>500))throw Error('Invalid automation status');
- return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal'),mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
+ const imageCatalog=m.imageCatalog??[];if(!Array.isArray(imageCatalog)||imageCatalog.length>5000)throw Error('Invalid image catalog');
+ const images=imageCatalog.map(r=>{if(!r||typeof r.category!=='string'||!r.category||r.category.length>160||typeof r.name!=='string'||r.name.length>160)throw Error('Invalid image catalog entry');return {category:r.category,name:r.name,eggImageAssetId:imageId(r.eggImageAssetId),animalImageAssetId:imageId(r.animalImageAssetId)};});
+ const eggs=list(m.eggs,'egg'),animals=list(m.animals,'animal');
+ // Register only after validating the whole snapshot, so rejected messages cannot extend the image allowlist.
+ for(const r of [...images,...eggs,...animals])registerGameImageIds(r);
+ for(const r of eggs)r.imageUrl=getEggImage(r);for(const r of animals)r.imageUrl=getAnimalImage(r);
+ return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
@@ -49,7 +57,7 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
     payload={options:validateSettings(m.options),settingsRevision:saved.revision};
    }else{
     if(!inventory||inventory.connectionId!==admin.connectionId||now()-inventory.receivedAt>30000||m.inventoryRevision!==inventory.revision||m.inventorySessionId!==inventory.sessionId)throw Error('Inventaire périmé : attends sa mise à jour');
-    if(m.action!=='equip.best'){
+    if(!['equip.best','images.collect'].includes(m.action)){
      const kind=m.action.startsWith('egg.')?'eggs':'animals',item=inventory[kind].find(r=>r.uid===m.uid);
      if(!item)throw Error('Objet absent');if(item.locked)throw Error('Objet verrouillé ou occupé');
      if((['egg.open','egg.mutate'].includes(m.action))!==(item.location==='plot'))throw Error('Action incompatible avec cet emplacement');

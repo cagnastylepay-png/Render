@@ -1,6 +1,5 @@
 "use strict";
-const catalog=require('./roblox-images.json');
-const allowed=new Set(Object.values(catalog).map(row=>row.animal));
+const {isAllowedGameImage}=require('./EggImages');
 function createAnimalThumbnails({fetchImpl=fetch}={}){
  const cache=new Map(),waiting=new Map();let timer;
  async function flush(){
@@ -17,7 +16,7 @@ function createAnimalThumbnails({fetchImpl=fetch}={}){
  }
  const pending=new Map();
  return {resolve(id){
-  if(!allowed.has(id))return Promise.resolve(null);const old=cache.get(id);if(old?.until>Date.now())return Promise.resolve(old.url);
+  if(!isAllowedGameImage(id))return Promise.resolve(null);const old=cache.get(id);if(old?.until>Date.now())return Promise.resolve(old.url);
   if(pending.has(id))return pending.get(id);
   const p=new Promise(resolve=>{waiting.set(id,resolve);if(!timer)timer=setTimeout(flush,100);}).finally(()=>pending.delete(id));pending.set(id,p);return p;
  }};
