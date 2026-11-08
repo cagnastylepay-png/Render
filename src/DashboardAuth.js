@@ -33,7 +33,9 @@ function createDashboardAuth({ password = process.env.SECRET_MDP || "", now = Da
     res.writeHead(status, {
       "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store",
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
-      "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"
+      // no-referrer makes browser form POSTs send Origin:null, which our CSRF check rejects.
+      // same-origin preserves the origin for this form without disclosing referrers to other sites.
+      "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin"
     });
     res.end('<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>M4GIX — Connexion</title><style>body{background:#0d111a;color:#e7edf8;font:17px system-ui;display:grid;place-items:center;min-height:90vh}main{max-width:360px;padding:24px}input,button{box-sizing:border-box;width:100%;padding:12px;margin-top:12px;border-radius:8px;border:1px solid #47536a}button{background:#b0fa75;color:#182112;font-weight:bold}p{color:#afbdd0}</style><main><h1>M4GIX</h1><p>Accès privé au tableau de bord.</p><form method="post" action="/login"><label for="password">Mot de passe</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"><button>Se connecter</button></form><p role="status">' + message + '</p></main></html>');
   }

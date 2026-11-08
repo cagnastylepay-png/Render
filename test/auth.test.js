@@ -35,13 +35,16 @@ async function fixture(t, auth = { password: "test-password" }) {
 
 test("private HTML and WebSocket require a valid login; reporters remain available", { timeout: 10000 }, async t => {
   const f = await fixture(t);
-  const locked = await (await fetch(f.base)).text();
+  const loginPage = await fetch(f.base);
+  assert.equal(loginPage.headers.get("referrer-policy"), "same-origin", "the browser must retain Origin on the same-origin login form POST");
+  const locked = await loginPage.text();
   assert.match(locked, /Mot de passe/); assert.doesNotMatch(locked, /id="cards"/);
   assert.match(await (await fetch(f.base + "/index.html")).text(), /Mot de passe/);
   const denied = await f.socket("viewer");
   assert.equal(denied.code, 1008); assert.equal(denied.frames.length, 0);
   assert.equal((await f.socket("reporter")).message.type, "hello.ack");
   assert.equal((await f.login("wrong")).status, 401);
+  assert.equal((await f.login("test-password", "null")).status, 403);
   assert.equal((await f.login("test-password", "https://other.example")).status, 403);
   const response = await f.login("test-password");
   assert.equal(response.status, 303);
