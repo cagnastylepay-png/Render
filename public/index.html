@@ -140,7 +140,8 @@ function updateCard(view,egg){
 }
 function groupServers(){
  const groups=new Map(),filter=document.getElementById("rarity").value;
- const adminLocations=new Map(adminEntries.filter(row=>row.connected&&adminUsers.has(row.userId)).map(row=>[row.userId,JSON.stringify([row.placeId,row.jobId])]));
+ const adminPlayer=players.filter(p=>p.name?.toLowerCase()===adminUsername.toLowerCase()).sort((a,b)=>Number(Boolean(b.reporterConnected))-Number(Boolean(a.reporterConnected))||String(b.receivedAt||"").localeCompare(String(a.receivedAt||"")))[0];
+ const adminLocation=adminPlayer?JSON.stringify([adminPlayer.placeId,adminPlayer.jobId]):null;
  const get=(placeId,jobId)=>{
   const key=JSON.stringify([placeId,jobId]);
   if(!groups.has(key))groups.set(key,{key,placeId,jobId,eggs:[],players:[]});
@@ -154,7 +155,7 @@ function groupServers(){
   group.eggs=group.eggs.filter(egg=>!filter||egg.rarity===filter);
   group.eggs.sort((a,b)=>(b.incomePerSecond??-1)-(a.incomePerSecond??-1)||String(a.uid).localeCompare(String(b.uid)));
   group.connected=group.players.some(p=>p.reporterConnected);
-  group.hasAdmin=[...adminLocations.values()].includes(group.key)||group.players.some(p=>adminUsers.has(p.userId)&&(adminLocations.has(p.userId)?adminLocations.get(p.userId)===group.key:group.connected));
+  group.hasAdmin=adminLocation===group.key;
   if(!filter||group.eggs.length)visible.push(group);
   group.totalEggs=total;
  }

@@ -61,6 +61,15 @@ test("Admin replaces favorites with one configured account and hides diagnostics
  assert.equal(home.view.rosterList.querySelectorAll("button").length,0);
  h.emit({type:"admin.state",username:"MagixSafe",entry:{userId:"42",playerName:"MagixSafe",connected:false},storage:"mongodb"});assert.match(admin.textContent,/Déconnecté/);
 });
+
+test("MagixSafe server stays first and gold without an active Admin script; location follows latest connected roster",()=>{
+ const h=harness(),at=new Date().toISOString();
+ h.emit({type:"admin.state",username:"MagixSafe",entry:{playerName:"MagixSafe",connected:false,userId:null},storage:"memory"});
+ h.emit({type:"players.state",players:[{placeId:"123",jobId:"old",userId:"42",name:"MagixSafe",displayName:"M4GIX",reporterConnected:false,receivedAt:"2026-11-08T10:00:00Z"},{placeId:"123",jobId:"home",userId:"42",name:"MagixSafe",displayName:"M4GIX",reporterConnected:true,receivedAt:at},{placeId:"123",jobId:"rich",userId:"7",name:"Observer",displayName:"Observer",reporterConnected:true}]});
+ h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"rich",uid:"r",name:"Rich",rarity:"Divine",incomePerSecond:100e9,expiresAt:Date.now()+60000}]});
+ const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context),old=vm.runInContext('serverViews.get(JSON.stringify(["123","old"]))',h.context);
+ assert.equal(h.document.getElementById("cards").children[0],home.view.node);assert.match(home.view.node.className,/server-admin/);assert.doesNotMatch(old.view.node.className,/server-admin/);
+});
 test("Servers counts server cards and omits History",()=>{
  const h=harness();
  assert.equal(h.document.getElementById("tab-history"),null);

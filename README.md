@@ -80,11 +80,11 @@ Source : https://eggipedia.com/fr/oeufs ; image de remplacement si aucune corres
 
 ## Admin unique
 
-ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Lancer SEA_V2/Loaders/Admin.lua sur ce compte.
+ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Admin.lua reste un squelette TODO, sans fonctions en jeu pour le moment.
 Servers affiche les œufs et les joueurs de tous les reporters. Admin affiche le compte configuré, son état et ses derniers paramètres.
 Vols accepte et rejoue seulement ses lignes FLIGHT_RESULT : les diagnostics Render et les autres comptes sont exclus, y compris dans les anciennes données MongoDB.
 Les étoiles et delivery.configure sont supprimés. Les anciennes données de favoris restent archivées et ne sont plus utilisées.
 Le hello reporter doit annoncer clientKind=admin et le players.snapshot doit déclarer le username configuré. Les paramètres sont dédupliqués et sauvegardés dans client_settings.
 Seul cet Admin reçoit eggs.targets et teleport.request ; GO envoie une destination immédiate même si AUTO est OFF. Les observateurs restent passifs.
-Après téléportation Admin relance son propre loader. Aucun code Lua arbitraire n’est envoyé par Render.
+La carte du serveur du username configuré est prioritaire et dorée, même sans script Admin actif. Aucun code Lua arbitraire n’est envoyé par Render.
 Le username et le rôle sont déclarés par le client et ne prouvent pas la propriété d’un compte Roblox. Conserver SAE_REPORT_TOKEN si une restriction des reporters est nécessaire. SECRET_MDP protège séparément le dashboard.
