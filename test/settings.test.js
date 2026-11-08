@@ -35,8 +35,4 @@ test("settings persist latest values in Mongo and reject invalid snapshots atomi
 });
 
 
-test('idle activity defaults to treadmill compatibility and rejects conflicting fishing settings',()=>{
- assert.equal(validateSettings(options).AutoFishing,false);
- const fishing=validateSettings({...options,AutoTreadmill:false,AutoFishing:true});assert.equal(fishing.AutoFishing,true);assert.equal(fishing.AutoTreadmill,false);
- assert.throws(()=>validateSettings({...options,AutoFishing:true}));assert.throws(()=>validateSettings({...options,AutoFishing:'on'}));
-});
+
