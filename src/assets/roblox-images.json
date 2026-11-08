@@ -1,10 +1,18 @@
 {
-"Abyss Overlord":{"animal":"109336297710127","egg":"92114389149544","displayName":"Abyss Overlord"},
-"Abyss Overlord OP":{"animal":"109336297710127","egg":"92114389149544","displayName":"Abyss Overlord"},
   "67": {
     "animal": "135428765644701",
     "egg": "84927286351410",
     "displayName": "67"
+  },
+  "Abyss Overlord": {
+    "animal": "109336297710127",
+    "egg": "92114389149544",
+    "displayName": "Abyss Overlord"
+  },
+  "Abyss Overlord OP": {
+    "animal": "109336297710127",
+    "egg": "92114389149544",
+    "displayName": "Abyss Overlord"
   },
   "Finned Thresher": {
     "animal": "125497863961128",
@@ -702,9 +710,9 @@
     "displayName": "Toro"
   },
   "Moth": {
-    "animal": "104832997526909",
-    "egg": "114029210145538",
-    "displayName": "Sacred Moth"
+    "displayName": "Sacred Moth",
+    "egg": "104832997526909",
+    "animal": "114029210145538"
   },
   "Imp": {
     "animal": "80756597804671",
@@ -727,14 +735,14 @@
     "displayName": "Pure Jellyfish"
   },
   "Dark Gargoyle": {
-    "animal": "119732629571247",
-    "egg": "99077940722686",
-    "displayName": "Gargoyle"
+    "displayName": "Gargoyle",
+    "egg": "119732629571247",
+    "animal": "99077940722686"
   },
   "Centaur": {
-    "animal": "94996357404675",
-    "egg": "136114731886336",
-    "displayName": "Centaur"
+    "displayName": "Centaur",
+    "egg": "94996357404675",
+    "animal": "136114731886336"
   },
   "RazorFang": {
     "animal": "102849850756685",
@@ -775,14 +783,14 @@
     "egg": "73572093043918"
   },
   "Pegasus": {
-    "animal": "79544542526316",
-    "egg": "112830316982322",
-    "displayName": "Pegasus"
+    "displayName": "Pegasus",
+    "egg": "79544542526316",
+    "animal": "112830316982322"
   },
   "Skeleton Horse": {
-    "animal": "136184113799222",
-    "egg": "78230812200224",
-    "displayName": "Skeleton Horse"
+    "displayName": "Skeleton Horse",
+    "egg": "136184113799222",
+    "animal": "78230812200224"
   },
   "World Burner": {
     "animal": "74345431327000",
@@ -1313,6 +1321,190 @@
     "animal": "89383180936128",
     "egg": "88816364716945",
     "displayName": "Ghost Fish"
+  },
+  "Abyssjaw": {
+    "displayName": "Abyssjaw",
+    "egg": "88482358824141",
+    "animal": "123126719385295"
+  },
+  "Amber Minotaur": {
+    "displayName": "Amber Minotaur",
+    "egg": "137454614885484",
+    "animal": "107020024158813"
+  },
+  "Aurora Stag": {
+    "displayName": "Aurora Stag",
+    "egg": "75643582213482",
+    "animal": "110614100175710"
+  },
+  "Bell Ghost": {
+    "displayName": "Bell Scream",
+    "egg": "98567615969358",
+    "animal": "86468060543012"
+  },
+  "Bloomfin": {
+    "displayName": "Bloomfin",
+    "egg": "94844253904347",
+    "animal": "128943218005950"
+  },
+  "Bloomspire": {
+    "displayName": "Bloomspire",
+    "egg": "72384261547067",
+    "animal": "130469992672216"
+  },
+  "Cauldron": {
+    "displayName": "Bubblelord",
+    "egg": "94535467702902",
+    "animal": "115430228386333"
+  },
+  "JB Turtle": {
+    "displayName": "Burnin' Shell",
+    "egg": "116458344041011",
+    "animal": "132754239215391"
+  },
+  "Coffin Skeleton": {
+    "displayName": "Coffin Crawler",
+    "egg": "127118549491652",
+    "animal": "83437053151492"
+  },
+  "Cursed Fish": {
+    "displayName": "Cursed Monarch",
+    "egg": "116652953272411",
+    "animal": "82780117643333"
+  },
+  "Flarefish": {
+    "displayName": "Flarefish",
+    "egg": "75483856918060",
+    "animal": "130997380038945"
+  },
+  "Glacigon": {
+    "displayName": "Glacigon",
+    "egg": "96531783641421",
+    "animal": "124615747204348"
+  },
+  "Headless Horseman": {
+    "displayName": "Headless Horseman",
+    "egg": "70425781404632",
+    "animal": "112560741758519"
+  },
+  "Jadefin Swordfish": {
+    "displayName": "Jadefin Swordfish",
+    "egg": "137454614885484",
+    "animal": "134229605035961"
+  },
+  "Jellynova": {
+    "displayName": "Jellynova",
+    "egg": "127211190906206",
+    "animal": "76741574791611"
+  },
+  "Midnight Mimic": {
+    "displayName": "Midnight Mimic",
+    "egg": "71022040456851",
+    "animal": "125016191690703"
+  },
+  "Midnight Mimic OP": {
+    "displayName": "Midnight Mimic",
+    "egg": "71022040456851",
+    "animal": "125016191690703"
+  },
+  "Moonveil Lynx": {
+    "displayName": "Moonveil Lynx",
+    "egg": "137454614885484",
+    "animal": "130853571851209"
+  },
+  "Musical Ladybug": {
+    "displayName": "Musical Ladybug",
+    "egg": "81293155754504",
+    "animal": "124770728155374"
+  },
+  "Nebuloth Kraken": {
+    "displayName": "Nebuloth Kraken",
+    "egg": "102488404455588",
+    "animal": "111791383046856"
+  },
+  "Nightfin": {
+    "displayName": "Nightfin",
+    "egg": "102352363396880",
+    "animal": "126529328058801"
+  },
+  "Obsidian Rex": {
+    "displayName": "Obsidian Rex",
+    "egg": "112395308871127",
+    "animal": "79566918531356"
+  },
+  "Opal Emperor": {
+    "displayName": "Opal Emperor",
+    "egg": "137454614885484",
+    "animal": "117045395428141"
+  },
+  "Ghost Bird": {
+    "displayName": "Phantom Banshee",
+    "egg": "122229312341413",
+    "animal": "108116064354872"
+  },
+  "Celestial Novacoil": {
+    "displayName": "Prismare",
+    "egg": "75971997064062",
+    "animal": "86249871536161"
+  },
+  "Pumpkin Brute": {
+    "displayName": "Pumpkin Brute",
+    "egg": "84594069243792",
+    "animal": "118229903531977"
+  },
+  "Pumpkin King": {
+    "displayName": "Pumpkin King",
+    "egg": "102389580514648",
+    "animal": "95766369395163"
+  },
+  "Redmaw": {
+    "displayName": "Redmaw",
+    "egg": "116637893240239",
+    "animal": "71252241544863"
+  },
+  "Rubyhorn Beetle": {
+    "displayName": "Rubyhorn Beetle",
+    "egg": "137454614885484",
+    "animal": "75852158406819"
+  },
+  "Sapphire Leviathan": {
+    "displayName": "Sapphire Leviathan",
+    "egg": "137454614885484",
+    "animal": "128010254492580"
+  },
+  "Sproutling": {
+    "displayName": "Sproutling",
+    "egg": "88679175422694",
+    "animal": "120409069896344"
+  },
+  "Sproutling OP": {
+    "displayName": "Sproutling",
+    "egg": "88679175422694",
+    "animal": "120409069896344"
+  },
+  "Tideler": {
+    "displayName": "Tideler",
+    "egg": "79194322976450",
+    "animal": "84558074186795"
+  },
+  "Big Moth": {
+    "displayName": "Vespera",
+    "egg": "126670851462403",
+    "animal": "130701310286198"
+  },
+  "Vexlet": {
+    "displayName": "Vexlet",
+    "egg": "73640829234097",
+    "animal": "87579031117051"
+  },
+  "Viridian Prowler": {
+    "displayName": "Viridian Prowler",
+    "egg": "118206409822370",
+    "animal": "70369321977430"
+  },
+  "Xenorath": {
+    "displayName": "Xenorath",
+    "egg": "136304768463610",
+    "animal": "104394177075767"
   }
 }
-

@@ -1,0 +1,23 @@
+"use strict";
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),catalog=require('../src/assets/roblox-images.json');
+const eggs=new Set(Object.values(catalog).map(r=>r.egg)),animals=new Set(Object.values(catalog).map(r=>r.animal)),ids=new Set([...eggs,...animals]);
+const output=path.join(root,'public','eggs-native'),downloads=path.join(process.env.USERPROFILE,'Downloads');
+const imported=[];
+for(const name of fs.readdirSync(downloads)){
+ const m=name.match(/(\d{10,})(?: \(\d+\))?\.png$/i);if(!m||!ids.has(m[1]))continue;
+ const data=fs.readFileSync(path.join(downloads,name));
+ if(data.length<24||!data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))continue;
+ const target=path.join(output,m[1]+'.png');if(fs.existsSync(target))continue;
+ fs.writeFileSync(target,data);imported.push(m[1]);
+}
+const images=[],pendingEggs=[],pendingAnimals=[];
+for(const id of [...ids].sort()){
+ const target=path.join(output,id+'.png');if(!fs.existsSync(target)){if(eggs.has(id))pendingEggs.push(id);if(animals.has(id))pendingAnimals.push(id);continue;}
+ const data=fs.readFileSync(target);
+ if(!data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('Invalid PNG '+id);
+ images.push({id,roles:[...(eggs.has(id)?['egg']:[]),...(animals.has(id)?['animal']:[])],bytes:data.length,width:data.readUInt32BE(16),height:data.readUInt32BE(20),sha256:crypto.createHash('sha256').update(data).digest('hex')});
+}
+const manifest={source:'https://rbxdl.johnmarctumulak.com/',method:'Normal free web interface; individual downloads with countdown respected',updatedAt:new Date().toISOString(),catalogEntries:Object.keys(catalog).length,eggTotal:eggs.size,animalTotal:animals.size,images,pendingEggs,pendingAnimals};
+fs.writeFileSync(path.join(root,'docs','native-images-download-progress.json'),JSON.stringify(manifest,null,2)+'\n');
+console.log(JSON.stringify({imported,eggs:eggs.size-pendingEggs.length,eggTotal:eggs.size,animals:animals.size-pendingAnimals.length,animalTotal:animals.size,pendingEggs:pendingEggs.length,pendingAnimals:pendingAnimals.length}));

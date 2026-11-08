@@ -14,9 +14,18 @@ test("Render serves native PNG images with cache headers and validates the route
  const head=await fetch(base+"/eggs-native/123926130544109.png",{method:"HEAD"});assert.equal((await head.arrayBuffer()).byteLength,0);
 });
 test("native image catalog separates egg and animal IDs and serves the downloaded eggs",()=>{
- assert.equal(Object.keys(catalog).length,265);
+ assert.equal(Object.keys(catalog).length,302);
  for(const row of Object.values(catalog)){assert.match(row.egg,/^\d+$/);assert.match(row.animal,/^\d+$/);}
- for(const [name,row]of Object.entries(catalog))assert.equal(getEggImage({category:name}),"/eggs-native/"+row.egg+".png",name);
+ const fs=require('node:fs'),path=require('node:path');
+ for(const [name,row]of Object.entries(catalog))assert.equal(getEggImage({category:name}),(fs.existsSync(path.join(__dirname,'../public/eggs-native',row.egg+'.png'))?'/eggs-native/':'/animals/')+row.egg+'.png',name);
+ for(const [category,egg,animal]of [
+  ['Centaur','94996357404675','136114731886336'],
+  ['Dark Gargoyle','119732629571247','99077940722686'],
+  ['Pegasus','79544542526316','112830316982322'],
+  ['Moth','104832997526909','114029210145538'],
+  ['Skeleton Horse','136184113799222','78230812200224'],
+  ['Viridian Prowler','118206409822370','70369321977430']
+ ])assert.deepEqual(getGameImageIds({category}),{egg,animal},category);
  assert.deepEqual(getGameImageIds({category:"Dog"}),{egg:"123926130544109",animal:"128470938015055"});
  assert.deepEqual(getGameImageIds({name:"Phoenix"}),getGameImageIds({category:"Ascended Vermilion Phoenix"}));
  assert.deepEqual(getGameImageIds({category:"Abyss Overlord"}),getGameImageIds({category:"Abyssal Overlord"}));

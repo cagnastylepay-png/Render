@@ -15,3 +15,10 @@ The 174 distinct egg PNGs were subsequently downloaded through the normal free i
 
 Render serves the PNGs with a one-day browser cache. The egg resolver prefers these files and falls back to the old Eggipedia catalog for unknown categories. `tools/sync-downloaded-eggs.cjs` imports matching PNGs from the local Downloads directory and updates the manifest.
 
+## Live catalogue refresh — 2026-11-08
+
+The Admin Images view reported 300 current game categories. The static catalogue now contains those categories plus the two existing Abyssal Overlord aliases (302 entries). `docs/live-image-catalog-updates.json` records 37 additions and five corrected existing entries. Centaur, Dark Gargoyle, Pegasus, Moth and Skeleton Horse had their egg/animal IDs reversed in the old Studio export; they now follow the live game's `Egg.Icon` and `Icon` respectively.
+
+The new inventory and download status is in `docs/native-images-download-progress.json`. Both image roles still use the existing numeric `/eggs-native/<id>.png` route; the directory name does not determine the role. Files are imported by their actual filename asset ID, checked for PNG signature, and hashed. The normal rbxdl UI currently returns recurring expired security-token errors after partial downloads. Midnight Mimic's egg was separately reported unavailable. Remaining eggs and animals are explicitly listed as pending, not completed. `tools/sync-native-images.cjs` safely imports additional downloads and refreshes the manifest without overwriting existing files.
+
+
