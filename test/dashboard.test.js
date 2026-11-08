@@ -14,7 +14,7 @@ test("logs tab renders live text, filters and caps 1000 lines without egg events
  h.emit({type:"logs.append",entries:[entries.at(-1)]});assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  h.document.getElementById("tab-logs").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
  h.document.getElementById("logs-clear").onclick();assert.equal(h.sent.at(-1).type,"logs.clear");
- h.emit({type:"logs.state",entries:[],limit:1000,storage:"mongodb"});assert.equal(h.document.getElementById("tab-logs").textContent,"Logs (0)");
+ h.emit({type:"logs.state",entries:[],limit:1000,storage:"mongodb"});assert.equal(h.document.getElementById("tab-logs").textContent,"Vols (0)");
  assert.doesNotMatch(html,/Apparitions et disparitions/);
 });
 function harness(){
@@ -175,7 +175,7 @@ test("favorite servers stay first, use a gold card and move priority with the fa
  const rich=vm.runInContext('serverViews.get(JSON.stringify(["123","rich"]))',h.context);
  const cards=h.document.getElementById("cards");
  assert.equal(cards.children[0],home.view.node);
- assert.match(home.view.node.className,/server-favorite/);assert.match(home.title.textContent,/★ Serveur favori/);
+ assert.match(home.view.node.className,/server-favorite/);assert.equal(home.title.textContent,"★ Serveur favori de Favorite");
  home.expand.open=true;const image=home.view.image,srcWrites=image.srcWrites;
  h.emit({type:"favorites.state",entries:[{userId:"42",placeId:"123",jobId:"rich",connected:true}],storage:"mongodb"});
  assert.equal(cards.children[0],rich.view.node);assert.doesNotMatch(home.view.node.className,/server-favorite/);
@@ -184,3 +184,24 @@ test("favorite servers stay first, use a gold card and move priority with the fa
  assert.doesNotMatch(rich.view.node.className,/server-favorite/);
 });
 
+
+test("server headings name connected script players and retain names after disconnection",()=>{
+ const h=harness();
+ h.emit({type:"logs.state",entries:[],limit:1000,storage:"memory"});
+ assert.equal(h.document.getElementById("tab-logs").textContent,"Vols (0)");
+ h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"ba4b2270",uid:"egg",name:"Egg",rarity:"Common",expiresAt:Date.now()+60000}]});
+ const server=vm.runInContext('serverViews.get(JSON.stringify(["123","ba4b2270"]))',h.context);
+ assert.equal(server.title.textContent,"Serveur observé");
+ h.emit({type:"players.state",players:[
+  {placeId:"123",jobId:"ba4b2270",userId:"2",name:"ScriptPlayer2",displayName:"Second",reporterConnected:true},
+  {placeId:"123",jobId:"ba4b2270",userId:"1",name:"ScriptPlayer1",displayName:"First",reporterConnected:true},
+  {placeId:"123",jobId:"ba4b2270",userId:"3",name:"OrdinaryPlayer",reporterConnected:false}
+ ]});
+ assert.equal(server.title.textContent,"Serveur de ScriptPlayer1, ScriptPlayer2");
+ assert.equal(server.title.title,"ba4b2270");
+ h.emit({type:"players.state",players:[{placeId:"123",jobId:"ba4b2270",userId:"2",name:"ScriptPlayer2",reporterConnected:true}]});
+ assert.equal(server.title.textContent,"Serveur de ScriptPlayer2");
+ h.emit({type:"players.state",players:[]});
+ assert.equal(server.title.textContent,"Serveur de ScriptPlayer2");
+ assert.equal(server.connection.textContent,"Observations conservées");
+});
