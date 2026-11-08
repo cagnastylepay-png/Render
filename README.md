@@ -10,7 +10,7 @@
 - Synchronisation des changements d'œufs et de joueurs. L'onglet Historique et ses messages WebSocket sont retirés ; les données archivées ne sont pas effacées.
 - Timer global sur le prochain créneau de 5 minutes ; expiration individuelle issue
   de l'horaire du jeu quand fourni, sinon prochain créneau. Expiration retire les observations actives.
-- GO sur une carte serveur demande la téléportation des favoris connectés.
+- GO sur une carte serveur demande la téléportation de l’admin connecté.
 
 ## Démarrage
 
@@ -24,7 +24,7 @@ WebSocket : wss://m4gix-ws.onrender.com/sae/ws.
 
 ## Archive interne MongoDB Atlas
 
-Cette archive n'est plus affichée ni transmise au tableau de bord Servers / Logs / Favoris.
+Cette archive n'est plus affichée ni transmise au tableau de bord Servers / Vols / Admin.
 
 Dans les variables Render, définir MONGODB_URI avec la chaîne complète privée et MONGODB_DB=autosae.
 Aucun identifiant n'est enregistré dans ce dépôt. Autoriser les connexions du service Render dans
@@ -78,36 +78,13 @@ Les données clientes sont des observations non autoritaires.
 Correspondances dans src/assets/egg-images.json ; provenance dans docs/egg-images-sources.json.
 Source : https://eggipedia.com/fr/oeufs ; image de remplacement si aucune correspondance.
 
-## Favoris et envoi ciblé
+## Admin unique
 
-Les joueurs de chaque carte serveur sont triés par SpeedPower décroissant (valeurs inconnues en dernier).
-L'étoile sauvegarde le UserId Roblox comme favori, indépendamment du serveur actuel ou du nom affiché.
-Le revenu minimum d'envoi se règle sur le dashboard (exemples : 500M/s, 2B/s, 1T/s).
-Ces réglages sont partagés entre les pages connectées ; une révision empêche un ancien onglet d'écraser une modification récente.
-
-Favoris et seuil : collection MongoDB `delivery_policy`, document `default`, avec MONGODB_URI/MONGODB_DB existants.
-Sans MongoDB : fichier `data/delivery-policy.json` (ou SAE_DATA_DIR) ; sans stockage disponible, mémoire seulement.
-L'interface affiche le stockage actif. Le seuil initial est 2B/s et la liste des favoris est vide.
-
-Après son players.snapshot accepté, un socket reporter est associé exclusivement à son reporterUserId.
-Seuls les reporters favoris reçoivent `eggs.targets` : œufs des autres serveurs du même PlaceId,
-revenu >= seuil, observations non expirées et tri par revenu du store. Leur propre serveur n'est pas renvoyé.
-Les messages sont dédupliqués, réévalués aux changements d'œufs/présence/réglages et vidés lors du retrait du favori.
-Les viewers continuent à recevoir toutes les observations pour afficher le dashboard.
-
-Protocole dashboard :
-```json
-{"type":"delivery.configure","expectedRevision":0,"favoriteUserIds":["123"],"minimumIncomePerSecond":2000000000}
-```
-Réponse/broadcast : `delivery.policy` avec revision, favoriteUserIds, minimumIncomePerSecond et storage.
-Seuls les viewers autorisés par la clé du dashboard peuvent modifier ces réglages ; les reporters ne le peuvent pas.
-Comme pour le reporting existant, un reporterUserId est une déclaration cliente et non une authentification Roblox.
-
-Protocole du futur script parallèle :
-```json
-{"version":1,"type":"eggs.targets","enabled":true,"minimumIncomePerSecond":2000000000,"serverTime":0,"eggs":[]}
-```
-Chaque message remplace la liste précédente. enabled=false ou eggs=[] la vide.
-Aucune commande Lua, collecte ou téléportation n'est exécutée par ce protocole.
-Test.lua et OVORA n'ont pas été modifiés : ils ignorent ce nouveau type de message en attendant le script parallèle.
-
+ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Lancer SEA_V2/Loaders/Admin.lua sur ce compte.
+Servers affiche les œufs et les joueurs de tous les reporters. Admin affiche le compte configuré, son état et ses derniers paramètres.
+Vols accepte et rejoue seulement ses lignes FLIGHT_RESULT : les diagnostics Render et les autres comptes sont exclus, y compris dans les anciennes données MongoDB.
+Les étoiles et delivery.configure sont supprimés. Les anciennes données de favoris restent archivées et ne sont plus utilisées.
+Le hello reporter doit annoncer clientKind=admin et le players.snapshot doit déclarer le username configuré. Les paramètres sont dédupliqués et sauvegardés dans client_settings.
+Seul cet Admin reçoit eggs.targets et teleport.request ; GO envoie une destination immédiate même si AUTO est OFF. Les observateurs restent passifs.
+Après téléportation Admin relance son propre loader. Aucun code Lua arbitraire n’est envoyé par Render.
+Le username et le rôle sont déclarés par le client et ne prouvent pas la propriété d’un compte Roblox. Conserver SAE_REPORT_TOKEN si une restriction des reporters est nécessaire. SECRET_MDP protège séparément le dashboard.

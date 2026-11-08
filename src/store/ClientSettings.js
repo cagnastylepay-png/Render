@@ -49,6 +49,7 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
    rows.set(row.userId,row);pending.set(row.userId,row);schedule();return true;
   },
   get:userId=>rows.get(userId),
+  findByUsername:name=>[...rows.values()].filter(row=>row.playerName?.toLowerCase()===name.toLowerCase()).sort((a,b)=>b.at.localeCompare(a.at))[0],
   storage:()=>collection?"mongodb":uri?"mongodb-pending":"memory",
   onReady(fn){listeners.add(fn);return()=>listeners.delete(fn);},
   async close(){closed=true;clearTimeout(timer);await flush();if(client)await client.close().catch(()=>{});}

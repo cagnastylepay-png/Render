@@ -14,11 +14,10 @@ label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 .cards{align-items:start}.server-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #303d53}.server-heading strong{font-size:12px;min-width:0;overflow-wrap:anywhere}.server-heading small{font-size:11px}.server-eggs{display:grid;gap:10px;margin-top:12px}.server-eggs .players{display:none}.server-eggs .card{padding:10px;background:#101826}.server-expand>summary{font-size:13px;color:#b0fa75;padding:10px 0}.server-empty .egg-art,.server-empty .metrics{display:none}
 .card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:10px;padding:12px}
 .card[data-rarity=Divine]{border-top-color:#ffd269}.card[data-rarity=Eternal]{border-top-color:#ff89cf}.card[data-rarity=Cosmic]{border-top-color:#88aaff}
-.card.server-favorite{background:#29251a;border-color:#9b7b32;border-top-color:#ffd269;box-shadow:0 0 0 1px #ffd26933}.server-favorite>.server-heading{border-bottom-color:#67552d}.server-favorite>.server-heading strong{color:#ffe29a}
+.card.server-admin{background:#29251a;border-color:#9b7b32;border-top-color:#ffd269;box-shadow:0 0 0 1px #ffd26933}.server-admin>.server-heading{border-bottom-color:#67552d}.server-admin>.server-heading strong{color:#ffe29a}
 .egg-art{height:105px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#26354f,transparent 70%);margin:6px 0}.egg-art img{width:100px;height:100px;object-fit:contain;image-rendering:auto}.egg-art span{font-size:56px}.card-head{justify-content:space-between;align-items:start}.rarity{font-size:12px;text-transform:uppercase;color:#c4d1e8;letter-spacing:.08em}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.metric{background:#1a2538;border-radius:6px;padding:8px}.metric strong{display:block;font-size:16px;margin-top:3px}
 .identity{overflow-wrap:anywhere;font-size:12px;color:#a4b2ca;margin:10px 0}.coords{font-size:13px}.players{margin-top:10px;padding-top:10px;border-top:1px solid #303d53}.players h3{font-size:13px;margin:0 0 10px}
-.favorite{float:right;padding:2px 6px;margin-left:5px;font-size:18px;line-height:1.1;background:transparent;border:0;color:#8d9cb4}.favorite[aria-pressed=true]{color:#ffd269}
 .roster{display:grid;gap:7px}.player{border:1px solid #3b465b;background:#1a2435;border-radius:8px;padding:7px;font-size:11px}.player.script{border-color:#6fc788;background:#153427}.player strong{font-size:13px}.badge{float:right;font-size:10px;padding:3px 6px;border-radius:4px;background:#344058}.script .badge{background:#27633d}
 details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
@@ -28,17 +27,17 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
-<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-favorites" role="tab" aria-selected="false" aria-controls="panel-favorites">Favoris (0)</button></nav>
+<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
 <label>Rareté <select id="rarity"><option value="">Toutes</option><option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option><option>Mythic</option><option>Divine</option><option>Eternal</option><option>Secret</option><option>Cosmic</option></select></label>
-<p id="delivery-info" class="muted">Chargement des favoris…</p>
-<p class="muted">Une carte par serveur · GO téléporte immédiatement les favoris connectés vers ce serveur.</p>
+<p id="delivery-info" class="muted">Chargement de l’admin…</p>
+<p class="muted">Une carte par serveur · GO téléporte immédiatement l’admin connecté vers ce serveur.</p>
 <div id="cards" class="cards"></div>
 
 </section>
-<section id="panel-favorites" role="tabpanel" aria-labelledby="tab-favorites" hidden>
-<p id="favorites-info" class="muted">Paramètres des clients favoris · Consultation uniquement.</p>
-<div id="favorites-cards" class="cards"></div>
+<section id="panel-admin" role="tabpanel" aria-labelledby="tab-admin" hidden>
+<p id="admin-info" class="muted">Paramètres du compte admin · Consultation uniquement.</p>
+<div id="admin-cards" class="cards"></div>
 </section>
 <p class="muted"><small>Images du jeu Roblox · Compléments : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
 <section id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
@@ -51,8 +50,8 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 "use strict";
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0;
 const cardViews=new Map(),serverViews=new Map();
-let favoriteEntries=[],favoriteStorage="memory";
-let favoriteUsers=new Set(),deliveryRevision=0,deliveryMinimum=2e9,deliveryReady=false;
+let adminEntries=[],adminStorage="memory",adminUsername="MagixSafe";
+let adminUsers=new Set(),deliveryReady=false;
 const status=document.getElementById("status"),cards=document.getElementById("cards");
 const suffixes=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
 const decimal=new Intl.NumberFormat("en-US",{maximumFractionDigits:2,useGrouping:false});
@@ -71,22 +70,11 @@ function rosterFor(egg){
  return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId).sort((a,b)=>
   (b.speedPower??-1)-(a.speedPower??-1)||String(a.name).localeCompare(String(b.name)));
 }
-function configureDelivery(ids,minimum){
- if(!deliveryReady||!socket||socket.readyState!==WebSocket.OPEN)return;
- socket.send(JSON.stringify({version:1,type:"delivery.configure",expectedRevision:deliveryRevision,
-  favoriteUserIds:[...ids],minimumIncomePerSecond:minimum}));
-}
-function updateDelivery(message){
- favoriteUsers=new Set(message.favoriteUserIds);deliveryRevision=message.revision;
- deliveryMinimum=message.minimumIncomePerSecond;deliveryReady=true;
- setText(document.getElementById("delivery-info"),favoriteUsers.size+" favori(s) · "+(message.storage==="mongodb"?"Sauvegarde MongoDB":message.storage==="disk"?"Sauvegarde locale":"Mémoire uniquement"));
- updateAllRosters();
-}
-function renderFavorites(){
- const container=document.getElementById("favorites-cards");container.replaceChildren();
- setText(document.getElementById("tab-favorites"),"Favoris ("+favoriteEntries.length+")");
- setText(document.getElementById("favorites-info"),"Derniers paramètres reçus · Consultation uniquement · "+(favoriteStorage==="mongodb"?"Sauvegarde MongoDB active.":favoriteStorage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
- for(const row of favoriteEntries){
+function renderAdmin(){
+ const container=document.getElementById("admin-cards");container.replaceChildren();
+ setText(document.getElementById("tab-admin"),"Admin");
+ setText(document.getElementById("admin-info"),"Derniers paramètres reçus · Consultation uniquement · "+(adminStorage==="mongodb"?"Sauvegarde MongoDB active.":adminStorage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
+ for(const row of adminEntries){
   const card=el("article",null,"card"),heading=el("h2",row.playerName),state=el("p",row.connected?"● Connecté":"○ Déconnecté");
   state.style.color=row.connected?"#b0fa75":"#a4b2ca";
   card.append(heading,state,el("p","ID joueur : "+row.userId,"identity"),el("p","Serveur : "+(row.jobId||"—"),"identity"),el("p",row.at?"Paramètres reçus le "+new Date(row.at).toLocaleString():"En attente des paramètres du client.","muted"));
@@ -102,7 +90,7 @@ function renderFavorites(){
   }
   const logs=el("button","Voir les vols");logs.onclick=()=>{document.getElementById("logs-filter").value=row.userId;renderLogs();switchPanel("logs");};card.append(logs);container.append(card);
  }
- if(!favoriteEntries.length)container.append(el("p","Ajoutez un joueur aux favoris avec l’étoile sur une carte serveur.","empty"));
+ if(!adminEntries.length)container.append(el("p","En attente du compte admin.","empty"));
 }
 function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
@@ -121,23 +109,14 @@ function createCard(){
  return {node,art,metrics,rarity,name,image,placeholder,values,roster,rosterSummary,rosterList,rosterSignature:null,details,detailsBody,imageUrl:null};
 }
 function updateRoster(view,egg){
- const known=rosterFor(egg),signature=JSON.stringify([known,[...favoriteUsers].sort(),deliveryReady]);
+ const known=rosterFor(egg),signature=JSON.stringify([known,[...adminUsers].sort(),deliveryReady]);
  if(view.rosterSignature===signature)return;
  view.rosterSignature=signature;
  setText(view.rosterSummary,"Joueurs ("+known.length+")");
  view.rosterList.replaceChildren();
  for(const p of known){
   const item=el("div",null,"player"+(p.reporterConnected?" script":""));
-  const favorite=el("button",favoriteUsers.has(p.userId)?"★":"☆","favorite");
-  favorite.setAttribute("aria-pressed",String(favoriteUsers.has(p.userId)));
-  favorite.setAttribute("aria-label",(favoriteUsers.has(p.userId)?"Retirer des favoris : ":"Ajouter aux favoris : ")+p.name);
-  favorite.disabled=!deliveryReady;
-  favorite.onclick=()=>{
-   const next=new Set(favoriteUsers);
-   if(next.has(p.userId))next.delete(p.userId);else next.add(p.userId);
-   configureDelivery(next,deliveryMinimum);
-  };
-  item.append(favorite,el("span",p.reporterConnected?"SCRIPT":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),
+  item.append(el("span",p.reporterConnected?"SCRIPT":"OBSERVÉ","badge"),el("strong",p.displayName+" (@"+p.name+")"),
    el("div","Vitesse "+fmt(p.speedPower)+" · "+money(p.incomePerSecond)+"/s"));
   view.rosterList.append(item);
  }
@@ -161,7 +140,7 @@ function updateCard(view,egg){
 }
 function groupServers(){
  const groups=new Map(),filter=document.getElementById("rarity").value;
- const favoriteLocations=new Map(favoriteEntries.filter(row=>row.connected&&favoriteUsers.has(row.userId)).map(row=>[row.userId,JSON.stringify([row.placeId,row.jobId])]));
+ const adminLocations=new Map(adminEntries.filter(row=>row.connected&&adminUsers.has(row.userId)).map(row=>[row.userId,JSON.stringify([row.placeId,row.jobId])]));
  const get=(placeId,jobId)=>{
   const key=JSON.stringify([placeId,jobId]);
   if(!groups.has(key))groups.set(key,{key,placeId,jobId,eggs:[],players:[]});
@@ -175,20 +154,20 @@ function groupServers(){
   group.eggs=group.eggs.filter(egg=>!filter||egg.rarity===filter);
   group.eggs.sort((a,b)=>(b.incomePerSecond??-1)-(a.incomePerSecond??-1)||String(a.uid).localeCompare(String(b.uid)));
   group.connected=group.players.some(p=>p.reporterConnected);
-  group.hasFavorite=[...favoriteLocations.values()].includes(group.key)||group.players.some(p=>favoriteUsers.has(p.userId)&&(favoriteLocations.has(p.userId)?favoriteLocations.get(p.userId)===group.key:group.connected));
+  group.hasAdmin=[...adminLocations.values()].includes(group.key)||group.players.some(p=>adminUsers.has(p.userId)&&(adminLocations.has(p.userId)?adminLocations.get(p.userId)===group.key:group.connected));
   if(!filter||group.eggs.length)visible.push(group);
   group.totalEggs=total;
  }
- visible.sort((a,b)=>Number(b.hasFavorite)-Number(a.hasFavorite)||(b.eggs[0]?.incomePerSecond??-1)-(a.eggs[0]?.incomePerSecond??-1)||a.key.localeCompare(b.key));
+ visible.sort((a,b)=>Number(b.hasAdmin)-Number(a.hasAdmin)||(b.eggs[0]?.incomePerSecond??-1)-(a.eggs[0]?.incomePerSecond??-1)||a.key.localeCompare(b.key));
  return visible;
 }
 function createServerView(group){
  const view=createCard(),header=el("div",null,"server-heading"),title=el("strong"),connection=el("small");
- const go=el("button","GO");go.title="Forcer la téléportation des favoris connectés, sans attendre la file";
+ const go=el("button","GO");go.title="Forcer la téléportation de l’admin connecté, sans attendre la file";
  go.onclick=()=>{
   if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour envoyer GO.");return;}
   socket.send(JSON.stringify({version:1,type:"teleport.manual",placeId:group.placeId,jobId:group.jobId}));
-  setText(status,"GO : demande envoyée aux favoris connectés…");
+  setText(status,"GO : demande envoyée à l’admin connecté…");
  };
  header.append(title,connection,go);view.node.insertBefore(header,view.node.children[0]);
  const expand=el("details",null,"server-expand"),summary=el("summary"),list=el("div",null,"server-eggs");
@@ -206,11 +185,11 @@ function renderCards(){
   const scriptNames=[...new Set(group.players.filter(p=>p.reporterConnected).map(p=>p.name||p.displayName).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   if(scriptNames.length)server.scriptNames=scriptNames;
   const names=(server.scriptNames||[]).join(", ");
-  setText(server.title,(group.hasFavorite?"★ Serveur favori":"Serveur")+(names?" de "+names:" observé"));
+  setText(server.title,(group.hasAdmin?"★ Serveur admin":"Serveur")+(names?" de "+names:" observé"));
   server.title.title=group.jobId;
   setText(server.connection,group.connected?"● Connecté":"Observations conservées");
   server.connection.style.color=group.connected?"#b0fa75":"#a4b2ca";
-  view.node.className="card"+(best?"":" server-empty")+(group.hasFavorite?" server-favorite":"");
+  view.node.className="card"+(best?"":" server-empty")+(group.hasAdmin?" server-admin":"");
   if(best){
    updateCard(view,best);cardViews.set("best/"+group.key,view);
   }else{
@@ -254,10 +233,10 @@ function tick(){
 let logRows=new Map();
 function renderLogs(){
  const query=document.getElementById("logs-filter").value.toLowerCase();
- const lines=[...logRows.values()].reverse().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,1000);
+ const lines=[...logRows.values()].filter(row=>row.playerName?.toLowerCase()===adminUsername.toLowerCase()&&/^\[Auto_SAE\]\[\d+\]\[[^\]]+\]\[FLIGHT_RESULT\]\[/.test(row.text)).reverse().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,1000);
  logRows=new Map([...lines].reverse().map(row=>[row.id,row]));
  const visible=lines.filter(row=>[row.userId,row.playerName,row.jobId,row.text].join(" ").toLowerCase().includes(query)).map(row=>new Date(row.at).toLocaleString()+" · "+row.playerName+" · "+row.jobId+" · "+row.text);
- setText(document.getElementById("logs-lines"),visible.join("\n")||"Aucune action reçue.");
+ setText(document.getElementById("logs-lines"),visible.join("\n")||"Aucun résultat de vol reçu.");
  setText(document.getElementById("tab-logs"),"Vols ("+lines.length+")");
 }
 document.getElementById("logs-filter").oninput=renderLogs;
@@ -275,9 +254,8 @@ function connect(){
   try{
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
-   if(message.type==="teleport.manual.ack"){setText(status,"GO envoyé à "+message.count+" favori(s) connecté(s).");}
-   else if(message.type==="delivery.policy"){updateDelivery(message);}
-   else if(message.type==="favorites.state"){favoriteEntries=message.entries;favoriteStorage=message.storage;renderFavorites();renderCards();}
+   if(message.type==="teleport.manual.ack"){setText(status,message.count?"GO envoyé à l’admin connecté.":"Admin indisponible ou déjà sur ce serveur.");}
+   else if(message.type==="admin.state"){adminUsername=message.username;adminEntries=[message.entry];adminStorage=message.storage;adminUsers=new Set(message.entry.userId?[message.entry.userId]:[]);deliveryReady=true;setText(document.getElementById("delivery-info"),"Admin : "+adminUsername+" · "+(message.entry.connected?"Connecté":"Déconnecté"));renderAdmin();renderCards();renderLogs();}
    else if(message.type==="eggs.state"){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
     renderCards();
@@ -285,7 +263,7 @@ function connect(){
    }else if(message.type==="players.state"){players=message.players;updateAllRosters();}
    else if(message.type==="logs.state"){
     logRows=new Map(message.entries.map(row=>[row.id,row]));renderLogs();
-    setText(document.getElementById("logs-info"),"Actions des joueurs favoris · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
+    setText(document.getElementById("logs-info"),"Résultats des vols de l’admin · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
    }else if(message.type==="logs.append"){for(const row of message.entries)logRows.set(row.id,row);renderLogs();}
    else if(message.type==="error")setText(status,message.message);
   }catch{setText(status,"Message serveur invalide");}
@@ -294,16 +272,16 @@ function connect(){
   if(socket!==current)return;
   deliveryReady=false;
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
-  favoriteEntries=favoriteEntries.map(row=>({...row,connected:false}));renderFavorites();
+  adminEntries=adminEntries.map(row=>({...row,connected:false}));renderAdmin();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
   if(event.code===1008){stopped=true;setText(status,"Session expirée ou accès refusé. Reconnexion au tableau de bord…");location.href="/login";}
   if(!stopped)retry=setTimeout(connect,5000);
  };current.onerror=()=>{};
 }
 function switchPanel(name){
- for(const tab of ["servers","logs","favorites"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+ for(const tab of ["servers","logs","admin"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
-for(const name of ["servers","logs","favorites"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
+for(const name of ["servers","logs","admin"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("rarity").onchange=renderCards;
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();connect();

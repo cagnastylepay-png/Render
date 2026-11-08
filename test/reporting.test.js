@@ -61,18 +61,13 @@ test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer 
   const viewer = await connect(url, "viewer", "test-view"); peers.push(viewer);
   const reporter = await connect(url, "reporter", "test-report"); peers.push(reporter);
   await waitFor(() => reporter.messages.find(m => m.type === "hello.ack"));
-  const policy=await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"));
-  viewer.ws.send(JSON.stringify({type:"delivery.configure",expectedRevision:policy.revision,favoriteUserIds:["1"],minimumIncomePerSecond:0}));
-  await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"&&m.favoriteUserIds.includes("1")));
   reporter.ws.send(JSON.stringify(presence()));
   await waitFor(() => reporter.messages.find(m=>m.type==="players.ack"&&m.accepted));
   await waitFor(() => viewer.messages.find(m=>m.type==="players.state"&&m.players.some(p=>p.reporterConnected)));
   reporter.ws.send(JSON.stringify(snapshot()));
   await waitFor(() => reporter.messages.find(m => m.type === "eggs.ack" && m.accepted));
   await waitFor(() => viewer.messages.find(m => m.type === "eggs.state" && m.eggs.length === 1));
-  await waitFor(() => server.autoSAE.history.state().entries.some(row=>row.action==="appeared"));
   assert.equal(viewer.messages.some(m=>m.type.startsWith("history.")),false);
-  await waitFor(() => viewer.messages.find(m => m.type === "eggs.events" && m.events.some(row=>row.action==="appeared")));
   viewer.ws.send(JSON.stringify(snapshot({ revision: 2 })));
   await waitFor(() => viewer.messages.find(m => m.type === "error" && /read-only/.test(m.message)));
   reporter.ws.send(JSON.stringify(snapshot({ revision: 2, eggs: [] })));

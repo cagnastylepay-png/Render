@@ -3,13 +3,13 @@ const test=require("node:test"),assert=require("node:assert/strict"),fs=require(
 const html=fs.readFileSync(path.join(__dirname,"../public/index.html"),"utf8");
 test("logs tab renders live text, filters and caps 1000 lines without egg events panel",()=>{
  const h=harness();
- const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"Alice",jobId:"job",text:i===1004?'<b>Vol Reussi</b>':"Vente "+i}));
+ const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));
  h.emit({type:"logs.state",entries,limit:1000,storage:"mongodb"});
  assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  assert.match(h.document.getElementById("logs-lines").textContent,/<b>Vol Reussi<\/b>/);
  assert.equal(h.document.getElementById("logs-lines").children.length,0);
  assert.match(h.document.getElementById("logs-lines").textContent.split("\n")[0],/Vol Reussi/);
- h.document.getElementById("logs-filter").value="Vol";h.document.getElementById("logs-filter").oninput();
+ h.document.getElementById("logs-filter").value="Reussi";h.document.getElementById("logs-filter").oninput();
  assert.equal(h.document.getElementById("logs-lines").textContent.split("\n").length,1);
  h.emit({type:"logs.append",entries:[entries.at(-1)]});assert.match(h.document.getElementById("tab-logs").textContent,/1000/);
  h.document.getElementById("tab-logs").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
@@ -43,6 +43,24 @@ function harness(){
  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
  return {context,document,sent:FakeSocket.current.sent,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
 }
+
+test("Admin replaces favorites with one configured account and hides diagnostics and other players",()=>{
+ const h=harness(),at=new Date().toISOString(),text="[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] Vol Reussi";
+ h.emit({type:"admin.state",username:"MagixSafe",storage:"mongodb",entry:{userId:"42",playerName:"MagixSafe",connected:true,placeId:"123",jobId:"home",options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33}}});
+ const admin=h.document.getElementById("admin-cards");assert.equal(admin.children.length,1);assert.match(admin.textContent,/MagixSafe/);assert.match(admin.textContent,/2B\/s/);
+ assert.equal(h.document.getElementById("tab-admin").textContent,"Admin");
+ assert.doesNotMatch(html,/delivery.configure|class="favorite"|tab-favorites/);
+ h.emit({type:"logs.state",limit:1000,storage:"mongodb",entries:[{id:"1",userId:"42",playerName:"MagixSafe",jobId:"home",at,text},{id:"2",playerName:"MagixSafe",at,text:"[Render] diagnostic"},{id:"3",playerName:"Other",at,text}]});
+ assert.equal(h.document.getElementById("tab-logs").textContent,"Vols (1)");
+ assert.doesNotMatch(h.document.getElementById("logs-lines").textContent,/diagnostic|Other/);
+ admin.children[0].querySelectorAll("button")[0].onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
+ h.emit({type:"players.state",players:[{placeId:"123",jobId:"home",userId:"42",name:"MagixSafe",displayName:"MagixSafe",reporterConnected:true},{placeId:"123",jobId:"rich",userId:"7",name:"Observer",displayName:"Observer",reporterConnected:true}]});
+ h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"home",uid:"a",name:"A",rarity:"Common",incomePerSecond:1,expiresAt:Date.now()+60000},{placeId:"123",jobId:"rich",uid:"b",name:"B",rarity:"Common",incomePerSecond:1e12,expiresAt:Date.now()+60000}]});
+ const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context);
+ assert.equal(h.document.getElementById("cards").children[0],home.view.node);assert.match(home.view.node.className,/server-admin/);assert.equal(home.title.textContent,"★ Serveur admin de MagixSafe");
+ assert.equal(home.view.rosterList.querySelectorAll("button").length,0);
+ h.emit({type:"admin.state",username:"MagixSafe",entry:{userId:"42",playerName:"MagixSafe",connected:false},storage:"mongodb"});assert.match(admin.textContent,/Déconnecté/);
+});
 test("Servers counts server cards and omits History",()=>{
  const h=harness();
  assert.equal(h.document.getElementById("tab-history"),null);
@@ -126,63 +144,9 @@ test("server cards select the best egg, expand all eggs and keep expansion acros
  assert.equal(vm.runInContext("serverViews.size",h.context),0);
 });
 
-test("rosters sort by game speed and favorite stars work without obsolete global inputs",()=>{
- const h=harness();
- h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"job",uid:"egg",name:"Egg",rarity:"Divine",expiresAt:Date.now()+60000}]});
- h.emit({type:"players.state",players:[
-  {placeId:"123",jobId:"job",userId:"1",name:"Slow",displayName:"Slow",speedPower:1e9,reporterConnected:true},
-  {placeId:"123",jobId:"job",userId:"2",name:"Fast",displayName:"Fast",speedPower:3e12},
-  {placeId:"123",jobId:"job",userId:"3",name:"Unknown",displayName:"Unknown",speedPower:null}
- ]});
- h.emit({type:"delivery.policy",revision:0,favoriteUserIds:[],minimumIncomePerSecond:2e9,storage:"mongodb"});
- const server=vm.runInContext('serverViews.get(JSON.stringify(["123","job"]))',h.context),roster=server.view.rosterList;
- assert.match(roster.children[0].textContent,/Fast/);
- assert.match(roster.children[1].textContent,/Slow/);
- assert.match(roster.children[2].textContent,/Unknown/);
- const star=roster.children[0].querySelectorAll("button")[0];star.onclick();
- assert.deepEqual(h.sent.at(-1).favoriteUserIds,["2"]);
- assert.equal(h.sent.at(-1).minimumIncomePerSecond,2e9);
- h.emit({type:"delivery.policy",revision:1,favoriteUserIds:["2"],minimumIncomePerSecond:2e9,storage:"mongodb"});
- assert.match(roster.children[0].textContent,/★/);
- star.onclick();
- assert.deepEqual(h.sent.at(-1).favoriteUserIds,[]);
- assert.equal(h.sent.at(-1).expectedRevision,1);
- assert.doesNotMatch(html,/id="(?:delivery-minimum|delivery-apply|token)"/);
-});
-
-test("favorites show saved ranges, offline clients and navigate to filtered logs",()=>{
- const h=harness();h.emit({type:"favorites.state",storage:"mongodb",entries:[{userId:"42",playerName:"Alice",connected:true,jobId:"job",at:new Date().toISOString(),options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33}},{userId:"99",playerName:"Bob",connected:false,options:null}]});
- const cards=h.document.getElementById("favorites-cards");assert.equal(cards.children.length,2);assert.match(cards.textContent,/Connecté/);assert.match(cards.textContent,/Déconnecté/);assert.match(cards.textContent,/2B\/s/);assert.match(cards.textContent,/1Dc\/s/);assert.match(cards.textContent,/attente/);
- h.emit({type:"logs.state",limit:1000,entries:[{id:"1",userId:"42",playerName:"Alice",jobId:"job",text:"Ouverture",at:new Date().toISOString()},{id:"2",userId:"99",playerName:"Bob",jobId:"job",text:"Vente",at:new Date().toISOString()}]});
- cards.children[0].querySelectorAll("button")[0].onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);assert.match(h.document.getElementById("logs-lines").textContent,/Ouverture/);assert.doesNotMatch(h.document.getElementById("logs-lines").textContent,/Vente/);
-});
 
 
 test("remote execution panel is removed",()=>{assert.doesNotMatch(html,/id="tab-test"|execution-code|execute.request/);});
-
-test("favorite servers stay first, use a gold card and move priority with the favorite",()=>{
- const h=harness(),expiry=Date.now()+60000;
- h.emit({type:"eggs.state",eggs:[
-  {placeId:"123",jobId:"rich",uid:"r",name:"Rich",rarity:"Divine",incomePerSecond:100e9,expiresAt:expiry},
-  {placeId:"123",jobId:"home",uid:"h",name:"Home",rarity:"Common",incomePerSecond:1,expiresAt:expiry}
- ]});
- h.emit({type:"players.state",players:[
-  {placeId:"123",jobId:"home",userId:"42",name:"Favorite",displayName:"Favorite",reporterConnected:true},
-  {placeId:"123",jobId:"rich",userId:"1",name:"Observer",displayName:"Observer",reporterConnected:true}
- ]});
- h.emit({type:"delivery.policy",revision:1,favoriteUserIds:["42"],minimumIncomePerSecond:0});
- const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context);
- const rich=vm.runInContext('serverViews.get(JSON.stringify(["123","rich"]))',h.context);
- const cards=h.document.getElementById("cards");
- assert.equal(cards.children[0],home.view.node);
- assert.match(home.view.node.className,/server-favorite/);assert.equal(home.title.textContent,"★ Serveur favori de Favorite");
- home.expand.open=true;const image=home.view.image,srcWrites=image.srcWrites;
- h.emit({type:"favorites.state",entries:[{userId:"42",placeId:"123",jobId:"rich",connected:true}],storage:"mongodb"});
- assert.equal(cards.children[0],rich.view.node);assert.doesNotMatch(home.view.node.className,/server-favorite/);
- assert.match(rich.view.node.className,/server-favorite/);assert.equal(home.expand.open,true);assert.equal(image.srcWrites,srcWrites);
- h.emit({type:"delivery.policy",revision:2,favoriteUserIds:[],minimumIncomePerSecond:0});
- assert.doesNotMatch(rich.view.node.className,/server-favorite/);
-});
 
 
 test("server headings name connected script players and retain names after disconnection",()=>{

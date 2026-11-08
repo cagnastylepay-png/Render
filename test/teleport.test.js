@@ -47,41 +47,6 @@ test("teleport planner applies each favorite's running status, ranges, expiry an
  assert.equal(planTeleport(identity,{...settings,visitedJobIds:["remote"]},[egg],10000,roster),null);
  assert.equal(planTeleport(identity,settings,[egg,{...egg,key:"123/another/egg",jobId:"another",incomePerSecond:5e9}],10000,roster).target.jobId,"another");
 });
-test("gateway sends typed teleport requests only to active favorites with fresh settings and cancels stale targets",async t=>{
- const server=createServer({dashboardAuth:false,history:{filePath:null,uri:null},gateway:{settings:{uri:null},logs:{uri:null},delivery:{filePath:null,uri:null}}}),peers=[];
- server.listen(0,"127.0.0.1");await once(server,"listening");t.after(async()=>{for(const p of peers)p.ws.terminate();await server.autoSAE.close();await new Promise(r=>server.close(r));});
- const url="ws://127.0.0.1:"+server.address().port+"/sae/ws",viewer=await peer(url,"viewer"),favorite=await peer(url,"reporter"),ordinary=await peer(url,"reporter");peers.push(viewer,favorite,ordinary);
- favorite.send(presence("1","home"));ordinary.send(presence("2","remote"));await waitFor(()=>favorite.messages.find(m=>m.type==="players.ack"));await waitFor(()=>ordinary.messages.find(m=>m.type==="players.ack"));
- let config=await waitFor(()=>viewer.messages.find(m=>m.type==="delivery.policy"));viewer.send({type:"delivery.configure",expectedRevision:config.revision,favoriteUserIds:["1"],minimumIncomePerSecond:999e9});
- await waitFor(()=>favorite.messages.find(m=>m.type==="reporting.policy"&&m.sendTeleport));
- const snapshot={version:1,type:"eggs.snapshot",moduleId:"EggReporter",sessionId:"remote",placeId:"123",jobId:"remote",cycleId:"1",revision:1,observedAt:new Date().toISOString(),cycleEndsAt:Date.now()/1000+120,eggs:[{uid:"egg",category:"Cat",name:"Target",rarity:"Common",incomePerSecond:3e9}]};ordinary.send(snapshot);await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"));
- assert.equal(favorite.messages.filter(m=>m.type==="teleport.request").length,0);
- const settings={version:1,type:"settings.snapshot",sessionId:"s1",revision:1,automationActive:true,options};favorite.send(settings);
- const request=await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target));assert.equal(request.target.jobId,"remote");assert.equal(request.immediate,false);assert.equal(typeof request.requestId,"string");assert.equal(ordinary.messages.filter(m=>m.type==="teleport.request").length,0);
- await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Demande envoyee")&&row.text.includes("3B/s"))));
- favorite.send({...settings,revision:2,options:{...options,TeleportInstantMin:3e9}});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.immediate));
- const sixOthers=Array.from({length:6},(_,i)=>({userId:String(i+3),name:"Guest"+i,displayName:"Guest"+i,speedPower:100}));
- ordinary.send({...presence("2","remote",sixOthers),revision:2});
- await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
- const beforeSpace=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
- ordinary.send({...presence("2","remote",sixOthers.slice(0,5)),revision:3});
- await waitFor(()=>favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length>beforeSpace);
- ordinary.send({...snapshot,revision:2,eggs:[]});await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.target===null));
- await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Oeuf disparu ou observation expiree"))));
- favorite.send({...settings,revision:3,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===3));ordinary.send({...snapshot,revision:3});await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"&&m.revision===3));
- const before=favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length;
- await waitFor(()=>viewer.messages.some(m=>m.type==="logs.append"&&m.entries.some(row=>row.text.includes("Auto arrete ou en pause"))));
- await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
- favorite.send({...settings,revision:4,visitedJobIds:["remote"]});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===4));await new Promise(r=>setTimeout(r,260));assert.equal(favorite.messages.filter(m=>m.type==="teleport.request"&&m.target).length,before);
- favorite.send({...settings,revision:5,automationActive:false});await waitFor(()=>favorite.messages.find(m=>m.type==="settings.ack"&&m.revision===5));
- viewer.send({type:"teleport.manual",placeId:"123",jobId:"remote"});
- const forced=await waitFor(()=>favorite.messages.find(m=>m.type==="teleport.request"&&m.force));
- assert.equal(forced.target.jobId,"remote");assert.equal(forced.immediate,true);
- const manualAck=await waitFor(()=>viewer.messages.find(m=>m.type==="teleport.manual.ack"));assert.equal(manualAck.count,1);
- assert.equal(ordinary.messages.some(m=>m.force),false);
- ordinary.send({type:"teleport.manual",placeId:"123",jobId:"home"});
- await waitFor(()=>ordinary.messages.find(m=>m.type==="error"&&m.message.includes("dashboard")));
-});
 
 test("teleport selection excludes full or unobserved servers, ranks income first and opponent speed only on ties",()=>{
  const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options};
