@@ -70,7 +70,7 @@ function rosterFor(egg){
   (b.speedPower??-1)-(a.speedPower??-1)||String(a.name).localeCompare(String(b.name)));
 }
 let adminLastResult=null;
-let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminEggLocation="plot",adminWaiting=false;
+let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminEggLocation="plot",adminAnimalLocation="plot",adminWaiting=false;
 let settingsDraft=null,settingsBase=null,settingsDirty=false,settingsForm=null,adminTickNodes=[];
 const selectedAnimals=new Set();
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
@@ -170,14 +170,15 @@ function renderAdmin(){
  if(!inventory){container.append(el("p","Lance Admin.lua sur "+adminUsername+" pour afficher le plot et le backpack.","empty"));return;}
  if(adminSection==="animals")container.append(adminButton("Équiper les meilleurs","equip.best"));
  const kind=adminSection==="eggs"?"egg":"animal",items=adminSection==="eggs"?inventory.eggs:inventory.animals;
- if(adminSection==="eggs"){
+ {
   const locations=el("nav",null,"tabs");
-  for(const [location,label]of [["plot","Placés"],["backpack","Backpack"]]){const button=el("button",label+" ("+items.filter(i=>i.location===location).length+")");button.setAttribute("aria-pressed",String(adminEggLocation===location));button.onclick=()=>{adminEggLocation=location;renderAdmin();};locations.append(button);}
+  const selectedLocation=adminSection==="eggs"?adminEggLocation:adminAnimalLocation;
+  for(const [location,label]of [["plot",adminSection==="eggs"?"Placés":"Équipés"],["backpack","Backpack"]]){const button=el("button",label+" ("+items.filter(i=>i.location===location).length+")");button.setAttribute("aria-pressed",String(selectedLocation===location));button.onclick=()=>{if(adminSection==="eggs")adminEggLocation=location;else adminAnimalLocation=location;renderAdmin();};locations.append(button);}
   container.append(locations);
  }
  for(const uid of selectedAnimals)if(!inventory.animals.some(a=>a.uid===uid&&a.location==="backpack"))selectedAnimals.delete(uid);
- for(const [location,title]of [["plot","Plot · placés"],["backpack","Backpack"]]){
-  if(adminSection==="eggs"&&location!==adminEggLocation)continue;
+ for(const [location,title]of [["plot",adminSection==="eggs"?"Plot · placés":"Équipés"],["backpack","Backpack"]]){
+  if(location!==(adminSection==="eggs"?adminEggLocation:adminAnimalLocation))continue;
   const group=items.filter(i=>i.location===location).sort((a,b)=>(b.incomePerSecond??-1)-(a.incomePerSecond??-1)||String(a.uid).localeCompare(String(b.uid))),section=el("section");section.append(el("h2",title+" ("+group.length+")"));const grid=el("div",null,"cards");for(const item of group)grid.append(adminItemCard(item,kind));if(!group.length)grid.append(el("p","Aucun élément.","empty"));section.append(grid);container.append(section);
  }
  tickAdmin();

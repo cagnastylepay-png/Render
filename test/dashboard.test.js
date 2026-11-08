@@ -92,7 +92,7 @@ test("Admin inventory separates plot/backpack, shows game stats, sends typed act
  assert.equal(buttons().find(b=>b.textContent==="Ajouter mutation · TODO").disabled,true);
  assert.equal(buttons().filter(b=>b.textContent==="Ouvrir"&&b.disabled).length,1);
  buttons().find(b=>b.textContent==="Ouvrir"&&!b.disabled).onclick();assert.equal(h.sent.at(-1).action,"egg.open");assert.equal(h.sent.at(-1).uid,"open");
- h.emit(data);find("Mes Animaux").onclick();assert.match(root.textContent,/Équiper les meilleurs/);assert.match(root.textContent,/Plot · placés \(1\)/);
+ h.emit(data);find("Mes Animaux").onclick();assert.match(root.textContent,/Équiper les meilleurs/);assert.match(root.textContent,/Équipés \(1\)/);find("Backpack (3)").onclick();
  vm.runInContext('selectedAnimals.add("a");selectedAnimals.add("b");selectedAnimals.add("c")',h.context);
  find("Fuse").onclick();assert.equal(h.sent.at(-1).action,"animal.fuse");assert.deepEqual(h.sent.at(-1).uids,["a","b","c"]);
  h.emit(data);find("Paramètres").onclick();const field=root.querySelectorAll("input").find(i=>i.dataset.setting==="AutoEggsMin");field.value="4B";field.oninput();
@@ -121,8 +121,12 @@ test("egg location tabs persist and every Admin inventory group sorts by descend
  assert.ok(names().indexOf("high")<names().indexOf("low"));assert.equal(names().includes("bag-high"),false);
  button("Backpack (2)").onclick();assert.ok(names().indexOf("bag-high")<names().indexOf("bag-low"));assert.equal(names().includes("high"),false);
  h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(button("Backpack (2)")["aria-pressed"],"true");assert.equal(names().includes("high"),false);
- button("Mes Animaux").onclick();assert.ok(names().indexOf("pet-high")<names().indexOf("pet-low"));assert.ok(names().indexOf("animal-high")<names().indexOf("animal-low"));
+ button("Mes Animaux").onclick();assert.equal(button("Équipés (2)")["aria-pressed"],"true");assert.ok(names().indexOf("pet-high")<names().indexOf("pet-low"));assert.equal(names().includes("animal-high"),false);
+ button("Backpack (2)").onclick();assert.ok(names().indexOf("animal-high")<names().indexOf("animal-low"));assert.equal(names().includes("pet-high"),false);
+ h.emit({...state,inventory:{...state.inventory,revision:3}});assert.equal(button("Backpack (2)")["aria-pressed"],"true");assert.equal(names().includes("pet-high"),false);
+ button("Équipés (2)").onclick();assert.equal(names().includes("animal-high"),false);
  button("Mes Œufs").onclick();assert.equal(button("Backpack (2)")["aria-pressed"],"true");
+ button("Mes Animaux").onclick();assert.equal(button("Équipés (2)")["aria-pressed"],"true");
 });
 test("Servers counts server cards and omits History",()=>{
  const h=harness();
