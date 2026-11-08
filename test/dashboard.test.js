@@ -80,8 +80,8 @@ test("Admin inventory separates plot/backpack, shows game stats, sends typed act
  assert.match(root.textContent,/1B/);assert.match(root.textContent,/2T/);assert.match(root.textContent,/10.8T\/jour/);assert.match(root.textContent,/Plot · placés \(2\)/);assert.match(root.textContent,/Backpack \(1\)/);
  const buttons=()=>root.querySelectorAll("button"),find=name=>buttons().find(b=>b.textContent===name);
  assert.equal(buttons().find(b=>b.textContent==="Ajouter mutation · TODO").disabled,true);
- assert.equal(buttons().filter(b=>b.textContent==="Ouvrir")[1].disabled,true);
- find("Ouvrir").onclick();assert.equal(h.sent.at(-1).action,"egg.open");assert.equal(h.sent.at(-1).uid,"open");
+ assert.equal(buttons().filter(b=>b.textContent==="Ouvrir"&&b.disabled).length,1);
+ buttons().find(b=>b.textContent==="Ouvrir"&&!b.disabled).onclick();assert.equal(h.sent.at(-1).action,"egg.open");assert.equal(h.sent.at(-1).uid,"open");
  h.emit(data);find("Mes Animaux").onclick();assert.match(root.textContent,/Équiper les meilleurs/);assert.match(root.textContent,/Plot · placés \(1\)/);
  vm.runInContext('selectedAnimals.add("a");selectedAnimals.add("b");selectedAnimals.add("c")',h.context);
  find("Fuse").onclick();assert.equal(h.sent.at(-1).action,"animal.fuse");assert.deepEqual(h.sent.at(-1).uids,["a","b","c"]);
@@ -102,6 +102,17 @@ test("Admin uses Servers card art and metrics without server controls; mutations
  const root=h.document.getElementById("admin-cards"),images=root.querySelectorAll("img");assert.equal(images.length,1);assert.equal(images[0].src,egg.imageUrl);
  assert.match(root.textContent,/Gold · Rainbow/);assert.match(root.textContent,/Revenu \/ s/);assert.match(root.textContent,/Temps restant/);
  assert.equal(root.querySelectorAll("details").length,0);assert.ok(root.querySelectorAll("button").every(b=>b.textContent!=="GO"));assert.doesNotMatch(root.textContent,/Œufs du serveur|Tous les détails|Joueurs \(/);
+});
+
+test("egg location tabs persist and every Admin inventory group sorts by descending income",()=>{
+ const h=harness();const item=(uid,location,rate)=>({uid,name:uid,category:uid,location,incomePerSecond:rate});
+ const state={type:"admin.inventory.state",connected:false,inventory:{sessionId:"s",revision:1,receivedAt:Date.now(),stats:{},eggs:[item("low","plot",1),item("high","plot",9),item("bag-low","backpack",2),item("bag-high","backpack",10)],animals:[item("pet-low","plot",3),item("pet-high","plot",30),item("animal-low","backpack",4),item("animal-high","backpack",40)]}};
+ h.emit(state);const root=h.document.getElementById("admin-cards"),names=()=>root.querySelectorAll("h2").map(n=>n.textContent),button=label=>root.querySelectorAll("button").find(b=>b.textContent===label);
+ assert.ok(names().indexOf("high")<names().indexOf("low"));assert.equal(names().includes("bag-high"),false);
+ button("Backpack (2)").onclick();assert.ok(names().indexOf("bag-high")<names().indexOf("bag-low"));assert.equal(names().includes("high"),false);
+ h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(button("Backpack (2)")["aria-pressed"],"true");assert.equal(names().includes("high"),false);
+ button("Mes Animaux").onclick();assert.ok(names().indexOf("pet-high")<names().indexOf("pet-low"));assert.ok(names().indexOf("animal-high")<names().indexOf("animal-low"));
+ button("Mes Œufs").onclick();assert.equal(button("Backpack (2)")["aria-pressed"],"true");
 });
 test("Servers counts server cards and omits History",()=>{
  const h=harness();
