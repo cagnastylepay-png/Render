@@ -5,6 +5,17 @@ const options={AutoEggs:true,AutoIndex:false,AutoTreadmill:false,AutoSell:false,
 for(const key of ['AutoEggs','AutoSell','AutoFuse','AutoOpen','AutoPlace']){options[key+'Min']=0;options[key+'Max']=1e33;}
 const item=(uid,location='backpack',extra={})=>({uid,name:'Cat',category:'Cat',location,...extra});
 const inventory=(revision=1)=>({version:1,type:'admin.inventory.snapshot',sessionId:'inventory',revision,stats:{money:1e12,speedPower:1e9,incomePerSecond:3e9,offlinePerDay:3e9*36000*.1,offlineDurationSeconds:36000,offlineRateMultiplier:.1},eggs:[item('open','plot',{ready:true,remainingSeconds:0}),item('growing','plot',{ready:false,remainingSeconds:90}),item('egg')],animals:[item('a'),item('b'),item('c'),item('worn','plot'),item('locked','backpack',{locked:true})]});
+
+test('mutation stock validates counts and live probabilities; commands require placed eggs, stock and a missing mutation',t=>{
+ const h=harness(t),stock=[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}];
+ const snapshot={...inventory(),mutationConsumables:stock};
+ assert.deepEqual(validateInventory(snapshot).mutationConsumables,stock);
+ for(const bad of [{...stock[0],count:-1},{...stock[0],successPercent:101},{...stock[0],count:1.5}])assert.throws(()=>validateInventory({...snapshot,mutationConsumables:[bad]}));
+ assert.throws(()=>validateInventory({...snapshot,mutationConsumables:[...stock,...stock]}));
+ h.panel.accept(h.admin,snapshot);
+ for(const args of [{uid:'egg',mutationId:'Boss'},{uid:'growing',mutationId:'Nitro'},{uid:'missing',mutationId:'Boss'}])assert.throws(()=>h.command('egg.mutate',args));
+ h.command('egg.mutate',{uid:'growing',mutationId:'Boss'});assert.equal(h.messages.find(x=>x.ws===h.admin).m.mutationId,'Boss');
+});
 function harness(t){
  const messages=[],admin={connectionId:'admin',reporterIdentity:{userId:'42'}},viewer={connectionId:'viewer'},saved={sessionId:'settings',revision:1,options};let active=admin,now=Date.now();
  const panel=createAdminPanel({send:(ws,m)=>messages.push({ws,m}),viewers:()=>[viewer],adminSocket:()=>active,settings:{get:()=>saved},onChange(){},now:()=>now});t.after(()=>panel.close());

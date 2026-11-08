@@ -89,7 +89,7 @@ test("Admin inventory separates plot/backpack, shows game stats, sends typed act
  h.emit(data);const root=h.document.getElementById("admin-cards");
  assert.match(root.textContent,/1B/);assert.match(root.textContent,/2T/);assert.match(root.textContent,/10.8T\/jour/);assert.match(root.textContent,/Plot · placés \(2\)/);assert.match(root.textContent,/Backpack \(1\)/);
  const buttons=()=>root.querySelectorAll("button"),find=name=>buttons().find(b=>b.textContent===name);
- assert.equal(buttons().find(b=>b.textContent==="Ajouter mutation · TODO").disabled,true);
+ assert.equal(buttons().find(b=>b.textContent==="Ajouter une mutation").disabled,false);
  assert.equal(buttons().filter(b=>b.textContent==="Ouvrir"&&b.disabled).length,1);
  buttons().find(b=>b.textContent==="Ouvrir"&&!b.disabled).onclick();assert.equal(h.sent.at(-1).action,"egg.open");assert.equal(h.sent.at(-1).uid,"open");
  h.emit(data);find("Mes Animaux").onclick();assert.match(root.textContent,/Équiper les meilleurs/);assert.match(root.textContent,/Équipés \(1\)/);find("Backpack (3)").onclick();
@@ -112,6 +112,19 @@ test("Admin uses Servers card art and metrics without server controls; mutations
  const root=h.document.getElementById("admin-cards"),images=root.querySelectorAll("img");assert.equal(images.length,1);assert.equal(images[0].src,egg.imageUrl);
  assert.match(root.textContent,/Gold · Rainbow/);assert.match(root.textContent,/Revenu \/ s/);assert.match(root.textContent,/Temps restant/);
  assert.equal(root.querySelectorAll("details").length,0);assert.ok(root.querySelectorAll("button").every(b=>b.textContent!=="GO"));assert.doesNotMatch(root.textContent,/Œufs du serveur|Tous les détails|Joueurs \(/);
+});
+
+test('Mutations inventory, one-attempt popup and grouped settings keep draft values across updates',()=>{
+ const h=harness(),root=h.document.getElementById('admin-cards'),buttons=()=>root.querySelectorAll('button'),find=n=>buttons().find(b=>b.textContent===n);
+ const options={AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33};
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,automationEnabled:false,settingsSessionId:'s',settingsRevision:1,options}});
+ const state={type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[{uid:'e',name:'Cat',category:'Cat',location:'plot',mutations:[]}],mutationConsumables:[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}]}};
+ h.emit(state);find('Mutations').onclick();assert.match(root.textContent,/Disponibles : 3/);assert.match(root.textContent,/10 %/);assert.match(root.textContent,/×2.75/);
+ find('Mes Œufs').onclick();find('Ajouter une mutation').onclick();const modal=h.document.getElementById('mutation-modal');assert.equal(modal.hidden,false);
+ modal.querySelectorAll('button').find(b=>b.textContent.startsWith('Fractured')).onclick();assert.equal(h.sent.at(-1).action,'egg.mutate');assert.equal(h.sent.at(-1).mutationId,'Boss');assert.equal(modal.hidden,true);
+ h.emit(state);find('Paramètres').onclick();find('AutoMutations').onclick();const field=root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin');field.value='10B';field.oninput();
+ find('Fusion').onclick();find('AutoMutations').onclick();h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin'),field);assert.equal(field.value,'10B');
+ find('Enregistrer').onclick();assert.equal(h.sent.at(-1).options.MutationBossMin,10e9);assert.equal(h.sent.at(-1).options.AutoMutations,false);
 });
 
 test("egg location tabs persist and every Admin inventory group sorts by descending income",()=>{

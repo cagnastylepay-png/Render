@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
 const {getEggImage,getAnimalImage}=require('../assets/EggImages');
-const actions=new Set(['egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
+const actions=new Set(['egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
 function validateInventory(m){
  if(m.version!==1||typeof m.sessionId!=='string'||!m.sessionId||m.sessionId.length>100||!Number.isSafeInteger(m.revision)||m.revision<1)throw Error('Invalid admin inventory');
  const metric=v=>v==null?null:typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1e100?v:(()=>{throw Error('Invalid metric');})();
@@ -15,7 +15,15 @@ function validateInventory(m){
    return {uid:r.uid,name:r.name,category:r.category,rarity:r.rarity||'Unknown',mutations:r.mutations||[],baseMutation:r.baseMutation||null,imageUrl:kind==='egg'?getEggImage(r):getAnimalImage(r),location:r.location,incomePerSecond:metric(r.incomePerSecond),weightKg:metric(r.weightKg),sellValue:metric(r.sellValue),remainingSeconds:kind==='egg'?metric(r.remainingSeconds):null,ready:r.ready===true,locked:r.locked===true};});
  };
  const stats={};for(const key of ['speedPower','money','incomePerSecond','offlinePerDay','offlineDurationSeconds','offlineRateMultiplier'])stats[key]=metric(m.stats?.[key]);
- return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal')};
+ const ids=new Set();const mutationConsumables=m.mutationConsumables??[];
+ if(!Array.isArray(mutationConsumables)||mutationConsumables.length>32)throw Error('Invalid mutation inventory');
+ const mutations=mutationConsumables.map(r=>{
+  if(!r||typeof r.id!=='string'||!r.id||r.id.length>80||ids.has(r.id)||typeof r.name!=='string'||r.name.length>100||!Number.isSafeInteger(r.count)||r.count<0||r.count>1e9)throw Error('Invalid mutation consumable');ids.add(r.id);
+  const successPercent=metric(r.successPercent),multiplier=metric(r.multiplier);if(successPercent>100)throw Error('Invalid mutation probability');
+  return {id:r.id,name:r.name,count:r.count,successPercent,multiplier};
+ });
+ if(m.mutationStatus!=null&&(typeof m.mutationStatus!=='string'||m.mutationStatus.length>500))throw Error('Invalid mutation status');
+ return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal'),mutationConsumables:mutations,mutationStatus:m.mutationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
@@ -43,9 +51,14 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
     if(m.action!=='equip.best'){
      const kind=m.action.startsWith('egg.')?'eggs':'animals',item=inventory[kind].find(r=>r.uid===m.uid);
      if(!item)throw Error('Objet absent');if(item.locked)throw Error('Objet verrouillé ou occupé');
-     if((m.action==='egg.open')!==(item.location==='plot'))throw Error('Action incompatible avec cet emplacement');
+     if((['egg.open','egg.mutate'].includes(m.action))!==(item.location==='plot'))throw Error('Action incompatible avec cet emplacement');
      if(m.action==='egg.open'&&!item.ready)throw Error('Œuf pas encore prêt');
      payload.uid=item.uid;
+     if(m.action==='egg.mutate'){
+      const mutation=inventory.mutationConsumables.find(r=>r.id===m.mutationId&&r.count>0);
+      if(!mutation||!['Boss','Scrambled','Enchanted','Nitro','Spectral'].includes(m.mutationId)||item.baseMutation===m.mutationId||item.mutations.includes(m.mutationId))throw Error('Mutation absente ou déjà appliquée');
+      payload.mutationId=m.mutationId;
+     }
      if(m.action==='animal.fuse'){
       if(!Array.isArray(m.uids)||m.uids.length!==3||new Set(m.uids).size!==3||!m.uids.includes(item.uid))throw Error('Sélectionne trois animaux distincts');
       if(m.uids.some(uid=>!inventory.animals.some(a=>a.uid===uid&&a.location==='backpack'&&!a.locked&&a.category===item.category)))throw Error('Fusion : trois animaux disponibles de même espèce requis');
