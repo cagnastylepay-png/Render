@@ -16,6 +16,8 @@ function getEggImage(egg) {
   return null;
 }
 
+const mutationCatalog=require("./mutation-images.json");
+function getMutationImage(id){const asset=mutationCatalog[id]?.icon;if(!asset)return null;return fs.existsSync(path.join(__dirname,"../../public/eggs-native",asset+".png"))?"/eggs-native/"+asset+".png":"/animals/"+asset+".png";}
 const nativeCatalog=require("./roblox-images.json");
 const nativeByName=new Map();
 const dynamicByName=new Map(),allowedIds=new Set(Object.values(nativeCatalog).flatMap(row=>[row.egg,row.animal]).filter(Boolean));
@@ -26,6 +28,7 @@ function registerGameImageIds(item){
  const row={egg,animal};for(const id of [egg,animal])if(id)allowedIds.add(id);
  for(const name of [item.category,item.name])if(name)dynamicByName.set(normalize(name),row);
 }
+for(const row of Object.values(mutationCatalog))allowedIds.add(row.icon);
 function isAllowedGameImage(id){return allowedIds.has(id);}
 for(const [name,images] of Object.entries(nativeCatalog))for(const alias of [name,images.displayName])if(alias)nativeByName.set(normalize(alias),images);
 function getGameImageIds(item){
@@ -41,6 +44,6 @@ function getAnimalImage(item){
  if(!ids?.animal)return null;
  return fs.existsSync(path.join(__dirname,"../../public/eggs-native",ids.animal+".png"))?"/eggs-native/"+ids.animal+".png":"/animals/"+ids.animal+".png";
 }
-module.exports = { getEggImage, getGameImageIds, getAnimalImage, registerGameImageIds,isAllowedGameImage };
+module.exports = { getMutationImage, getEggImage, getGameImageIds, getAnimalImage, registerGameImageIds,isAllowedGameImage };
 
 

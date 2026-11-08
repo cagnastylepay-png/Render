@@ -5,6 +5,9 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ if(input.AutoFishing!==undefined&&typeof input.AutoFishing!=="boolean")throw Error("Invalid AutoFishing");
+ result.AutoFishing=input.AutoFishing===true;
+ if(result.AutoFishing&&input.AutoTreadmill===true)throw Error("Choose fishing or treadmill");
  if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
  result.TeleportInstantMin=input.TeleportInstantMin??50e9;
  if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");

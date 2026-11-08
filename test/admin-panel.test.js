@@ -9,7 +9,7 @@ const inventory=(revision=1)=>({version:1,type:'admin.inventory.snapshot',sessio
 test('mutation stock validates counts and live probabilities; commands require placed eggs, stock and a missing mutation',t=>{
  const h=harness(t),stock=[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}];
  const snapshot={...inventory(),mutationConsumables:stock};
- assert.deepEqual(validateInventory(snapshot).mutationConsumables,stock);
+ const mutations=validateInventory(snapshot).mutationConsumables;assert.deepEqual(mutations.map(({imageUrl,...m})=>m),stock);assert.match(mutations[0].imageUrl,/74755693699202\.png$/);
  for(const bad of [{...stock[0],count:-1},{...stock[0],successPercent:101},{...stock[0],count:1.5}])assert.throws(()=>validateInventory({...snapshot,mutationConsumables:[bad]}));
  assert.throws(()=>validateInventory({...snapshot,mutationConsumables:[...stock,...stock]}));
  h.panel.accept(h.admin,snapshot);

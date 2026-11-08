@@ -1,0 +1,34 @@
+{
+  "Boss": {
+    "name": "Fractured",
+    "icon": "74755693699202"
+  },
+  "Scrambled": {
+    "name": "Scrambled",
+    "icon": "134710848063255"
+  },
+  "Enchanted": {
+    "name": "Enchanted",
+    "icon": "73528861998418"
+  },
+  "Nitro": {
+    "name": "Nitro",
+    "icon": "134287739122547"
+  },
+  "Spectral": {
+    "name": "Spectral",
+    "icon": "108054256583165"
+  },
+  "Musical": {
+    "name": "Musical",
+    "icon": "103734535097504"
+  },
+  "Alien": {
+    "name": "Abducted",
+    "icon": "99395515128275"
+  },
+  "DarkMatter": {
+    "name": "Dark Matter",
+    "icon": "93377699933947"
+  }
+}

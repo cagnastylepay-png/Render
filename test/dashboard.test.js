@@ -255,3 +255,13 @@ test("server headings name connected script players and retain names after disco
  assert.equal(server.title.textContent,"Serveur de ScriptPlayer2");
  assert.equal(server.connection.textContent,"Observations conservées");
 });
+
+test('Admin fishing selector preserves drafts and sends mutually exclusive activities; mutation art is separate',()=>{
+ const h=harness(),root=h.document.getElementById('admin-cards'),find=n=>root.querySelectorAll('button').find(b=>b.textContent===n);
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,settingsSessionId:'s',settingsRevision:1,options:{AutoTreadmill:true}}});
+ const state={type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[],mutationConsumables:[{id:'DarkMatter',name:'Dark Matter',count:7,successPercent:30,multiplier:2.5,imageUrl:'/eggs-native/93377699933947.png'}]}};
+ h.emit(state);find('Mutations').onclick();assert.equal(root.querySelectorAll('img')[0].src,'/eggs-native/93377699933947.png');assert.match(root.textContent,/Disponibles : 7/);
+ find('Paramètres').onclick();find('Déplacement').onclick();const selector=root.querySelectorAll('select').find(n=>n.dataset.setting==='IdleActivity');assert.equal(selector.value,'treadmill');
+ selector.value='fishing';selector.onchange();h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(root.querySelectorAll('select').find(n=>n.dataset.setting==='IdleActivity'),selector);assert.equal(selector.value,'fishing');
+ find('Enregistrer').onclick();assert.equal(h.sent.at(-1).options.AutoFishing,true);assert.equal(h.sent.at(-1).options.AutoTreadmill,false);
+});

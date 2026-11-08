@@ -1,7 +1,7 @@
 {
   "source": "https://rbxdl.johnmarctumulak.com/",
   "method": "Normal free web interface; individual downloads with countdown respected",
-  "updatedAt": "2026-11-08T20:40:53.840Z",
+  "updatedAt": "2026-11-08T21:03:29.170Z",
   "catalogEntries": 302,
   "eggTotal": 204,
   "animalTotal": 291,
@@ -255,6 +255,16 @@
       "width": 1023,
       "height": 935,
       "sha256": "68b1e7f66826b5dd2fbc4dd5adc9ba3367c970993ce444eb32b38492a8df91aa"
+    },
+    {
+      "id": "103734535097504",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 207331,
+      "width": 512,
+      "height": 512,
+      "sha256": "e342e14679d7851278b50eeedab9e4b696edb1aecfdb8420da06a047083e93f3"
     },
     {
       "id": "103838374075457",
@@ -555,6 +565,16 @@
       "width": 605,
       "height": 590,
       "sha256": "c29e8c641102d36d280337ae6cdbb28f484292e764d8538dcaea0007f5f384f3"
+    },
+    {
+      "id": "108054256583165",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 120016,
+      "width": 500,
+      "height": 500,
+      "sha256": "10ff31b4dbd8d7c28b9aba7fa5d94e2b269e95e393032416d2f196d380f75fe2"
     },
     {
       "id": "108116064354872",
@@ -1837,6 +1857,56 @@
       "sha256": "dea5b92c01bed30320028719768b7a131c10a6cac2d143e4c4f1a503d9ad2d4c"
     },
     {
+      "id": "125290288331645",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 218357,
+      "width": 512,
+      "height": 512,
+      "sha256": "5dec1bebec899b6019dd6068e50e11aa52592fd66c29119a9a26d1fa423d60a7"
+    },
+    {
+      "id": "125384591742959",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 154026,
+      "width": 512,
+      "height": 512,
+      "sha256": "221bf8f1c0f7cc2f5ea3195a8057c16d1d271a274bb28fecd82ad47f508bd22b"
+    },
+    {
+      "id": "125497863961128",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 58482,
+      "width": 439,
+      "height": 307,
+      "sha256": "b8bd14657181c406a7c5b7c2e4330c8ba5439944a1465036ef8c5549c37b3848"
+    },
+    {
+      "id": "125683101618417",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 77259,
+      "width": 648,
+      "height": 372,
+      "sha256": "b60d6082c93cbc06f483ece50986933b7488030c190fb6415be53a1711c9f0f1"
+    },
+    {
+      "id": "125711705647799",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 356310,
+      "width": 793,
+      "height": 793,
+      "sha256": "294c8f79b08fd92a76641931a40cf2b86514dc82b9e93d4a60db49be96e2681c"
+    },
+    {
       "id": "125884067432601",
       "roles": [
         "egg"
@@ -1847,6 +1917,36 @@
       "sha256": "80a4e5c8acb59aeda45a7fdcefe3aa1ae04c44b6ce1dc15c300207f7b531b5a1"
     },
     {
+      "id": "125891227427227",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 194919,
+      "width": 500,
+      "height": 500,
+      "sha256": "608332ddd7636acccf515bd1af507179a9cf05af0fa6936f58421ebc51f90f11"
+    },
+    {
+      "id": "125929985660904",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 150008,
+      "width": 500,
+      "height": 500,
+      "sha256": "43390efda3fbd543549308d8ceb8cbdca743bd4de5091d8cc1a2f39af316ed36"
+    },
+    {
+      "id": "126013652801308",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 118037,
+      "width": 512,
+      "height": 512,
+      "sha256": "f48dd6556992db635c24abb312cb8aa9d95824245028a3bd6f842c9bdf325fdc"
+    },
+    {
       "id": "126240842939586",
       "roles": [
         "egg"
@@ -1855,6 +1955,16 @@
       "width": 542,
       "height": 542,
       "sha256": "08b624f16c43368ae62588e6b842ed62cac98757f15855f7c07a02523e67114c"
+    },
+    {
+      "id": "126259364621453",
+      "roles": [
+        "animal"
+      ],
+      "bytes": 142846,
+      "width": 512,
+      "height": 512,
+      "sha256": "297bdae12282b545285e64787b33770f0931ea0d70815d996aaf336e85b623a0"
     },
     {
       "id": "126623612645551",
@@ -2077,6 +2187,16 @@
       "sha256": "97b2015bf9e2cd04dd9d92af014c4b06996580643886f74d0fb837a47839f20c"
     },
     {
+      "id": "134287739122547",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 652184,
+      "width": 1023,
+      "height": 985,
+      "sha256": "fd0e9f6f656baaa64d3700c84d90d7aae123038d08ea5eb6e143406a3e550121"
+    },
+    {
       "id": "134641680880560",
       "roles": [
         "egg"
@@ -2085,6 +2205,16 @@
       "width": 500,
       "height": 500,
       "sha256": "fecdb27c5de9ef53d7cc281811280c131017856b33dc3179853aee0eba6e9a79"
+    },
+    {
+      "id": "134710848063255",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 720456,
+      "width": 682,
+      "height": 1023,
+      "sha256": "b33832aea7a1b4a73075c5fac68b0c473c71d9989b3460bb20530b7c2584db59"
     },
     {
       "id": "134762388111337",
@@ -2337,6 +2467,16 @@
       "sha256": "5dccbe1ce5af09984df254736dea3703907f8603791dd1a7fc871009208fbc0b"
     },
     {
+      "id": "73528861998418",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 149868,
+      "width": 512,
+      "height": 512,
+      "sha256": "89992daeac37a499b073c17667d0f5a68b84189ce03c0a19344d5527da416b0c"
+    },
+    {
       "id": "73572093043918",
       "roles": [
         "egg"
@@ -2365,6 +2505,16 @@
       "width": 542,
       "height": 542,
       "sha256": "7931cf6c128c410c70bae454dd4148f6792d700bb9f4f32563cb33ed61100733"
+    },
+    {
+      "id": "74755693699202",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 405351,
+      "width": 1024,
+      "height": 1024,
+      "sha256": "1c4cf08d471881563b72622e2906de46dab4fe9313de7ee8f4fcb0ff62227c19"
     },
     {
       "id": "74778395132095",
@@ -2837,6 +2987,16 @@
       "sha256": "d0be2dfbdf7ff5d7e424b1dd6e0a024e1122ae666921e83ae4549d46404ad182"
     },
     {
+      "id": "93377699933947",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 313684,
+      "width": 512,
+      "height": 512,
+      "sha256": "7052520aaa2e7ab0241cd34f1d393d75d2fb3069a180f154298c6737a5c22b74"
+    },
+    {
       "id": "93443486739123",
       "roles": [
         "egg"
@@ -3027,6 +3187,16 @@
       "sha256": "716aae92be98be5ac6fcd975b1d800cb4f98bea820cfd56652195e89f936bd28"
     },
     {
+      "id": "99395515128275",
+      "roles": [
+        "mutation"
+      ],
+      "bytes": 152984,
+      "width": 512,
+      "height": 512,
+      "sha256": "e861f05800c8a87684f5c12b485d6735f780644ea9475062f6fee07d19601209"
+    },
+    {
       "id": "99528919442101",
       "roles": [
         "egg"
@@ -3048,15 +3218,6 @@
   ],
   "pendingAnimals": [
     "117411686345819",
-    "125290288331645",
-    "125384591742959",
-    "125497863961128",
-    "125683101618417",
-    "125711705647799",
-    "125891227427227",
-    "125929985660904",
-    "126013652801308",
-    "126259364621453",
     "126529328058801",
     "126985014150559",
     "127014885618024",
@@ -3232,5 +3393,7 @@
     "99133347617902",
     "99309954423391",
     "99888659949943"
-  ]
+  ],
+  "pendingMutations": [],
+  "mutationTotal": 8
 }

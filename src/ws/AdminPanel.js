@@ -1,7 +1,7 @@
 "use strict";
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
-const {getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
+const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
 const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateInventory(m){
@@ -22,7 +22,7 @@ function validateInventory(m){
  const mutations=mutationConsumables.map(r=>{
   if(!r||typeof r.id!=='string'||!r.id||r.id.length>80||ids.has(r.id)||typeof r.name!=='string'||r.name.length>100||!Number.isSafeInteger(r.count)||r.count<0||r.count>1e9)throw Error('Invalid mutation consumable');ids.add(r.id);
   const successPercent=metric(r.successPercent),multiplier=metric(r.multiplier);if(successPercent>100)throw Error('Invalid mutation probability');
-  return {id:r.id,name:r.name,count:r.count,successPercent,multiplier};
+  return {id:r.id,name:r.name,count:r.count,successPercent,multiplier,imageUrl:getMutationImage(r.id)};
  });
  if(m.mutationStatus!=null&&(typeof m.mutationStatus!=='string'||m.mutationStatus.length>500))throw Error('Invalid mutation status');
  if(m.automationStatus!=null&&(typeof m.automationStatus!=='string'||m.automationStatus.length>500))throw Error('Invalid automation status');
