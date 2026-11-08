@@ -70,6 +70,16 @@ test("MagixSafe server stays first and gold without an active Admin script; loca
  assert.equal(h.document.getElementById("cards").children[0],home.view.node);assert.match(home.view.node.className,/server-admin/);assert.doesNotMatch(old.view.node.className,/server-admin/);
 });
 
+test("connected Admin location wins over stale player rosters after teleport",()=>{
+ const h=harness();
+ h.emit({type:'players.state',players:[{placeId:'123',jobId:'old',userId:'42',name:'MagixSafe',reporterConnected:true,receivedAt:new Date().toISOString()},{placeId:'123',jobId:'new',userId:'7',name:'EggObs_005',reporterConnected:true}]});
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',playerName:'MagixSafe',connected:true,placeId:'123',jobId:'new'}});
+ const current=vm.runInContext('serverViews.get(JSON.stringify(["123","new"]))',h.context);
+ const old=vm.runInContext('serverViews.get(JSON.stringify(["123","old"]))',h.context);
+ assert.equal(h.document.getElementById('cards').children[0],current.view.node);
+ assert.match(current.view.node.className,/server-admin/);assert.doesNotMatch(old.view.node.className,/server-admin/);
+});
+
 test("Admin inventory separates plot/backpack, shows game stats, sends typed actions and preserves parameter edits",()=>{
  const h=harness();h.context.confirm=()=>true;
  const options={AutoEggs:true,AutoIndex:true,AutoTreadmill:true,AutoSell:false,AutoFuse:false,AutoOpen:false,AutoPlace:false,AutoPapillon:false,QueueNearest:false,TeleportInstantMin:50e9};for(const k of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[k+"Min"]=0;options[k+"Max"]=1e33;}

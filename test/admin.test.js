@@ -21,6 +21,16 @@ for(const key of ['AutoEggs','AutoSell','AutoFuse','AutoOpen','AutoPlace']){opti
 const settings=(revision=1,automationActive=true)=>({version:1,type:'settings.snapshot',sessionId:'admin-session',revision,automationActive,options});
 const flight=(sequence,result='Reussi')=>({sequence,text:'[Auto_SAE][0001][12.0][FLIGHT_RESULT][-] Vol '+result});
 
+test('arrival replaces the old Admin socket immediately and it cannot reappear after departure',async t=>{
+ const {peer}=await fixture(t),viewer=await peer('viewer'),old=await peer('reporter','admin');
+ old.send(presence('42','MagixSafe','old'));await wait(()=>viewer.last('admin.state')?.entry.jobId==='old');
+ const arrived=await peer('reporter','admin');arrived.send(presence('42','MagixSafe','new'));
+ await wait(()=>viewer.last('admin.state')?.entry.jobId==='new');await wait(()=>old.ws.readyState===WebSocket.CLOSED);
+ assert.equal(viewer.last('admin.state').entry.connected,true);
+ arrived.ws.close();await wait(()=>viewer.last('admin.state')?.entry.connected===false);
+ const replay=await peer('viewer');assert.equal(replay.last('admin.state').entry.connected,false);
+});
+
 test('admin requires its raw username AND Admin client; observers and Hub never gain privileges',async t=>{
  const {peer}=await fixture(t),viewer=await peer('viewer');
  assert.equal(viewer.last('admin.state').username,'MagixSafe');assert.equal(viewer.last('admin.state').entry.connected,false);

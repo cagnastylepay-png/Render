@@ -237,7 +237,8 @@ function updateCard(view,egg){
 function groupServers(){
  const groups=new Map();
  const adminPlayer=players.filter(p=>p.name?.toLowerCase()===adminUsername.toLowerCase()).sort((a,b)=>Number(Boolean(b.reporterConnected))-Number(Boolean(a.reporterConnected))||String(b.receivedAt||"").localeCompare(String(a.receivedAt||"")))[0];
- const adminLocation=adminPlayer?JSON.stringify([adminPlayer.placeId,adminPlayer.jobId]):null;
+ const activeAdmin=adminEntries.find(row=>row.connected&&row.placeId&&row.jobId);
+ const adminLocation=activeAdmin?JSON.stringify([activeAdmin.placeId,activeAdmin.jobId]):adminPlayer?JSON.stringify([adminPlayer.placeId,adminPlayer.jobId]):null;
  const get=(placeId,jobId)=>{
   const key=JSON.stringify([placeId,jobId]);
   if(!groups.has(key))groups.set(key,{key,placeId,jobId,eggs:[],players:[]});

@@ -104,6 +104,7 @@ function attachEggGateway(server, store, players, history, {
         if (Date.now() - windowAt > 10000) { windowAt = Date.now(); messages = 0; }
         if (++messages > 20) { ws.close(1008, "Rate limit"); return; }
         const message = JSON.parse(raw.toString());
+        if(ws.superseded)return;
         if (ws.role === "viewer" && dashboardAuth && !dashboardAuth.authenticated(req)) { ws.close(1008, "Dashboard login required"); return; }
         if (!ws.role) {
           if (message?.version !== 1 || message.type !== "hello" || !["reporter", "viewer"].includes(message.role)) throw Error("Invalid hello");
@@ -170,7 +171,15 @@ function attachEggGateway(server, store, players, history, {
           if ((ws.claimedReporterUserId && message.reporterUserId !== ws.claimedReporterUserId) || (ws.reporterIdentity && (message.reporterUserId !== ws.reporterIdentity.userId || reporter?.name?.toLowerCase() !== ws.reporterIdentity.name.toLowerCase()))) throw Error("Reporter identity changed");
           const accepted = players.accept(ws.connectionId, message, { observerOnly: ws.observerOnly });
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
-          if (accepted) { ws.reporterIdentity = { name: reporter.name, displayName: reporter.displayName, userId: reporter.userId, placeId: message.placeId, jobId: message.jobId }; reporterPolicy(ws); broadcast(); }
+          if (accepted) {
+            ws.reporterIdentity = { name: reporter.name, displayName: reporter.displayName, userId: reporter.userId, placeId: message.placeId, jobId: message.jobId };
+            for(const previous of wss.clients){
+              if(previous!==ws&&previous.role==='reporter'&&previous.reporterIdentity?.userId===reporter.userId&&previous.reporterIdentity.jobId!==message.jobId){
+                previous.superseded=true;previous.reporterIdentity=null;players.remove(previous.connectionId);previous.close(1000,'Reporter moved to another server');
+              }
+            }
+            reporterPolicy(ws); broadcast();
+          }
           return;
         }
         const accepted = store.accept(message);
