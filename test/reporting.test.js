@@ -70,7 +70,8 @@ test("real HTTP and WebSocket: auth, publish, broadcast, empty snapshot, viewer 
   reporter.ws.send(JSON.stringify(snapshot()));
   await waitFor(() => reporter.messages.find(m => m.type === "eggs.ack" && m.accepted));
   await waitFor(() => viewer.messages.find(m => m.type === "eggs.state" && m.eggs.length === 1));
-  await waitFor(() => viewer.messages.find(m => m.type === "history.append" && m.entries.some(row=>row.action==="appeared")));
+  await waitFor(() => server.autoSAE.history.state().entries.some(row=>row.action==="appeared"));
+  assert.equal(viewer.messages.some(m=>m.type.startsWith("history.")),false);
   await waitFor(() => viewer.messages.find(m => m.type === "eggs.events" && m.events.some(row=>row.action==="appeared")));
   viewer.ws.send(JSON.stringify(snapshot({ revision: 2 })));
   await waitFor(() => viewer.messages.find(m => m.type === "error" && /read-only/.test(m.message)));

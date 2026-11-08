@@ -2,12 +2,12 @@
 
 ## Fonctionnalités
 
-- Eggs : cartes Divine, Eternal, Secret et Cosmic, images locales, poids, revenu/s,
+- Servers : cartes des serveurs et de leurs œufs, images locales, poids, revenu/s,
   valeur de vente, position, état, mutations et détails complets.
 - UID composé construit côté serveur : jobId/eggUid, avec clé interne placeId/jobId/eggUid.
 - Sous chaque carte : joueurs de ce serveur ; vert = connexion du client du script,
   gris = joueur observé. Liste repliable avec indice de vitesse du jeu et revenu.
-- Notifications des changements ; historique daté affichant uniquement les reçus et réapparitions.
+- Synchronisation des changements d'œufs et de joueurs. L'onglet Historique et ses messages WebSocket sont retirés ; les données archivées ne sont pas effacées.
 - Timer global sur le prochain créneau de 5 minutes ; expiration individuelle issue
   de l'horaire du jeu quand fourni, sinon prochain créneau. Expiration retire les observations actives.
 - GO sur une carte serveur demande la téléportation des favoris connectés.
@@ -22,7 +22,9 @@ Node >=22. PORT est fourni par Render, sinon 3000 ; écoute sur 0.0.0.0.
 GET /, /eggs : dashboard privé. GET /health : état minimal public du service.
 WebSocket : wss://m4gix-ws.onrender.com/sae/ws.
 
-## Historique MongoDB Atlas
+## Archive interne MongoDB Atlas
+
+Cette archive n'est plus affichée ni transmise au tableau de bord Servers / Logs / Favoris.
 
 Dans les variables Render, définir MONGODB_URI avec la chaîne complète privée et MONGODB_DB=autosae.
 Aucun identifiant n'est enregistré dans ce dépôt. Autoriser les connexions du service Render dans

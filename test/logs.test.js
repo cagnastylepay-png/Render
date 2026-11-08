@@ -39,11 +39,11 @@ test("only the reporting favorite contributes history and logs, not another play
  const log=id=>({version:1,type:"logs.append",sessionId:id,lines:[{sequence:1,text:"Action Poids=100 kg Revenu=3B/s"}]});
  ordinary.send(snapshot("2"));await waitFor(()=>ordinary.messages.find(m=>m.type==="eggs.ack"));
  ordinary.send(log("2"));await waitFor(()=>ordinary.messages.find(m=>m.type==="logs.ack"&&m.accepted===false));assert.equal(viewer.messages.filter(m=>m.type==="history.append").length,0);
- favorite.send(snapshot("1"));const entry=await waitFor(()=>viewer.messages.find(m=>m.type==="history.append"));assert.equal(entry.entries[0].reporterUserId,"1");
+ favorite.send(snapshot("1"));const entry=await waitFor(()=>server.autoSAE.history.state().entries[0]);assert.equal(entry.reporterUserId,"1");assert.equal(viewer.messages.some(m=>m.type.startsWith("history.")),false);
  favorite.send(log("1"));await waitFor(()=>viewer.messages.find(m=>m.type==="logs.append"));
- await configure([]);await waitFor(()=>viewer.messages.filter(m=>m.type==="history.state").at(-1).total===0);assert.equal(viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries.length,0);
+ await configure([]);await waitFor(()=>viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries.length===0);
  await waitFor(()=>favorite.messages.filter(m=>m.type==="reporting.policy").at(-1).sendLogs===false);
- await configure(["1"]);await waitFor(()=>viewer.messages.filter(m=>m.type==="history.state").at(-1).total===1);
+ await configure(["1"]);assert.equal(server.autoSAE.history.state().total,1);assert.equal(viewer.messages.some(m=>m.type.startsWith("history.")),false);
  const retained=viewer.messages.filter(m=>m.type==="logs.state").at(-1).entries;
  assert.equal(retained.filter(row=>!row.text.startsWith("[Render]")).length,1);
  assert.ok(retained.every(row=>row.userId==="1"));

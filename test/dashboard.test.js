@@ -43,17 +43,21 @@ function harness(){
  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
  return {context,document,sent:FakeSocket.current.sent,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
 }
-test("hourly chart renders 24 paired bars, updates totals and resets with history",()=>{
- const h=harness(),hourly=Array.from({length:24},(_,hour)=>({hour,Divine:0,Eternal:0}));
- hourly[23].Divine=2;hourly[23].Eternal=3;hourly[0].Eternal=1;
- h.emit({type:"history.state",entries:[],hourly,storage:"mongodb"});
- const bars=h.document.getElementById("hourly-bars");assert.equal(bars.children.length,24);
- assert.equal(bars.children[23].children[0].title,"23 h – 00 h · Divine : 2");
- assert.equal(bars.children[23].children[0].style.height,"50%");
- assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 2");
- assert.equal(h.document.getElementById("hourly-eternal-total").textContent,"Eternal · 4");
- hourly[23].Divine=4;h.emit({type:"history.append",entries:[],hourly});assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 4");
- h.emit({type:"history.state",entries:[],hourly:hourly.map(row=>({...row,Divine:0,Eternal:0})),storage:"mongodb"});assert.equal(h.document.getElementById("hourly-divine-total").textContent,"Divine · 0");
+test("Servers counts server cards and omits History",()=>{
+ const h=harness();
+ assert.equal(h.document.getElementById("tab-history"),null);
+ assert.equal(h.document.getElementById("panel-history"),null);
+ assert.equal(h.document.getElementById("tab-servers").textContent,"Servers (0)");
+ const base={placeId:"123",name:"Egg",rarity:"Common",expiresAt:Date.now()+60000};
+ h.emit({type:"eggs.state",serverCount:2,eggs:[{...base,key:"a/1",jobId:"a",uid:"1"},{...base,key:"a/2",jobId:"a",uid:"2"},{...base,key:"b/3",jobId:"b",uid:"3"}]});
+ assert.equal(h.document.getElementById("tab-servers").textContent,"Servers (2)");
+ assert.equal(h.document.getElementById("cards").children.length,2);
+ h.document.getElementById("tab-logs").onclick();
+ h.document.getElementById("tab-servers").onclick();
+ assert.equal(h.document.getElementById("panel-servers").hidden,false);
+ h.emit({type:"history.state",entries:[]});
+ h.emit({type:"history.append",entries:[]});
+ assert.equal(h.document.getElementById("tab-servers").textContent,"Servers (2)");
 });
 test("WebSocket updates retain image nodes, open sections and use game speed",()=>{
  const h=harness(),egg={key:"123/job/egg",uid:"egg",placeId:"123",jobId:"job",name:"Ice Dragon",rarity:"Eternal",imageUrl:"/eggs/ice.webp",
@@ -76,24 +80,11 @@ test("WebSocket updates retain image nodes, open sections and use game speed",()
  assert.doesNotMatch(card.textContent,/Puissance/);
  assert.equal(h.document.getElementById("tab-players"),null);
 });
-test("game suffixes and receipts-only history",()=>{
+test("game number suffixes remain available",()=>{
  const h=harness();
  for(const [value,expected]of [[1e9,"1B"],[1e12,"1T"],[1e15,"1Qa"],[1e18,"1Qi"],[999999,"1M"]])
   assert.equal(vm.runInContext("formatNumber("+value+")",h.context),expected);
- const egg={name:"Egg",rarity:"Divine",weightKg:1200,incomePerSecond:2e9,globalUid:"job/egg",cycleId:"1"};
- h.emit({type:"history.state",entries:[
-  {id:"a",at:"2026-11-04T10:00:00Z",action:"appeared",egg},
-  {id:"b",at:"2026-11-04T10:00:01Z",action:"disappeared",egg},
-  {id:"c",at:"2026-11-04T10:00:02Z",action:"updated",egg}
- ],storage:"mongodb"});
- const body=h.document.getElementById("history");
- assert.equal(body.children.length,1);
- assert.match(body.textContent,/Première observation/);
- h.document.getElementById("history-clear").onclick();assert.equal(h.sent.at(-1).type,"history.clear");
- assert.doesNotMatch(body.textContent,/Disparu|Modifié/);
 });
-
-
 test("server cards select the best egg, expand all eggs and keep expansion across updates",()=>{
  const h=harness(),now=Date.now(),base={placeId:"123",rarity:"Cosmic",imageUrl:"/eggs/a.webp",expiresAt:now+60000};
  const eggs=[{...base,uid:"same-id",jobId:"server-a",name:"Low",incomePerSecond:1e9},
@@ -192,3 +183,4 @@ test("favorite servers stay first, use a gold card and move priority with the fa
  h.emit({type:"delivery.policy",revision:2,favoriteUserIds:[],minimumIncomePerSecond:0});
  assert.doesNotMatch(rich.view.node.className,/server-favorite/);
 });
+
