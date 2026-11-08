@@ -72,3 +72,18 @@ test('ADMIN_USERNAME override selects one configured account and filters archive
  await wait(()=>viewer.last('logs.state')?.storage==='mongodb');assert.equal(viewer.last('logs.state').entries.length,1);assert.equal(viewer.last('logs.state').entries[0].id,'1');
  assert.equal(viewer.last('admin.state').username,'OtherAdmin');
 });
+
+test('real WebSocket Admin panel isolates reporters, forwards one typed command and receives its confirmation',async t=>{
+ const {peer}=await fixture(t),viewer=await peer('viewer'),admin=await peer('reporter','admin'),ordinary=await peer('reporter','hub');
+ admin.send(presence('42','MagixSafe'));ordinary.send(presence('8','Observer','remote'));await wait(()=>admin.last('players.ack'));await wait(()=>ordinary.last('players.ack'));
+ const snapshot={version:1,type:'admin.inventory.snapshot',sessionId:'owned',revision:1,stats:{money:123,incomePerSecond:3,offlinePerDay:10800},eggs:[{uid:'e',category:'Cat',name:'Cat',location:'backpack'}],animals:[]};
+ ordinary.send(snapshot);await wait(()=>ordinary.last('error'));assert.match(ordinary.last('error').message,/Only configured/);
+ admin.send(snapshot);await wait(()=>admin.last('admin.inventory.ack'));await wait(()=>viewer.last('admin.inventory.state')?.connected);
+ assert.equal(viewer.last('admin.inventory.state').inventory.stats.offlinePerDay,10800);
+ const command={version:1,type:'admin.command',clientRequestId:'sale',action:'egg.sell',uid:'e',inventorySessionId:'owned',inventoryRevision:1};
+ ordinary.send(command);await wait(()=>ordinary.messages.filter(m=>m.type==='error').length===2);
+ viewer.send(command);await wait(()=>admin.last('admin.command'));const received=admin.last('admin.command');assert.equal(received.action,'egg.sell');assert.equal(received.uid,'e');assert.equal(ordinary.messages.some(m=>m.type==='admin.command'),false);
+ admin.send({version:1,type:'admin.command.result',requestId:received.requestId,status:'confirmed',message:'Vente confirmée'});await wait(()=>viewer.last('admin.inventory.state')?.result?.status==='confirmed');
+ const next=await peer('viewer');assert.equal(next.last('admin.inventory.state').inventory.eggs.length,1);
+ admin.ws.close();await wait(()=>viewer.last('admin.inventory.state').connected===false);
+});

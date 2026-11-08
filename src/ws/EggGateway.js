@@ -4,6 +4,7 @@ const { randomUUID, timingSafeEqual } = require("node:crypto");
 const { planTeleport } = require("./TeleportPlanner");
 const { createClientSettings } = require("../store/ClientSettings");
 const { createClientLogs } = require("../store/ClientLogs");
+const { createAdminPanel } = require("./AdminPanel");
 const flightResult = text => typeof text === "string" && /^\[Auto_SAE\]\[\d+\]\[[^\]]+\]\[FLIGHT_RESULT\]\[/.test(text);
 function sameToken(provided, expected) {
   if (!expected) return true;
@@ -23,6 +24,7 @@ function attachEggGateway(server, store, players, history, {
   // Reporter identity is client-declared, not proof of Roblox account ownership.
   const isAdmin = ws => ws.role === "reporter" && ws.clientKind === "admin" && !ws.observerOnly && matchesUsername(ws.reporterIdentity?.name);
   const adminSocket = () => [...wss.clients].filter(ws => ws.readyState === WebSocket.OPEN && isAdmin(ws)).at(-1);
+  const panel = createAdminPanel({send,viewers:()=>[...wss.clients].filter(ws=>ws.role==='viewer'),adminSocket,settings,onChange:()=>broadcast()});
   function send(ws, message) {
     if (ws.readyState !== WebSocket.OPEN) return;
     if (ws.role === "viewer" && dashboardAuth && !dashboardAuth.authenticated(ws.dashboardRequest)) { ws.close(1008, "Dashboard login required"); return; }
@@ -41,7 +43,9 @@ function attachEggGateway(server, store, players, history, {
       connected: Boolean(socket), clientKind: "admin", jobId: identity?.jobId || saved?.jobId || null,
       placeId: identity?.placeId || saved?.placeId || null, at: saved?.at || null,
       automationActive: Boolean(socket && saved?.sessionId === socket.settingsSessionId && saved?.automationActive),
+      automationEnabled:Boolean(socket&&saved?.sessionId===socket.settingsSessionId&&(saved?.automationEnabled??saved?.automationActive)),
       options: saved?.options || null
+      ,settingsRevision:saved?.revision||null,settingsSessionId:saved?.sessionId||null
     } };
   }
   function sendAdminState(ws, state = adminState()) {
@@ -92,7 +96,7 @@ function attachEggGateway(server, store, players, history, {
     ws.dashboardRequest = req; ws.connectionId = randomUUID(); ws.alive = true;
     ws.on("pong", () => { ws.alive = true; }); ws.on("error", () => {});
     const handshake = setTimeout(() => ws.close(1008, "Hello required"), 10000); handshake.unref();
-    ws.on("close", () => { clearTimeout(handshake); players.remove(ws.connectionId); broadcast(); });
+    ws.on("close", () => { clearTimeout(handshake); players.remove(ws.connectionId); panel.changed(); broadcast(); });
     let windowAt = Date.now(), messages = 0;
     ws.on("message", (raw, binary) => {
       try {
@@ -110,10 +114,13 @@ function attachEggGateway(server, store, players, history, {
           ws.claimedReporterUserId = typeof message.reporterUserId === "string" ? message.reporterUserId : null;
           clearTimeout(handshake); send(ws, { version: 1, type: "hello.ack", role: ws.role });
           if (ws.role === "reporter") reporterPolicy(ws);
-          else { send(ws, store.state()); send(ws, players.state()); send(ws, logsState()); sendAdminState(ws); }
+          else { send(ws, store.state()); send(ws, players.state()); send(ws, logsState()); sendAdminState(ws); send(ws,panel.state()); }
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
+        if(message.type==='admin.command'){
+          if(ws.role!=='viewer')throw Error('Only dashboard viewers may control Admin');panel.command(ws,message);return;
+        }
         if (message.type === "delivery.configure") throw Error("Favorite management removed; ADMIN_USERNAME configures the admin");
         if (message.type === "teleport.manual") {
           if (ws.role !== "viewer") throw Error("Only dashboard viewers may force a teleport");
@@ -138,6 +145,11 @@ function attachEggGateway(server, store, players, history, {
           return;
         }
         if (ws.role !== "reporter") throw Error("Viewer is read-only");
+        if(message.type==='admin.inventory.snapshot'||message.type==='admin.command.result'){
+          if(!isAdmin(ws))throw Error('Only configured Admin.lua may report admin data');
+          if(message.type==='admin.command.result'){panel.result(ws,message);return;}
+          const accepted=panel.accept(ws,message);send(ws,{version:1,type:'admin.inventory.ack',revision:message.revision,sessionId:message.sessionId,accepted});return;
+        }
         if (message.type === "settings.snapshot") {
           if (!ws.reporterIdentity) throw Error("Player identity required before settings");
           const accepted = isAdmin(ws) ? settings.accept(ws.reporterIdentity, message) : false;
@@ -174,7 +186,7 @@ function attachEggGateway(server, store, players, history, {
   return {
     info: () => ({ executionConfigured: false, adminUsername: username, clients: wss.clients.size, reportAuthentication: Boolean(reportToken), viewerAuthentication: Boolean(viewerToken || dashboardAuth?.configured), logsStorage: logs.state().storage, logsLimit: logs.state().limit }),
     async close() {
-      if (closed) return; closed = true; unsubscribeSettings(); unsubscribeLogs(); clearInterval(heartbeat); clearTimeout(broadcastTimer);
+      if (closed) return; closed = true; panel.close(); unsubscribeSettings(); unsubscribeLogs(); clearInterval(heartbeat); clearTimeout(broadcastTimer);
       server.removeListener("upgrade",upgrade); for (const ws of wss.clients) ws.terminate(); wss.close(); await Promise.all([logs.close(),settings.close()]);
     }
   };

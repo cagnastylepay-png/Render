@@ -80,11 +80,21 @@ Source : https://eggipedia.com/fr/oeufs ; image de remplacement si aucune corres
 
 ## Admin unique
 
-ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Admin.lua reste un squelette TODO, sans fonctions en jeu pour le moment.
-Servers affiche les œufs et les joueurs de tous les reporters. Admin affiche le compte configuré, son état et ses derniers paramètres.
+ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Admin.lua est le client sans GUI ; il démarre AUTO OFF.
+Servers affiche les œufs et les joueurs de tous les reporters. Admin affiche le compte configuré, ses statistiques, ses inventaires plot/backpack et ses paramètres modifiables.
 Vols accepte et rejoue seulement ses lignes FLIGHT_RESULT : les diagnostics Render et les autres comptes sont exclus, y compris dans les anciennes données MongoDB.
 Les étoiles et delivery.configure sont supprimés. Les anciennes données de favoris restent archivées et ne sont plus utilisées.
 Le hello reporter doit annoncer clientKind=admin et le players.snapshot doit déclarer le username configuré. Les paramètres sont dédupliqués et sauvegardés dans client_settings.
 Seul cet Admin reçoit eggs.targets et teleport.request ; GO envoie une destination immédiate même si AUTO est OFF. Les observateurs restent passifs.
 La carte du serveur du username configuré est prioritaire et dorée, même sans script Admin actif. Aucun code Lua arbitraire n’est envoyé par Render.
 Le username et le rôle sont déclarés par le client et ne prouvent pas la propriété d’un compte Roblox. Conserver SAE_REPORT_TOKEN si une restriction des reporters est nécessaire. SECRET_MDP protège séparément le dashboard.
+
+### Commandes et inventaire Admin
+
+admin.inventory.snapshot contient stats, eggs, animals, sessionId et revision. Seul le client Admin configuré peut le publier. Les snapshots sont validés, bornés et associés à la connexion. Le dashboard reçoit admin.inventory.state, conserve la séparation plot/backpack et marque les données hors ligne.
+
+admin.command accepte seulement egg.open, egg.sell, egg.place, animal.sell, animal.fuse, equip.best, settings.update et automation.set. Les commandes nécessitent une session dashboard valide, un Admin connecté et, pour les actions d’inventaire, un snapshot de moins de trente secondes avec la même révision. Les paramètres utilisent également la révision/session de leurs dernières valeurs.
+
+Une seule action peut être en cours. Les doublons de clientRequestId ne sont pas renvoyés au jeu. Les résultats confirmed/rejected/unknown sont associés à la connexion et au requestId. Déconnexion ou délai dépassé ne provoquent aucune relance. Les résultats de commandes restent dans Admin, séparés de Vols/FLIGHT_RESULT.
+
+Les constantes de revenu hors ligne sont lues depuis le jeu. Mutation reste TODO ; vente et fusion sont proposées avec confirmation dans l’interface. GO reste immédiat et cible uniquement le client Admin connecté.

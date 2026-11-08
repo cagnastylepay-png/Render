@@ -46,13 +46,13 @@ function harness(){
 test("Admin replaces favorites with one configured account and hides diagnostics and other players",()=>{
  const h=harness(),at=new Date().toISOString(),text="[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] Vol Reussi";
  h.emit({type:"admin.state",username:"MagixSafe",storage:"mongodb",entry:{userId:"42",playerName:"MagixSafe",connected:true,placeId:"123",jobId:"home",options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33}}});
- const admin=h.document.getElementById("admin-cards");assert.equal(admin.children.length,1);assert.match(admin.textContent,/MagixSafe/);assert.match(admin.textContent,/2B\/s/);
+ const admin=h.document.getElementById("admin-cards");assert.match(admin.textContent,/MagixSafe/);assert.match(admin.textContent,/Mes Œufs/);assert.match(admin.textContent,/Mes Animaux/);assert.match(admin.textContent,/Paramètres/);
  assert.equal(h.document.getElementById("tab-admin").textContent,"Admin");
  assert.doesNotMatch(html,/delivery.configure|class="favorite"|tab-favorites/);
  h.emit({type:"logs.state",limit:1000,storage:"mongodb",entries:[{id:"1",userId:"42",playerName:"MagixSafe",jobId:"home",at,text},{id:"2",playerName:"MagixSafe",at,text:"[Render] diagnostic"},{id:"3",playerName:"Other",at,text}]});
  assert.equal(h.document.getElementById("tab-logs").textContent,"Vols (1)");
  assert.doesNotMatch(h.document.getElementById("logs-lines").textContent,/diagnostic|Other/);
- admin.children[0].querySelectorAll("button")[0].onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
+ admin.children[0].querySelectorAll("button").find(b=>b.textContent==="Voir les vols").onclick();assert.equal(h.document.getElementById("panel-logs").hidden,false);
  h.emit({type:"players.state",players:[{placeId:"123",jobId:"home",userId:"42",name:"MagixSafe",displayName:"MagixSafe",reporterConnected:true},{placeId:"123",jobId:"rich",userId:"7",name:"Observer",displayName:"Observer",reporterConnected:true}]});
  h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"home",uid:"a",name:"A",rarity:"Common",incomePerSecond:1,expiresAt:Date.now()+60000},{placeId:"123",jobId:"rich",uid:"b",name:"B",rarity:"Common",incomePerSecond:1e12,expiresAt:Date.now()+60000}]});
  const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context);
@@ -68,6 +68,27 @@ test("MagixSafe server stays first and gold without an active Admin script; loca
  h.emit({type:"eggs.state",eggs:[{placeId:"123",jobId:"rich",uid:"r",name:"Rich",rarity:"Divine",incomePerSecond:100e9,expiresAt:Date.now()+60000}]});
  const home=vm.runInContext('serverViews.get(JSON.stringify(["123","home"]))',h.context),old=vm.runInContext('serverViews.get(JSON.stringify(["123","old"]))',h.context);
  assert.equal(h.document.getElementById("cards").children[0],home.view.node);assert.match(home.view.node.className,/server-admin/);assert.doesNotMatch(old.view.node.className,/server-admin/);
+});
+
+test("Admin inventory separates plot/backpack, shows game stats, sends typed actions and preserves parameter edits",()=>{
+ const h=harness();h.context.confirm=()=>true;
+ const options={AutoEggs:true,AutoIndex:true,AutoTreadmill:true,AutoSell:false,AutoFuse:false,AutoOpen:false,AutoPlace:false,AutoPapillon:false,QueueNearest:false,TeleportInstantMin:50e9};for(const k of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[k+"Min"]=0;options[k+"Max"]=1e33;}
+ h.emit({type:"admin.state",username:"MagixSafe",entry:{userId:"42",playerName:"MagixSafe",connected:true,settingsRevision:1,settingsSessionId:"s",options},storage:"mongodb"});
+ const item=(uid,location,extra={})=>({uid,name:"Cat",category:"Cat",location,...extra});
+ const data={type:"admin.inventory.state",connected:true,pending:null,result:null,inventory:{sessionId:"i",revision:1,receivedAt:Date.now(),stats:{speedPower:1e9,money:2e12,incomePerSecond:3e9,offlinePerDay:10.8e12,offlineDurationSeconds:36000,offlineRateMultiplier:.1},eggs:[item("open","plot",{ready:true,remainingSeconds:0}),item("grow","plot",{ready:false,remainingSeconds:60}),item("bag","backpack")],animals:[item("a","backpack"),item("b","backpack"),item("c","backpack"),item("d","plot")]}};
+ h.emit(data);const root=h.document.getElementById("admin-cards");
+ assert.match(root.textContent,/1B/);assert.match(root.textContent,/2T/);assert.match(root.textContent,/10.8T\/jour/);assert.match(root.textContent,/Plot · placés \(2\)/);assert.match(root.textContent,/Backpack \(1\)/);
+ const buttons=()=>root.querySelectorAll("button"),find=name=>buttons().find(b=>b.textContent===name);
+ assert.equal(buttons().find(b=>b.textContent==="Ajouter mutation · TODO").disabled,true);
+ assert.equal(buttons().filter(b=>b.textContent==="Ouvrir")[1].disabled,true);
+ find("Ouvrir").onclick();assert.equal(h.sent.at(-1).action,"egg.open");assert.equal(h.sent.at(-1).uid,"open");
+ h.emit(data);find("Mes Animaux").onclick();assert.match(root.textContent,/Équiper les meilleurs/);assert.match(root.textContent,/Plot · placés \(1\)/);
+ vm.runInContext('selectedAnimals.add("a");selectedAnimals.add("b");selectedAnimals.add("c")',h.context);
+ find("Fuse").onclick();assert.equal(h.sent.at(-1).action,"animal.fuse");assert.deepEqual(h.sent.at(-1).uids,["a","b","c"]);
+ h.emit(data);find("Paramètres").onclick();const field=root.querySelectorAll("input").find(i=>i.dataset.setting==="AutoEggsMin");field.value="4B";field.oninput();
+ h.emit({...data,inventory:{...data.inventory,revision:2}});assert.equal(root.querySelectorAll("input").find(i=>i.dataset.setting==="AutoEggsMin"),field);assert.equal(field.value,"4B");
+ find("Enregistrer").onclick();assert.equal(h.sent.at(-1).action,"settings.update");assert.equal(h.sent.at(-1).options.AutoEggsMin,4e9);
+ h.emit({...data,connected:false});assert.ok(root.querySelectorAll("input").every(i=>i.disabled));
 });
 test("Servers counts server cards and omits History",()=>{
  const h=harness();

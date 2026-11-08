@@ -22,6 +22,7 @@ label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
 [hidden]{display:none!important}@media(max-width:600px){body{padding:14px}.toolbar{align-items:stretch}h1{font-size:23px}}
+.admin-layout{display:grid;gap:16px}.admin-summary{max-width:720px}.admin-settings{display:grid;gap:14px}.admin-settings .toolbar{padding:10px;background:#141c2b;border-radius:8px}.admin-settings input[type=text]{max-width:170px}.tabs [aria-pressed=true]{background:#b0fa75;color:#142410}#admin-action-status{min-height:1.4em}
 </style></head>
 <body><main>
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
@@ -35,8 +36,8 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 
 </section>
 <section id="panel-admin" role="tabpanel" aria-labelledby="tab-admin" hidden>
-<p id="admin-info" class="muted">Paramètres du compte admin · Consultation uniquement.</p>
-<div id="admin-cards" class="cards"></div>
+<p id="admin-info" class="muted">Gestion du compte admin.</p>
+<div id="admin-cards" class="admin-layout"></div>
 </section>
 <p class="muted"><small>Images du jeu Roblox · Compléments : <a href="https://eggipedia.com/fr/oeufs" target="_blank" rel="noopener noreferrer">Eggipedia</a> · Données : observations du jeu</small></p></main>
 <section id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
@@ -68,28 +69,106 @@ function rosterFor(egg){
  return players.filter(p=>p.placeId===egg.placeId&&p.jobId===egg.jobId).sort((a,b)=>
   (b.speedPower??-1)-(a.speedPower??-1)||String(a.name).localeCompare(String(b.name)));
 }
-function renderAdmin(){
- const container=document.getElementById("admin-cards");container.replaceChildren();
- setText(document.getElementById("tab-admin"),"Admin");
- setText(document.getElementById("admin-info"),"Derniers paramètres reçus · Consultation uniquement · "+(adminStorage==="mongodb"?"Sauvegarde MongoDB active.":adminStorage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
- for(const row of adminEntries){
-  const card=el("article",null,"card"),heading=el("h2",row.playerName),state=el("p",row.connected?"● Connecté":"○ Déconnecté");
-  state.style.color=row.connected?"#b0fa75":"#a4b2ca";
-  card.append(heading,state,el("p","ID joueur : "+row.userId,"identity"),el("p","Serveur : "+(row.jobId||"—"),"identity"),el("p",row.at?"Paramètres reçus le "+new Date(row.at).toLocaleString():"En attente des paramètres du client.","muted"));
-  if(row.options){
-   card.append(el("p","Auto actif : "+(row.automationActive?"ON":"OFF")));
-   card.append(el("p","Téléportation immédiate ≥ "+fmt(row.options.TeleportInstantMin??50e9)+"/s"));
-   card.append(el("p","Tri de la file : "+(row.options.QueueNearest?"Plus proche":"Revenu décroissant")));
-   for(const [key,label]of [["AutoEggs","AutoEggs"],["AutoIndex","AutoIndex · Manquants"],["AutoTreadmill","AutoTreadmill"],["AutoPapillon","AutoPapillon"],["AutoSell","AutoSell"],["AutoFuse","AutoFuse"],["AutoOpen","AutoOpen"],["AutoPlace","AutoPlace"]]){
-    let text=label+" : "+(row.options[key]?"ON":"OFF");
-    if(row.options[key+"Min"]!=null)text+=" · "+fmt(row.options[key+"Min"])+"/s → "+fmt(row.options[key+"Max"])+"/s";
-    card.append(el("p",text));
-   }
-  }
-  const logs=el("button","Voir les vols");logs.onclick=()=>{renderLogs();switchPanel("logs");};card.append(logs);container.append(card);
- }
- if(!adminEntries.length)container.append(el("p","En attente du compte admin.","empty"));
+let adminLastResult=null;
+let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminWaiting=false;
+let settingsDraft=null,settingsBase=null,settingsDirty=false,settingsForm=null,adminTickNodes=[];
+const selectedAnimals=new Set();
+function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
+function adminCommand(action,payload={}){
+ if(!socket||socket.readyState!==WebSocket.OPEN||!adminCanAct())return;
+ const inventory=adminInventory.inventory,row=adminEntries[0];
+ adminWaiting=true;
+ socket.send(JSON.stringify({version:1,type:"admin.command",clientRequestId:Date.now().toString(36)+Math.random().toString(36).slice(2),action,
+  inventoryRevision:inventory.revision,inventorySessionId:inventory.sessionId,settingsRevision:row?.settingsRevision,settingsSessionId:row?.settingsSessionId,...payload}));
+ renderAdmin();
 }
+function adminButton(label,action,payload={},disabled=false){const b=el("button",label);b.disabled=disabled||!adminCanAct();b.onclick=()=>adminCommand(action,payload);return b;}
+function parseAdminAmount(text){
+ const match=String(text).trim().replace(",",".").match(/^(\d+(?:\.\d+)?)([a-z]*)$/i);
+ if(!match)return NaN;const tier=suffixes.findIndex(x=>x.toLowerCase()===match[2].toLowerCase());return tier<0?NaN:Number(match[1])*1000**tier;
+}
+function renderAdminSettings(){
+ const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.settingsRevision,row?.options]);
+ if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
+ if(!settingsForm||!settingsDirty&&signature!==settingsBase){
+  settingsBase=signature;settingsDraft={...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
+  const notice=el("p","Valeurs par seconde : nombres ou suffixes K, M, B, T…","muted");settingsForm.append(notice);
+  for(const [key,label]of [["AutoEggs","AutoEggs"],["AutoIndex","Index manquant"],["AutoTreadmill","Tapis"],["AutoPapillon","Papillons"],["AutoSell","Vente automatique"],["AutoFuse","Fusion automatique"],["AutoOpen","Ouverture automatique"],["AutoPlace","Placement automatique"],["QueueNearest","File : plus proche d’abord"]]){
+   const line=el("div",null,"toolbar"),toggle=el("input");toggle.type="checkbox";toggle.checked=settingsDraft[key]===true;toggle.dataset.setting=key;
+   toggle.onchange=()=>{settingsDraft[key]=toggle.checked;settingsDirty=true;};const labelNode=el("label",label);labelNode.append(toggle);line.append(labelNode);
+   for(const suffix of ["Min","Max"]){if(settingsDraft[key+suffix]==null)continue;const field=el("input");field.type="text";field.value=fmt(settingsDraft[key+suffix]);field.dataset.setting=key+suffix;field.setAttribute("aria-label",label+" "+suffix);field.oninput=()=>{settingsDraft[key+suffix]=parseAdminAmount(field.value);settingsDirty=true;};const l=el("label",suffix==="Min"?"Minimum /s":"Maximum /s");l.append(field);line.append(l);}
+   settingsForm.append(line);
+  }
+  const threshold=el("input");threshold.type="text";threshold.value=fmt(settingsDraft.TeleportInstantMin??50e9);threshold.dataset.setting="TeleportInstantMin";threshold.oninput=()=>{settingsDraft.TeleportInstantMin=parseAdminAmount(threshold.value);settingsDirty=true;};
+  const label=el("label","Téléportation immédiate à partir de /s");label.append(threshold);settingsForm.append(label);
+  const save=el("button","Enregistrer"),reset=el("button","Recharger les valeurs du jeu");
+  save.onclick=()=>{
+   if(settingsBase!==JSON.stringify([adminEntries[0]?.settingsSessionId,adminEntries[0]?.settingsRevision,adminEntries[0]?.options])){setText(document.getElementById("admin-action-status"),"Les paramètres ont changé : recharge les valeurs avant d’enregistrer.");return;}
+   for(const key of Object.keys(settingsDraft)){if(typeof row.options[key]==="number"&&(!Number.isFinite(settingsDraft[key])||settingsDraft[key]<0||settingsDraft[key]>1e33)){setText(document.getElementById("admin-action-status"),"Valeur invalide : "+key);return;}}
+   for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){if(settingsDraft[key+"Min"]>settingsDraft[key+"Max"]){setText(document.getElementById("admin-action-status"),"Le minimum dépasse le maximum : "+key);return;}}
+   adminCommand("settings.update",{options:settingsDraft});
+  };
+  reset.onclick=()=>{settingsDirty=false;settingsForm=null;renderAdmin();};settingsForm.append(save,reset);
+ }
+ for(const input of settingsForm.querySelectorAll("input"))input.disabled=!adminCanAct();
+ for(const button of settingsForm.querySelectorAll("button"))button.disabled=!adminCanAct();
+ return settingsForm;
+}
+function adminItemCard(item,kind){
+ const card=el("article",null,"card"),title=el("h2",item.name);card.append(title,el("small",item.category),el("p","Revenu : "+fmt(item.incomePerSecond)+"/s · Poids : "+fmt(item.weightKg)+" kg"),el("p","Valeur : "+fmt(item.sellValue)),el("small","UID : "+item.uid));
+ if(kind==="egg"&&item.location==="plot"){
+  const timer=el("p");adminTickNodes.push({timer,item,receivedAt:adminInventory.inventory.receivedAt});card.append(timer);
+  card.append(adminButton("Ouvrir","egg.open",{uid:item.uid},!item.ready||item.locked));
+  const mutation=el("button","Ajouter mutation · TODO");mutation.disabled=true;card.append(mutation);
+ }else if(item.location==="backpack"){
+  const sell=adminButton("Vendre",kind+".sell",{uid:item.uid},item.locked);sell.onclick=()=>{if(confirm("Vendre "+item.name+" ("+item.uid+") ?"))adminCommand(kind+".sell",{uid:item.uid});};card.append(sell);
+  if(kind==="egg")card.append(adminButton("Placer","egg.place",{uid:item.uid},item.locked));
+  else{
+   const select=el("input");select.type="checkbox";select.checked=selectedAnimals.has(item.uid);select.disabled=item.locked||!adminCanAct();select.onchange=()=>{if(select.checked)selectedAnimals.add(item.uid);else selectedAnimals.delete(item.uid);renderAdmin();};const label=el("label","Sélection fusion");label.append(select);card.append(label);
+   const fuse=adminButton("Fuse","animal.fuse",{},item.locked);
+   fuse.onclick=()=>{
+    const chosen=[...selectedAnimals];if(!chosen.includes(item.uid))chosen.unshift(item.uid);
+    const animals=adminInventory.inventory.animals,selection=chosen.map(uid=>animals.find(a=>a.uid===uid));
+    if(selection.length!==3||selection.some(a=>!a||a.locked||a.location!=="backpack"||a.category!==item.category)){setText(document.getElementById("admin-action-status"),"Sélectionne trois animaux disponibles de la même espèce pour fusionner.");return;}
+    if(confirm("Fusionner ces trois animaux :\n"+selection.map(a=>a.name+" ("+a.uid+")").join("\n")+"\nIls seront consommés par la fusion."))adminCommand("animal.fuse",{uid:item.uid,uids:chosen});
+   };card.append(fuse);
+  }
+ }
+ if(item.locked)card.append(el("p","Verrouillé / occupé","muted"));
+ return card;
+}
+function tickAdmin(){
+ for(const {timer,item,receivedAt}of adminTickNodes){
+  const stale=!adminInventory.connected||Date.now()-receivedAt>30000;
+  const remaining=item.remainingSeconds==null?null:Math.max(0,Math.ceil(item.remainingSeconds-(Date.now()-receivedAt)/1000));
+  setText(timer,item.ready?"Prêt à ouvrir":remaining==null?"Temps restant inconnu":stale?"Dernier temps reçu : "+item.remainingSeconds+" s":remaining===0?"Vérification dans le jeu…":"Temps restant : "+Math.floor(remaining/3600)+"h "+Math.floor(remaining%3600/60)+"m "+remaining%60+"s");
+ }
+}
+function renderAdmin(){
+ setText(document.getElementById("tab-admin"),"Admin");
+ const container=document.getElementById("admin-cards");container.replaceChildren();adminTickNodes=[];
+ const row=adminEntries[0],inventory=adminInventory.inventory;
+ setText(document.getElementById("admin-info"),adminUsername+" · "+(row?.connected?"Admin.lua connecté":"Admin.lua déconnecté")+" · "+(inventory?"Données reçues le "+new Date(inventory.receivedAt).toLocaleString():"En attente des données du jeu"));
+ const summary=el("article",null,"card admin-summary");summary.append(el("h2",adminUsername),el("p",row?.connected?"● Connecté":"○ Déconnecté"));
+ const stats=el("div",null,"metrics");
+ for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
+ summary.append(adminButton(row?.automationEnabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer","automation.set",{enabled:!row?.automationEnabled}));
+ summary.append(el("p","Coupe AUTO avant les actions manuelles sur l’inventaire.","muted"));
+ if(inventory?.stats?.offlineDurationSeconds!=null)summary.append(el("small","Hors ligne : calcul du jeu, durée "+fmt(inventory.stats.offlineDurationSeconds)+" s × coefficient "+inventory.stats.offlineRateMultiplier));
+ const logs=el("button","Voir les vols");logs.onclick=()=>{renderLogs();switchPanel("logs");};summary.append(logs);container.append(summary);
+ const actionStatus=el("p",adminWaiting?"Envoi…":adminInventory.pending?"Action en cours…":adminInventory.result?(adminInventory.result.status==="confirmed"?"✓ ":"⚠ ")+adminInventory.result.message:"","muted");actionStatus.id="admin-action-status";container.append(actionStatus);
+ const nav=el("nav",null,"tabs");for(const [id,label]of [["eggs","Mes Œufs"],["animals","Mes Animaux"],["settings","Paramètres"]]){const button=el("button",label);button.setAttribute("aria-pressed",String(adminSection===id));button.onclick=()=>{adminSection=id;renderAdmin();};nav.append(button);}container.append(nav);
+ if(adminSection==="settings"){container.append(renderAdminSettings());return;}
+ if(!inventory){container.append(el("p","Lance Admin.lua sur "+adminUsername+" pour afficher le plot et le backpack.","empty"));return;}
+ if(adminSection==="animals")container.append(adminButton("Équiper les meilleurs","equip.best"));
+ const kind=adminSection==="eggs"?"egg":"animal",items=adminSection==="eggs"?inventory.eggs:inventory.animals;
+ for(const uid of selectedAnimals)if(!inventory.animals.some(a=>a.uid===uid&&a.location==="backpack"))selectedAnimals.delete(uid);
+ for(const [location,title]of [["plot","Plot · placés"],["backpack","Backpack"]]){
+  const group=items.filter(i=>i.location===location),section=el("section");section.append(el("h2",title+" ("+group.length+")"));const grid=el("div",null,"cards");for(const item of group)grid.append(adminItemCard(item,kind));if(!group.length)grid.append(el("p","Aucun élément.","empty"));section.append(grid);container.append(section);
+ }
+ tickAdmin();
+}
+
 function createCard(){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
  heading.append(rarity,name);
@@ -223,6 +302,7 @@ function renderCards(){
 }
 function updateAllRosters(){renderCards();}
 function tick(){
+ tickAdmin();
  const now=Date.now()+timeOffset;
  const display=until=>{const n=Math.max(0,Math.ceil((until-now)/1000));return Math.floor(n/60)+":"+String(n%60).padStart(2,"0");};
  setText(document.getElementById("global-timer"),resetAt?display(resetAt):"--:--");
@@ -252,6 +332,12 @@ function connect(){
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
    if(message.type==="teleport.manual.ack"){setText(status,message.count?"GO envoyé à l’admin connecté.":"Admin indisponible ou déjà sur ce serveur.");}
    else if(message.type==="admin.state"){adminUsername=message.username;adminEntries=[message.entry];adminStorage=message.storage;adminUsers=new Set(message.entry.userId?[message.entry.userId]:[]);deliveryReady=true;setText(document.getElementById("delivery-info"),"Admin : "+adminUsername+" · "+(message.entry.connected?"Connecté":"Déconnecté"));renderAdmin();renderCards();renderLogs();}
+   else if(message.type==="admin.inventory.state"){
+    adminInventory=message;adminWaiting=false;
+    if(message.result&&message.result.requestId!==adminLastResult){adminLastResult=message.result.requestId;if(message.result.action==="settings.update"&&message.result.status==="confirmed"){settingsDirty=false;settingsForm=null;}}
+    renderAdmin();
+   }else if(message.type==="admin.command.result"){adminWaiting=false;adminInventory.result=message;renderAdmin();}
+   else if(message.type==="admin.command.ack"){adminWaiting=false;}
    else if(message.type==="eggs.state"){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
     renderCards();
@@ -261,12 +347,12 @@ function connect(){
     logRows=new Map(message.entries.map(row=>[row.id,row]));renderLogs();
     setText(document.getElementById("logs-info"),"Résultats des vols de l’admin · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
    }else if(message.type==="logs.append"){for(const row of message.entries)logRows.set(row.id,row);renderLogs();}
-   else if(message.type==="error")setText(status,message.message);
+   else if(message.type==="error"){adminWaiting=false;renderAdmin();setText(status,message.message);setText(document.getElementById("admin-action-status"),message.message);}
   }catch{setText(status,"Message serveur invalide");}
  };
  current.onclose=event=>{
   if(socket!==current)return;
-  deliveryReady=false;
+  deliveryReady=false;adminWaiting=false;adminInventory.connected=false;
   players=players.map(p=>({...p,reporterConnected:false}));updateAllRosters();
   adminEntries=adminEntries.map(row=>({...row,connected:false}));renderAdmin();
   setText(status,"Déconnecté — observations précédentes, reconnexion automatique…");
