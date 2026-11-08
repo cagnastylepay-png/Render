@@ -80,7 +80,7 @@ Source : https://eggipedia.com/fr/oeufs ; image de remplacement si aucune corres
 
 ## Admin unique
 
-ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Admin.lua est le client sans GUI ; il démarre AUTO OFF.
+ADMIN_USERNAME définit le seul compte géré (MagixSafe par défaut). Admin.lua est le client sans GUI ; il démarre AUTO ON.
 Servers affiche les œufs et les joueurs de tous les reporters. Admin affiche le compte configuré, ses statistiques, ses inventaires plot/backpack et ses paramètres modifiables.
 Vols accepte et rejoue seulement ses lignes FLIGHT_RESULT : les diagnostics Render et les autres comptes sont exclus, y compris dans les anciennes données MongoDB.
 Les étoiles et delivery.configure sont supprimés. Les anciennes données de favoris restent archivées et ne sont plus utilisées.
@@ -98,3 +98,9 @@ admin.command accepte seulement egg.open, egg.sell, egg.place, animal.sell, anim
 Une seule action peut être en cours. Les doublons de clientRequestId ne sont pas renvoyés au jeu. Les résultats confirmed/rejected/unknown sont associés à la connexion et au requestId. Déconnexion ou délai dépassé ne provoquent aucune relance. Les résultats de commandes restent dans Admin, séparés de Vols/FLIGHT_RESULT.
 
 Les constantes de revenu hors ligne sont lues depuis le jeu. Mutation reste TODO ; vente et fusion sont proposées avec confirmation dans l’interface. GO reste immédiat et cible uniquement le client Admin connecté.
+
+### Cartes Admin et mutations
+
+Admin réutilise la carte Servers (illustration, rareté, métriques), sans joueurs, GO ni panneaux de détails/œufs du serveur. Les mutations sont affichées au-dessus du nom dans les deux onglets, masquées si absentes. Les animaux utilisent leur propre asset, distinct de l’œuf ; les miniatures Roblox sont résolues par lots, dédupliquées et mises en cache. Seuls les IDs du catalogue et les URLs HTTPS rbxcdn sont autorisés.
+
+Hub et Admin utilisent désormais Observer pour l’unique connexion et les snapshots d’observation ; le protocole reporter et les règles GO/Admin restent inchangés côté Render.

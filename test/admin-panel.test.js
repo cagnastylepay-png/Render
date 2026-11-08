@@ -17,6 +17,13 @@ test('inventory preserves exact game metrics and rejects malformed/duplicate/ove
  assert.throws(()=>validateInventory({...inventory(),stats:{money:NaN}}));assert.throws(()=>validateInventory({...inventory(),animals:[item('x','other')]}));
  assert.throws(()=>validateInventory({...inventory(),eggs:Array.from({length:5001},(_,i)=>item(String(i)))}));
 });
+
+test('admin images distinguish eggs and animals, preserve mutations and reject unsafe metadata',()=>{
+ const snapshot={...inventory(),eggs:[{...item('egg'),category:'Dog',rarity:'Common',baseMutation:'Gold',mutations:['Rainbow']}],animals:[{...item('animal'),category:'Dog'}]};
+ const value=validateInventory(snapshot);assert.equal(value.eggs[0].imageUrl,'/eggs-native/123926130544109.png');assert.match(value.animals[0].imageUrl,/128470938015055\.png$/);assert.notEqual(value.eggs[0].imageUrl,value.animals[0].imageUrl);assert.deepEqual(value.eggs[0].mutations,['Rainbow']);
+ assert.throws(()=>validateInventory({...snapshot,eggs:[{...snapshot.eggs[0],mutations:{}}]}));
+ assert.throws(()=>validateInventory({...snapshot,eggs:[{...snapshot.eggs[0],baseMutation:4}]}));
+});
 test('commands revalidate ownership, placement, readiness, freshness, fusion membership and options',t=>{
  const h=harness(t);h.panel.accept(h.admin,inventory());
  for(const [action,extra]of [['egg.open',{uid:'egg'}],['egg.sell',{uid:'open'}],['egg.open',{uid:'growing'}],['animal.sell',{uid:'worn'}],['animal.sell',{uid:'locked'}],['animal.fuse',{uid:'a',uids:['a','a','c']}],['animal.fuse',{uid:'a',uids:['a','b','worn']}],['egg.sell',{uid:'missing'}]])assert.throws(()=>h.command(action,extra));

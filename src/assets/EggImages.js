@@ -26,5 +26,11 @@ function getGameImageIds(item){
  return null;
 }
 
-module.exports = { getEggImage, getGameImageIds };
+function getAnimalImage(item){
+ const ids=getGameImageIds(item);
+ if(!ids)return null;
+ return fs.existsSync(path.join(__dirname,"../../public/eggs-native",ids.animal+".png"))?"/eggs-native/"+ids.animal+".png":"/animals/"+ids.animal+".png";
+}
+module.exports = { getEggImage, getGameImageIds, getAnimalImage };
+
 

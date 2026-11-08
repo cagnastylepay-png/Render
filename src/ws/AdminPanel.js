@@ -1,6 +1,7 @@
 "use strict";
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
+const {getEggImage,getAnimalImage}=require('../assets/EggImages');
 const actions=new Set(['egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
 function validateInventory(m){
  if(m.version!==1||typeof m.sessionId!=='string'||!m.sessionId||m.sessionId.length>100||!Number.isSafeInteger(m.revision)||m.revision<1)throw Error('Invalid admin inventory');
@@ -8,7 +9,10 @@ function validateInventory(m){
  const list=(rows,kind)=>{
   if(!Array.isArray(rows)||rows.length>5000)throw Error('Invalid inventory list');const seen=new Set();
   return rows.map(r=>{if(!r||typeof r.uid!=='string'||!r.uid||r.uid.length>128||seen.has(r.uid)||!['plot','backpack'].includes(r.location)||typeof r.name!=='string'||r.name.length>160||typeof r.category!=='string'||r.category.length>160)throw Error('Invalid inventory item');seen.add(r.uid);
-   return {uid:r.uid,name:r.name,category:r.category,location:r.location,incomePerSecond:metric(r.incomePerSecond),weightKg:metric(r.weightKg),sellValue:metric(r.sellValue),remainingSeconds:kind==='egg'?metric(r.remainingSeconds):null,ready:r.ready===true,locked:r.locked===true};});
+   if(r.rarity!=null&&(typeof r.rarity!=='string'||r.rarity.length>40))throw Error('Invalid rarity');
+   if(r.mutations!=null&&(!Array.isArray(r.mutations)||r.mutations.length>32||r.mutations.some(v=>typeof v!=='string'||!v||v.length>100)))throw Error('Invalid mutations');
+   if(r.baseMutation!=null&&(typeof r.baseMutation!=='string'||r.baseMutation.length>100))throw Error('Invalid base mutation');
+   return {uid:r.uid,name:r.name,category:r.category,rarity:r.rarity||'Unknown',mutations:r.mutations||[],baseMutation:r.baseMutation||null,imageUrl:kind==='egg'?getEggImage(r):getAnimalImage(r),location:r.location,incomePerSecond:metric(r.incomePerSecond),weightKg:metric(r.weightKg),sellValue:metric(r.sellValue),remainingSeconds:kind==='egg'?metric(r.remainingSeconds):null,ready:r.ready===true,locked:r.locked===true};});
  };
  const stats={};for(const key of ['speedPower','money','incomePerSecond','offlinePerDay','offlineDurationSeconds','offlineRateMultiplier'])stats[key]=metric(m.stats?.[key]);
  return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs:list(m.eggs,'egg'),animals:list(m.animals,'animal')};

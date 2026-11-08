@@ -5,9 +5,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { mountAutoSAE } = require("./src");
 const { createDashboardAuth } = require("./src/DashboardAuth");
+const {createAnimalThumbnails}=require('./src/assets/AnimalThumbnails');
 
 function createServer(options = {}) {
   const dashboardAuth = options.dashboardAuth === false ? null : createDashboardAuth(options.dashboardAuth);
+  const animalImages=createAnimalThumbnails(options.animalImages);
   const server = http.createServer((req, res) => {
     const route = (req.url || "/").split("?")[0];
     if (route === "/health" && (req.method === "GET" || req.method === "HEAD")) {
@@ -18,6 +20,13 @@ function createServer(options = {}) {
     if (dashboardAuth && dashboardAuth.handle(req, res)) return;
     if (req.method !== "GET" && req.method !== "HEAD") {
       res.writeHead(405, { Allow: "GET, HEAD" }); res.end(); return;
+    }
+    const animalImage=route.match(/^\/animals\/(\d+)\.png$/);
+    if(animalImage){
+      void animalImages.resolve(animalImage[1]).then(url=>{
+        if(url){res.writeHead(302,{Location:url,'Cache-Control':'public, max-age=86400'});res.end();}
+        else{res.writeHead(404,{'Cache-Control':'no-store'});res.end();}
+      }).catch(()=>{res.writeHead(502);res.end();});return;
     }
     const nativeImage=route.match(/^\/eggs-native\/(\d+\.png)$/);
     if(nativeImage){

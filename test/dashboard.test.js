@@ -90,6 +90,19 @@ test("Admin inventory separates plot/backpack, shows game stats, sends typed act
  find("Enregistrer").onclick();assert.equal(h.sent.at(-1).action,"settings.update");assert.equal(h.sent.at(-1).options.AutoEggsMin,4e9);
  h.emit({...data,connected:false});assert.ok(root.querySelectorAll("input").every(i=>i.disabled));
 });
+
+test("Admin uses Servers card art and metrics without server controls; mutations appear above names and hide when absent",()=>{
+ const h=harness(),at=Date.now();
+ const egg={key:"e",placeId:"123",jobId:"job",uid:"e",name:"Dog",category:"Dog",rarity:"Divine",baseMutation:"Gold",mutations:["Gold","Rainbow"],imageUrl:"/eggs-native/123926130544109.png",expiresAt:at+60000};
+ h.emit({type:"eggs.state",eggs:[egg]});const server=vm.runInContext('serverViews.get(JSON.stringify(["123","job"]))',h.context);
+ assert.equal(server.view.mutation.textContent,"Gold · Rainbow");assert.equal(server.view.mutation.hidden,false);assert.equal(server.view.name.parent.children.indexOf(server.view.mutation)<server.view.name.parent.children.indexOf(server.view.name),true);
+ h.emit({type:"eggs.state",eggs:[{...egg,baseMutation:null,mutations:[]}]});assert.equal(server.view.mutation.hidden,true);
+ h.emit({type:"admin.state",username:"MagixSafe",entry:{userId:"42",playerName:"MagixSafe",connected:true}});
+ h.emit({type:"admin.inventory.state",connected:true,inventory:{sessionId:"s",revision:1,receivedAt:at,stats:{},animals:[],eggs:[{...egg,location:"plot",ready:true,remainingSeconds:0}]}});
+ const root=h.document.getElementById("admin-cards"),images=root.querySelectorAll("img");assert.equal(images.length,1);assert.equal(images[0].src,egg.imageUrl);
+ assert.match(root.textContent,/Gold · Rainbow/);assert.match(root.textContent,/Revenu \/ s/);assert.match(root.textContent,/Temps restant/);
+ assert.equal(root.querySelectorAll("details").length,0);assert.ok(root.querySelectorAll("button").every(b=>b.textContent!=="GO"));assert.doesNotMatch(root.textContent,/Œufs du serveur|Tous les détails|Joueurs \(/);
+});
 test("Servers counts server cards and omits History",()=>{
  const h=harness();
  assert.equal(h.document.getElementById("tab-history"),null);
