@@ -5,6 +5,7 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ for(const key of ["AutoPlotUpgrade","AutoTreadmillUpgrade"]){if(input[key]!==undefined&&typeof input[key]!=="boolean")throw Error("Invalid "+key);result[key]=input[key]===true;}
  const help=input.AutoHelp??false,helpMin=input.AutoHelpMin??2e9,favorites=input.HelpFavorites??"";
  if(typeof help!=="boolean"||typeof helpMin!=="number"||!Number.isFinite(helpMin)||helpMin<0||helpMin>1e33||typeof favorites!=="string"||favorites.length>1100)throw Error("Invalid help settings");
  const names=favorites.split(/[,;\s]+/).filter(Boolean);

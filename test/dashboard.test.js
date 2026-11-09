@@ -273,3 +273,11 @@ test('help favorites settings preserve drafts and never replace the Admin identi
  const command=h.sent.at(-1);assert.equal(command.options.HelpFavorites,'caylus298878, OtherAlt');assert.equal(command.options.AutoHelp,true);assert.equal(command.options.AutoHelpMin,2e9);assert.equal(command.options.AutoEggsMin,10e9);
 });
 
+test('Admin cash upgrade settings are independent and preserve the butterfly toggle',()=>{
+ const h=harness(),root=h.document.getElementById('admin-cards'),find=n=>root.querySelectorAll('button').find(b=>b.textContent===n);
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,settingsSessionId:'s',settingsRevision:1,options:{AutoTreadmill:false,AutoPapillon:true}}});
+ h.emit({type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[]}});find('Paramètres').onclick();find('Upgrades').onclick();
+ const inputs=root.querySelectorAll('input');for(const key of ['AutoPlotUpgrade','AutoTreadmillUpgrade']){const input=inputs.find(n=>n.dataset.setting===key);assert.equal(input.checked,false);input.checked=true;input.onchange();}
+ find('Enregistrer').onclick();const options=h.sent.at(-1).options;assert.equal(options.AutoPlotUpgrade,true);assert.equal(options.AutoTreadmillUpgrade,true);assert.equal(options.AutoTreadmill,false);assert.equal(options.AutoPapillon,true);
+});
+

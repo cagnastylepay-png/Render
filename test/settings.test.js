@@ -42,3 +42,9 @@ test('help favorites are separate, bounded, normalized and disabled by default',
  for(const bad of [{AutoHelp:'yes'},{AutoHelpMin:-1},{AutoHelpMin:Infinity},{HelpFavorites:['alt']},{HelpFavorites:'bad-name'},{HelpFavorites:'ab'}])assert.throws(()=>validateSettings({...options,...bad}));
 });
 
+test('cash upgrade toggles default off and accept only booleans',()=>{
+ const defaults=validateSettings(options);assert.equal(defaults.AutoPlotUpgrade,false);assert.equal(defaults.AutoTreadmillUpgrade,false);
+ const updated=validateSettings({...options,AutoPlotUpgrade:true,AutoTreadmillUpgrade:true});assert.equal(updated.AutoPlotUpgrade,true);assert.equal(updated.AutoTreadmillUpgrade,true);
+ for(const key of ['AutoPlotUpgrade','AutoTreadmillUpgrade'])assert.throws(()=>validateSettings({...options,[key]:'on'}));
+});
+
