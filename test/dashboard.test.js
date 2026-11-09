@@ -43,6 +43,18 @@ function harness(){
  return {context,document,sent:FakeSocket.current.sent,emit:message=>FakeSocket.current.onmessage({data:JSON.stringify(message)})};
 }
 
+test("LDCloud preview loads only on request, stays mounted across live updates and validates device IDs",()=>{
+ const h=harness(),host=h.document.getElementById('admin-device-screen'),input=h.document.getElementById('admin-device-id'),toggle=h.document.getElementById('admin-device-toggle');
+ assert.equal(host.children.length,0);
+ input.value='https://other.example/';toggle.onclick();assert.equal(host.children.length,0);
+ input.value='6211672';toggle.onclick();const frame=host.children[0];assert.equal(frame.tag,'iframe');
+ assert.equal(frame.src,'https://www.ldcloud.net/web/webCloudPhone?deviceId=6211672&type=my');
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:false},storage:'memory'});
+ assert.equal(host.children[0],frame);assert.equal(frame.srcWrites,1);
+ toggle.onclick();assert.equal(host.children.length,0);assert.equal(input.disabled,false);
+ assert.ok(html.indexOf('id="admin-device"')<html.indexOf('id="admin-info"'));
+});
+
 test("Admin replaces favorites with one configured account and hides diagnostics and other players",()=>{
  const h=harness(),at=new Date().toISOString(),text="[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] Vol Reussi";
  h.emit({type:"admin.state",username:"MagixSafe",storage:"mongodb",entry:{userId:"42",playerName:"MagixSafe",connected:true,placeId:"123",jobId:"home",options:{AutoEggs:true,AutoEggsMin:2e9,AutoEggsMax:1e33}}});

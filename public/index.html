@@ -36,6 +36,12 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 
 </section>
 <section id="panel-admin" role="tabpanel" aria-labelledby="tab-admin" hidden>
+<section id="admin-device" class="card">
+<h2>Écran LDCloud</h2>
+<div class="toolbar"><label>Device ID <input id="admin-device-id" type="text" inputmode="numeric" value="6211672" aria-label="LDCloud Device ID"></label><button id="admin-device-toggle">Afficher l’écran</button><a id="admin-device-link" href="https://www.ldcloud.net/web/webCloudPhone?deviceId=6211672&amp;type=my" target="_blank" rel="noopener noreferrer">Ouvrir dans LDCloud</a></div>
+<p id="admin-device-status" class="muted">Aperçu chargé à la demande. La connexion se fait directement auprès de LDCloud.</p>
+<div id="admin-device-screen"></div>
+</section>
 <p id="admin-info" class="muted">Gestion du compte admin.</p>
 <div id="admin-cards" class="admin-layout"></div>
 </section>
@@ -48,6 +54,21 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <div id="mutation-modal" role="dialog" aria-modal="true" aria-label="Ajouter une mutation" hidden style="position:fixed;inset:0;background:#000b;z-index:1000;overflow:auto;padding:6vh 5vw"></div>
 <script>
 "use strict";
+// Keep this host outside the inventory render tree so live updates never reload it.
+(()=>{
+ const input=document.getElementById("admin-device-id"),toggle=document.getElementById("admin-device-toggle"),link=document.getElementById("admin-device-link"),host=document.getElementById("admin-device-screen"),notice=document.getElementById("admin-device-status");
+ input.value="6211672";let frame=null;
+ function deviceUrl(){const id=input.value.trim();if(!/^[1-9][0-9]{0,15}$/.test(id))return null;return "https://www.ldcloud.net/web/webCloudPhone?deviceId="+id+"&type=my";}
+ input.onchange=()=>{const url=deviceUrl();if(url)link.href=url;else notice.textContent="Device ID invalide : utilise uniquement les chiffres de ton appareil.";};
+ toggle.onclick=()=>{
+  if(frame){frame.remove();frame=null;toggle.textContent="Afficher l’écran";input.disabled=false;notice.textContent="Aperçu fermé. Le téléphone continue de fonctionner dans LDCloud.";return;}
+  const url=deviceUrl();if(!url){notice.textContent="Device ID invalide : utilise uniquement les chiffres de ton appareil.";return;}
+  link.href=url;input.disabled=true;toggle.textContent="Masquer l’écran";notice.textContent="Chargement de LDCloud… Si la connexion ne fonctionne pas ici, utilise le lien externe.";
+  frame=document.createElement("iframe");frame.title="Écran du téléphone LDCloud";frame.allow="autoplay; fullscreen";frame.allowFullscreen=true;frame.referrerPolicy="strict-origin-when-cross-origin";
+  frame.style.width="100%";frame.style.height="min(720px,75vh)";frame.style.minHeight="360px";frame.style.border="0";frame.style.borderRadius="12px";frame.style.background="#000";
+  frame.src=url;host.append(frame);
+ };
+})();
 let socket,retry,stopped=false,rows=[],players=[],serverCount=0,timeOffset=0,resetAt=0;
 const cardViews=new Map(),serverViews=new Map();
 let adminEntries=[],adminStorage="memory",adminUsername="MagixSafe";
