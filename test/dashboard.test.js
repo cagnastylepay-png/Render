@@ -263,3 +263,13 @@ test('Admin mutation images remain visible after removing fishing',()=>{
  h.emit(state);find('Mutations').onclick();assert.equal(root.querySelectorAll('img')[0].src,'/eggs-native/93377699933947.png');assert.match(root.textContent,/Disponibles : 7/);
 });
 
+test('help favorites settings preserve drafts and never replace the Admin identity',()=>{
+ const h=harness(),root=h.document.getElementById('admin-cards'),find=n=>root.querySelectorAll('button').find(b=>b.textContent===n);
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{userId:'42',connected:true,settingsSessionId:'s',settingsRevision:1,options:{AutoEggsMin:10e9}}});
+ h.emit({type:'admin.inventory.state',connected:true,inventory:{sessionId:'i',revision:1,receivedAt:Date.now(),stats:{},animals:[],eggs:[]}});
+ find('Paramètres').onclick();find('Aide aux favoris').onclick();
+ const fields=root.querySelectorAll('input'),names=fields.find(n=>n.dataset.setting==='HelpFavorites'),toggle=fields.find(n=>n.dataset.setting==='AutoHelp'),minimum=fields.find(n=>n.dataset.setting==='AutoHelpMin');
+ assert.equal(toggle.checked,false);names.value='caylus298878, OtherAlt';names.oninput();toggle.checked=true;toggle.onchange();minimum.value='2B';minimum.oninput();find('Enregistrer').onclick();
+ const command=h.sent.at(-1);assert.equal(command.options.HelpFavorites,'caylus298878, OtherAlt');assert.equal(command.options.AutoHelp,true);assert.equal(command.options.AutoHelpMin,2e9);assert.equal(command.options.AutoEggsMin,10e9);
+});
+

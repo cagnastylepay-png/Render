@@ -36,3 +36,9 @@ test("settings persist latest values in Mongo and reject invalid snapshots atomi
 
 
 
+test('help favorites are separate, bounded, normalized and disabled by default',()=>{
+ const base=validateSettings(options);assert.equal(base.AutoHelp,false);assert.equal(base.AutoHelpMin,2e9);assert.equal(base.HelpFavorites,'');
+ const value=validateSettings({...options,AutoHelp:true,AutoHelpMin:3e9,HelpFavorites:'Caylus298878, other_alt; CAYLUS298878'});assert.equal(value.HelpFavorites,'Caylus298878, other_alt');assert.equal(value.AutoHelpMin,3e9);
+ for(const bad of [{AutoHelp:'yes'},{AutoHelpMin:-1},{AutoHelpMin:Infinity},{HelpFavorites:['alt']},{HelpFavorites:'bad-name'},{HelpFavorites:'ab'}])assert.throws(()=>validateSettings({...options,...bad}));
+});
+

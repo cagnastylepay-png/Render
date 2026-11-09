@@ -5,6 +5,12 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ const help=input.AutoHelp??false,helpMin=input.AutoHelpMin??2e9,favorites=input.HelpFavorites??"";
+ if(typeof help!=="boolean"||typeof helpMin!=="number"||!Number.isFinite(helpMin)||helpMin<0||helpMin>1e33||typeof favorites!=="string"||favorites.length>1100)throw Error("Invalid help settings");
+ const names=favorites.split(/[,;\s]+/).filter(Boolean);
+ if(names.length>50||names.some(name=>!(/^[A-Za-z0-9_]{3,20}$/).test(name)))throw Error("Invalid help favorites");
+ const seen=new Set();result.HelpFavorites=names.filter(name=>{const key=name.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).join(", ");
+ result.AutoHelp=help;result.AutoHelpMin=helpMin;
  if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
  result.TeleportInstantMin=input.TeleportInstantMin??50e9;
  if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");
