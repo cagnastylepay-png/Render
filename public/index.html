@@ -23,11 +23,19 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
 [hidden]{display:none!important}@media(max-width:600px){body{padding:14px}.toolbar{align-items:stretch}h1{font-size:23px}}
 .admin-layout{display:grid;gap:16px}.admin-summary{max-width:720px}.admin-settings{display:grid;gap:14px}.admin-settings .toolbar{padding:10px;background:#141c2b;border-radius:8px}.admin-settings input[type=text]{max-width:170px}.tabs [aria-pressed=true]{background:#b0fa75;color:#142410}#admin-action-status{min-height:1.4em}
+.ldcloud-panel{width:min(100%,760px);margin-top:16px;padding:8px 10px}.ldcloud-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ldcloud-controls h2{font-size:14px}.ldcloud-controls .toolbar{gap:8px}.ldcloud-controls label,.ldcloud-controls button,.ldcloud-controls a{font-size:13px}.ldcloud-controls button,.ldcloud-controls input{padding:5px 8px}.ldcloud-controls input{width:105px}.ldcloud-panel #admin-device-status{font-size:11px;margin:5px 0 0}.ldcloud-panel #admin-device-screen{position:relative;width:min(100%,720px,calc(52vh * 125 / 72));aspect-ratio:125/72;margin-top:8px;overflow:hidden;border-radius:8px;background:#000}.ldcloud-panel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 .mutation{color:#ffd269;font-size:12px;font-weight:600;margin:4px 0}.admin-layout .card>button{margin:4px 4px 0 0}</style></head>
 <body><main>
 <header><div><h1>M4GIX</h1><small>Observations des serveurs Roblox</small></div><div>Prochain créneau <strong id="global-timer" class="timer">--:--</strong></div></header>
 <p id="status" role="status">Connexion…</p>
 <div class="toolbar"><button id="connect">Reconnecter</button><span class="muted">Vert : client du script connecté · Gris : joueur observé</span></div>
+<section id="admin-device" class="card ldcloud-panel">
+<div class="ldcloud-controls">
+<h2>LDCloud</h2>
+<div class="toolbar"><label>Device <input id="admin-device-id" type="text" inputmode="numeric" value="6211672" aria-label="LDCloud Device ID"></label><button id="admin-device-toggle">Afficher l’écran</button><a id="admin-device-link" href="https://www.ldcloud.net/web/webCloudPhone?deviceId=6211672&amp;type=my" target="_blank" rel="noopener noreferrer">Ouvrir ↗</a></div></div>
+<p id="admin-device-status" class="muted">Connexion LDCloud dans l’aperçu si demandée.</p>
+<div id="admin-device-screen" hidden></div>
+</section>
 <nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
 <p id="delivery-info" class="muted">Chargement de l’admin…</p>
@@ -36,12 +44,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 
 </section>
 <section id="panel-admin" role="tabpanel" aria-labelledby="tab-admin" hidden>
-<section id="admin-device" class="card">
-<h2>Écran LDCloud</h2>
-<div class="toolbar"><label>Device ID <input id="admin-device-id" type="text" inputmode="numeric" value="6211672" aria-label="LDCloud Device ID"></label><button id="admin-device-toggle">Afficher l’écran</button><a id="admin-device-link" href="https://www.ldcloud.net/web/webCloudPhone?deviceId=6211672&amp;type=my" target="_blank" rel="noopener noreferrer">Ouvrir dans LDCloud</a></div>
-<p id="admin-device-status" class="muted">Aperçu chargé à la demande. La connexion se fait directement auprès de LDCloud.</p>
-<div id="admin-device-screen"></div>
-</section>
+
 <p id="admin-info" class="muted">Gestion du compte admin.</p>
 <div id="admin-cards" class="admin-layout"></div>
 </section>
@@ -61,11 +64,11 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
  function deviceUrl(){const id=input.value.trim();if(!/^[1-9][0-9]{0,15}$/.test(id))return null;return "https://www.ldcloud.net/web/webCloudPhone?deviceId="+id+"&type=my";}
  input.onchange=()=>{const url=deviceUrl();if(url)link.href=url;else notice.textContent="Device ID invalide : utilise uniquement les chiffres de ton appareil.";};
  toggle.onclick=()=>{
-  if(frame){frame.remove();frame=null;toggle.textContent="Afficher l’écran";input.disabled=false;notice.textContent="Aperçu fermé. Le téléphone continue de fonctionner dans LDCloud.";return;}
+  if(frame){frame.remove();frame=null;host.hidden=true;toggle.textContent="Afficher l’écran";input.disabled=false;notice.textContent="Aperçu masqué • téléphone toujours actif.";return;}
   const url=deviceUrl();if(!url){notice.textContent="Device ID invalide : utilise uniquement les chiffres de ton appareil.";return;}
-  link.href=url;input.disabled=true;toggle.textContent="Masquer l’écran";notice.textContent="Chargement de LDCloud… Si la connexion ne fonctionne pas ici, utilise le lien externe.";
+  link.href=url;input.disabled=true;toggle.textContent="Masquer l’écran";notice.textContent="Connexion LDCloud dans l’aperçu si demandée.";
   frame=document.createElement("iframe");frame.title="Écran du téléphone LDCloud";frame.allow="autoplay; fullscreen";frame.allowFullscreen=true;frame.referrerPolicy="strict-origin-when-cross-origin";
-  frame.style.width="100%";frame.style.height="min(720px,75vh)";frame.style.minHeight="360px";frame.style.border="0";frame.style.borderRadius="12px";frame.style.background="#000";
+  host.hidden=false;
   frame.src=url;host.append(frame);
  };
 })();
