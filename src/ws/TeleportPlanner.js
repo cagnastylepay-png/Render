@@ -1,4 +1,5 @@
 "use strict";
+const {allowedBiome}=require("../store/Biomes");
 // A typed destination request only: no executable code is sent to reporters.
 function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  if(!identity||!settings?.automationActive||(!settings.options?.AutoEggs&&!settings.options?.AutoIndex))return null;
@@ -21,7 +22,7 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
   const known=list.every(player=>Number.isFinite(player.speedPower)&&player.speedPower>=0);
   competition.set(key,{playerCount:list.length,strongestSpeed:known?Math.max(...list.map(player=>player.speedPower)):Infinity});
  }
- const candidates=eggs.filter(egg=>egg.placeId===identity.placeId&&egg.jobId!==identity.jobId&&!visited.has(egg.jobId)&&
+ const candidates=eggs.filter(egg=>allowedBiome(egg,options.AutoEggsMaxBiome??"All")&&egg.placeId===identity.placeId&&egg.jobId!==identity.jobId&&!visited.has(egg.jobId)&&
   competition.has(JSON.stringify([egg.placeId,egg.jobId]))&&
   !egg.carrierUserId&&egg.state!=="Carried"&&egg.state!=="Claimed"&&!egg.observationOnly&&
   Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
@@ -38,3 +39,5 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  return {target,immediate:target.incomePerSecond>=(options.TeleportInstantMin??50e9)};
 }
 module.exports={planTeleport};
+
+

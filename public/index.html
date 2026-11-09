@@ -119,6 +119,10 @@ function renderAdminSettings(){
   const favoritesLabel=el("label","Favoris à aider · pseudos séparés par des virgules");favoritesLabel.append(favorites);groups.help.append(favoritesLabel,el("p","Actif uniquement avec un favori sur le même serveur. Du minimum d’aide inclus au minimum de collecte exclu. Collecte normale et index prioritaires. Dépôt au centre de Forest, même si le favori part pendant le transport. Un œuf déjà déposé ne sera pas repris.","muted"));
   const threshold=el("input");threshold.type="text";threshold.value=fmt(settingsDraft.TeleportInstantMin??50e9);threshold.dataset.setting="TeleportInstantMin";threshold.oninput=()=>{settingsDraft.TeleportInstantMin=parseAdminAmount(threshold.value);settingsDirty=true;};
   const label=el("label","Téléportation immédiate à partir de /s");label.append(threshold);groups.movement.append(label);
+  const biomeSelect=el("select");biomeSelect.dataset.setting="AutoEggsMaxBiome";biomeSelect.setAttribute("aria-label","Biome maximum (inclus)");
+  for(const [id,name]of [["All","Tous les biomes"],["Forest","Forest"],["Lake","Lake"],["Desert","Desert"],["Jungle","Jungle"],["Snow","Snow"],["Volcano","Volcano"],["Abyss Ocean","Abyss Ocean"],["Prehistoric","Prehistoric"],["Cosmic","Cosmic"],["Cherry Blossom","Cherry Blossom"],["Titan Temple","Titan Temple"],["Light Dark","Angels & Demons"],["Enchanted Forest","Enchanted Forest"],["Alien","Aliens"]]){const option=el("option",name);option.value=id;biomeSelect.append(option);}
+  biomeSelect.value=settingsDraft.AutoEggsMaxBiome??"All";biomeSelect.onchange=()=>{settingsDraft.AutoEggsMaxBiome=biomeSelect.value;settingsDirty=true;};
+  const biomeLabel=el("label","Biome maximum (inclus)");biomeLabel.append(biomeSelect);groups.eggs.append(biomeLabel,el("p","Limite aussi les manquants. Les biomes précédents restent autorisés ; les collectes manuelles restent libres.","muted"));
   settingsDraft.AutoMutations??=false;
   const global=el("input");global.type="checkbox";global.checked=settingsDraft.AutoMutations;global.dataset.setting="AutoMutations";global.onchange=()=>{settingsDraft.AutoMutations=global.checked;settingsDirty=true;};const globalLabel=el("label","Activer AutoMutations");globalLabel.append(global);groups.mutations.append(globalLabel,el("p","Œufs placés avec un revenu strictement supérieur au minimum /s. Maximum d’essais par œuf et par mutation, conservé lors des téléportations. Arrêt dès réussite ; aucune relance après un résultat incertain.","muted"));
   for(const [id,name]of Object.entries(mutationNames)){
@@ -142,7 +146,7 @@ function renderAdminSettings(){
   };
   reset.onclick=()=>{settingsDirty=false;settingsForm=null;renderAdmin();};settingsForm.append(save,reset);
  }
- for(const input of settingsForm.querySelectorAll("input"))input.disabled=!adminCanAct();
+ for(const input of [...settingsForm.querySelectorAll("input"),...settingsForm.querySelectorAll("select")])input.disabled=!adminCanAct();
  for(const button of settingsForm.querySelectorAll("button"))button.disabled=!adminCanAct();
  return settingsForm;
 }
