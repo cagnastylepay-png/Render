@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
 const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
-const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set']);
+const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateInventory(m){
  if(m.version!==1||typeof m.sessionId!=='string'||!m.sessionId||m.sessionId.length>100||!Number.isSafeInteger(m.revision)||m.revision<1)throw Error('Invalid admin inventory');
@@ -32,7 +32,8 @@ function validateInventory(m){
  // Register only after validating the whole snapshot, so rejected messages cannot extend the image allowlist.
  for(const r of [...images,...eggs,...animals])registerGameImageIds(r);
  for(const r of eggs)r.imageUrl=getEggImage(r);for(const r of animals)r.imageUrl=getAnimalImage(r);
- return {sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
+ if(m.fishingEnabled!=null&&typeof m.fishingEnabled!=='boolean')throw Error('Invalid fishing status');
+ return {fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
@@ -50,7 +51,7 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    if(pending){if(pending.clientRequestId===m.clientRequestId){send(viewer,{version:1,type:'admin.command.ack',requestId:pending.requestId});return;}throw Error('Une action Admin est déjà en cours');}
    const admin=adminSocket();if(!admin)throw Error('Admin.lua déconnecté');
    let payload={};
-   if(m.action==='automation.set'){
+   if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
    }else if(m.action==='settings.update'){
     const saved=settings.get(admin.reporterIdentity.userId);if(!saved||m.settingsRevision!==saved.revision||m.settingsSessionId!==saved.sessionId)throw Error('Paramètres modifiés : recharge les valeurs');
@@ -84,3 +85,4 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
  };
 }
 module.exports={createAdminPanel,validateInventory};
+
