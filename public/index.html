@@ -221,7 +221,7 @@ function renderAdmin(){
  const stats=el("div",null,"metrics");
  for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
  summary.append(adminButton(row?.automationEnabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer","automation.set",{enabled:!row?.automationEnabled},inventory?.fishingEnabled===true));
- const fishing=adminButton(inventory?.fishingEnabled?"AutoFishing : ON — revenir à AUTO":"AutoFishing : OFF — démarrer","fishing.set",{enabled:!inventory?.fishingEnabled},typeof inventory?.fishingEnabled!=="boolean");summary.append(fishing);
+ const fishing=adminButton(inventory?.fishingEnabled?"AutoFishing : ON — arrêter":"AutoFishing : OFF — démarrer","fishing.set",{enabled:!inventory?.fishingEnabled},typeof inventory?.fishingEnabled!=="boolean");summary.append(fishing);
  summary.append(el("p","Actions manuelles possibles avec AUTO actif · le vol et les œufs éligibles restent prioritaires.","muted"));
  if(inventory?.automationStatus)summary.append(el("p",inventory.automationStatus,"muted"));
  if(inventory?.stats?.offlineDurationSeconds!=null)summary.append(el("small","Hors ligne : calcul du jeu, durée "+fmt(inventory.stats.offlineDurationSeconds)+" s × coefficient "+inventory.stats.offlineRateMultiplier));
