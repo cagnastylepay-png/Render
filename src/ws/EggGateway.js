@@ -2,6 +2,7 @@
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
 const { planTeleport } = require("./TeleportPlanner");
+const { planObserverSpread } = require("./ObserverSpread");
 const { createClientSettings } = require("../store/ClientSettings");
 const { createClientLogs } = require("../store/ClientLogs");
 const { createAdminPanel } = require("./AdminPanel");
@@ -75,13 +76,22 @@ function attachEggGateway(server, store, players, history, {
     ws.teleportSignature = signature;
     send(ws, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: Date.now(), target: plan?.target || null, immediate: plan?.immediate || false });
   }
+  function distributeObservers(){
+    const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
+    for(const [ws,target] of planObserverSpread(clients)){
+      const signature=JSON.stringify(target);
+      if(ws.spreadSignature===signature)continue;
+      ws.spreadSignature=signature;
+      send(ws,{version:1,type:"observer.spread",target});
+    }
+  }
   function broadcast() {
     if (broadcastTimer || closed) return;
     broadcastTimer = setTimeout(() => {
       broadcastTimer = undefined;
       const eggs = store.state(), presence = players.state();
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, eggs); send(ws, presence); }
-      broadcastAdmin(); deliverTargets(); deliverTeleport();
+      broadcastAdmin(); deliverTargets(); deliverTeleport(); distributeObservers();
     }, 200);
     broadcastTimer.unref();
   }
@@ -190,6 +200,7 @@ function attachEggGateway(server, store, players, history, {
   });
   const heartbeat = setInterval(() => {
     for (const ws of wss.clients) { if (!ws.alive) { ws.terminate(); continue; } ws.alive = false; ws.ping(); }
+    distributeObservers();
     if (store.prune() || players.prune()) broadcast();
   },15000); heartbeat.unref();
   return {
