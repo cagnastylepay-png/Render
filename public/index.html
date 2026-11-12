@@ -141,6 +141,11 @@ function renderAdminSettings(){
   groups.upgrades.append(el("p","Achats avec l’argent du jeu, un niveau à la fois. Le prochain achat attend la confirmation du précédent. Priorité aux vols.","muted"));
   const favorites=el("input");favorites.type="text";favorites.value=settingsDraft.HelpFavorites;favorites.dataset.setting="HelpFavorites";favorites.setAttribute("aria-label","Favoris à aider");favorites.placeholder="caylus298878, autre_pseudo";favorites.oninput=()=>{settingsDraft.HelpFavorites=favorites.value;settingsDirty=true;};
   const favoritesLabel=el("label","Favoris à aider · pseudos séparés par des virgules");favoritesLabel.append(favorites);groups.help.append(favoritesLabel,el("p","Actif uniquement avec un favori sur le même serveur. Du minimum d’aide inclus au minimum de collecte exclu. Collecte normale et index prioritaires. Dépôt au centre de Forest, même si le favori part pendant le transport. Un œuf déjà déposé ne sera pas repris.","muted"));
+  const idleMode=el("select");idleMode.dataset.setting="IdleMode";idleMode.setAttribute("aria-label","Activité en attente");
+  for(const [value,text]of [["Treadmill","Tapis"],["Fishing","Pêche au lagon"]]){const option=el("option",text);option.value=value;idleMode.append(option);}
+  idleMode.value=settingsDraft.IdleMode??"Treadmill";
+  idleMode.onchange=()=>{settingsDraft.IdleMode=idleMode.value;settingsDirty=true;};
+  const idleLabel=el("label","Activité en attente");idleLabel.append(idleMode);groups.movement.append(idleLabel,el("p","Pêche : rejoint le Ferryman, entre au lagon et reprend la position enregistrée. Les œufs éligibles restent prioritaires et déclenchent une téléportation, même vers le serveur courant.","muted"));
   const threshold=el("input");threshold.type="text";threshold.value=fmt(settingsDraft.TeleportInstantMin??50e9);threshold.dataset.setting="TeleportInstantMin";threshold.oninput=()=>{settingsDraft.TeleportInstantMin=parseAdminAmount(threshold.value);settingsDirty=true;};
   const label=el("label","Téléportation immédiate à partir de /s");label.append(threshold);groups.movement.append(label);
   const biomeSelect=el("select");biomeSelect.dataset.setting="AutoEggsMaxBiome";biomeSelect.setAttribute("aria-label","Biome maximum (inclus)");

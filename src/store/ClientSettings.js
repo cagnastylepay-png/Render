@@ -6,6 +6,9 @@ const ranges=["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"];
 function validateSettings(input){
  if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid client settings");
  const result={};
+ const idleMode=input.IdleMode??"Treadmill";
+ if(!["Treadmill","Fishing"].includes(idleMode))throw Error("Invalid idle mode");
+ result.IdleMode=idleMode;
  const maximum=input.AutoEggsMaxBiome===undefined?"All":input.AutoEggsMaxBiome;
  if(!validMaxBiome(maximum))throw Error("Invalid maximum biome");
  result.AutoEggsMaxBiome=maximum;
@@ -59,6 +62,7 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
  return {
   accept(identity,message){
    if(message.version!==1||typeof message.sessionId!=="string"||!message.sessionId.length||message.sessionId.length>100||!Number.isSafeInteger(message.revision)||message.revision<1)throw Error("Invalid settings snapshot");
+   if(message.fishingActive!==undefined&&typeof message.fishingActive!=="boolean")throw Error("Invalid fishing activity");
    if(message.automationActive!==undefined&&typeof message.automationActive!=="boolean")throw Error("Invalid automation status");
    if(message.automationEnabled!==undefined&&typeof message.automationEnabled!=="boolean")throw Error("Invalid automation mode");
    if(message.automationReason!==undefined&&(typeof message.automationReason!=="string"||message.automationReason.length>240))throw Error("Invalid automation reason");
@@ -67,7 +71,7 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
    if(!missing||typeof missing!=="object"||Array.isArray(missing)||Object.keys(missing).length>5000||Object.entries(missing).some(([key,value])=>!key.length||key.length>160||value!==true))throw Error("Invalid missing index");
    const options=validateSettings(message.options),old=rows.get(identity.userId);
    if(old?.sessionId===message.sessionId&&old.revision>=message.revision)return false;
-   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),automationActive:message.automationActive===true,automationEnabled:message.automationEnabled??message.automationActive===true,automationReason:message.automationReason||null,visitedJobIds:[...new Set(message.visitedJobIds||[])],missingCategories:{...missing},options};
+   const row={userId:identity.userId,playerName:identity.name,placeId:identity.placeId,jobId:identity.jobId,sessionId:message.sessionId,revision:message.revision,at:new Date().toISOString(),fishingActive:message.fishingActive===true,automationActive:message.automationActive===true,automationEnabled:message.automationEnabled??message.automationActive===true,automationReason:message.automationReason||null,visitedJobIds:[...new Set(message.visitedJobIds||[])],missingCategories:{...missing},options};
    rows.set(row.userId,row);pending.set(row.userId,row);schedule();return true;
   },
   get:userId=>rows.get(userId),
