@@ -4,6 +4,24 @@ const {validateSettings}=require('../store/ClientSettings');
 const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
 const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
+function validateFishingCapture(value){
+ if(value==null)return null;
+ const frame=v=>{
+  if(!Array.isArray(v)||v.length!==12||v.some(n=>typeof n!=='number'||!Number.isFinite(n)||Math.abs(n)>1e9))throw Error('Invalid fishing CFrame');
+  return [...v];
+ };
+ const name=v=>{if(typeof v!=='string'||v.length>160)throw Error('Invalid fishing identifier');return v;};
+ if(typeof value!=='object'||!Number.isSafeInteger(value.capturedAt)||value.capturedAt<0||typeof value.inAlienLagoon!=='boolean'||typeof value.fieldOfView!=='number'||!Number.isFinite(value.fieldOfView)||value.fieldOfView<1||value.fieldOfView>120)throw Error('Invalid fishing capture');
+ let rod=null;
+ if(value.rod!=null){
+  const attributes=value.rod.attributes;
+  if(!attributes||typeof attributes!=='object'||Array.isArray(attributes)||Object.keys(attributes).length>64)throw Error('Invalid fishing rod');
+  const entries=Object.entries(attributes);
+  if(entries.some(([key,v])=>key.length>100||!(typeof v==='boolean'||typeof v==='string'&&v.length<=500||typeof v==='number'&&Number.isFinite(v))))throw Error('Invalid fishing rod attributes');
+  rod={name:name(value.rod.name),displayName:name(value.rod.displayName),attributes:Object.fromEntries(entries)};
+ }
+ return {capturedAt:value.capturedAt,placeId:name(value.placeId),jobId:name(value.jobId),inAlienLagoon:value.inAlienLagoon,characterCFrame:frame(value.characterCFrame),cameraCFrame:frame(value.cameraCFrame),cameraFocus:frame(value.cameraFocus),fieldOfView:value.fieldOfView,cameraType:name(value.cameraType),rod};
+}
 function validateInventory(m){
  if(m.version!==1||typeof m.sessionId!=='string'||!m.sessionId||m.sessionId.length>100||!Number.isSafeInteger(m.revision)||m.revision<1)throw Error('Invalid admin inventory');
  const metric=v=>v==null?null:typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1e100?v:(()=>{throw Error('Invalid metric');})();
@@ -28,12 +46,13 @@ function validateInventory(m){
  if(m.automationStatus!=null&&(typeof m.automationStatus!=='string'||m.automationStatus.length>500))throw Error('Invalid automation status');
  const imageCatalog=m.imageCatalog??[];if(!Array.isArray(imageCatalog)||imageCatalog.length>5000)throw Error('Invalid image catalog');
  const images=imageCatalog.map(r=>{if(!r||typeof r.category!=='string'||!r.category||r.category.length>160||typeof r.name!=='string'||r.name.length>160)throw Error('Invalid image catalog entry');return {category:r.category,name:r.name,eggImageAssetId:imageId(r.eggImageAssetId),animalImageAssetId:imageId(r.animalImageAssetId)};});
+ const fishingCapture=validateFishingCapture(m.fishingCapture);
  const eggs=list(m.eggs,'egg'),animals=list(m.animals,'animal');
  // Register only after validating the whole snapshot, so rejected messages cannot extend the image allowlist.
  for(const r of [...images,...eggs,...animals])registerGameImageIds(r);
  for(const r of eggs)r.imageUrl=getEggImage(r);for(const r of animals)r.imageUrl=getAnimalImage(r);
  if(m.fishingEnabled!=null&&typeof m.fishingEnabled!=='boolean')throw Error('Invalid fishing status');
- return {fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
+ return {fishingCapture,fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
