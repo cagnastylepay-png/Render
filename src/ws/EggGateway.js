@@ -3,6 +3,7 @@ const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID, timingSafeEqual } = require("node:crypto");
 const { planTeleport } = require("./TeleportPlanner");
 const { planObserverSpread } = require("./ObserverSpread");
+const { createObserverServers } = require("./ObserverServers");
 const { createClientSettings } = require("../store/ClientSettings");
 const { createClientLogs } = require("../store/ClientLogs");
 const { createAdminPanel } = require("./AdminPanel");
@@ -76,14 +77,41 @@ function attachEggGateway(server, store, players, history, {
     ws.teleportSignature = signature;
     send(ws, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: Date.now(), target: plan?.target || null, immediate: plan?.immediate || false });
   }
-  function distributeObservers(){
-    const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
-    for(const [ws,target] of planObserverSpread(clients)){
-      const signature=JSON.stringify(target);
-      if(ws.spreadSignature===signature)continue;
-      ws.spreadSignature=signature;
-      send(ws,{version:1,type:"observer.spread",target});
-    }
+  const observerServers=createObserverServers();
+  let spreading=false;
+  async function distributeObservers(){
+    if(spreading||closed)return;
+    spreading=true;
+    try{
+      const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
+      const plans=planObserverSpread(clients);
+      for(const [ws,group]of plans){
+        let target=null;
+        if(group){
+          const identity=ws.reporterIdentity;
+          let destination=ws.spreadDestination;
+          if(!destination||destination.until<=Date.now()||destination.fromJobId!==group.jobId){
+            if(Date.now()>=(ws.spreadNextSearchAt||0)){
+              ws.spreadNextSearchAt=Date.now()+30000;
+              const occupied=new Set(clients.filter(c=>c.clientKind==="observer"&&c.reporterIdentity?.placeId===identity.placeId).map(c=>c.reporterIdentity.jobId));
+              try{
+                destination=await observerServers.choose(identity,occupied);
+                ws.spreadDestination=destination?{...destination,fromJobId:group.jobId}:null;
+              }catch{destination=null;}
+            }else destination=null;
+          }
+          if(destination&&destination.until>Date.now()){
+            const occupied=[...wss.clients].some(c=>c.readyState===WebSocket.OPEN&&c.clientKind==="observer"&&c.reporterIdentity?.placeId===group.placeId&&c.reporterIdentity.jobId===destination.jobId);
+            if(!occupied)target={...group,destinationJobId:destination.jobId};
+          }
+        }else ws.spreadDestination=null;
+        if(closed||ws.readyState!==WebSocket.OPEN||ws.superseded)continue;
+        const signature=JSON.stringify(target);
+        if(ws.spreadSignature===signature)continue;
+        ws.spreadSignature=signature;
+        send(ws,{version:1,type:"observer.spread",target});
+      }
+    }finally{spreading=false;}
   }
   function broadcast() {
     if (broadcastTimer || closed) return;
