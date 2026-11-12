@@ -222,6 +222,16 @@ function renderAdmin(){
  for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
  summary.append(adminButton(row?.automationEnabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer","automation.set",{enabled:!row?.automationEnabled},inventory?.fishingEnabled===true));
  const fishing=adminButton(inventory?.fishingEnabled?"AutoFishing : ON — arrêter":"AutoFishing : OFF — démarrer","fishing.set",{enabled:!inventory?.fishingEnabled},typeof inventory?.fishingEnabled!=="boolean");summary.append(fishing);
+ if(inventory?.fishingCapture){
+  const capture=inventory.fishingCapture;
+  const details=el("details");details.append(el("summary","Position de pêche enregistrée"));
+  details.append(el("p",(capture.inAlienLagoon?"Lagon Alien":"Hors du lagon")+" · "+new Date(capture.capturedAt*1000).toLocaleString()+" · Canne "+(capture.rod?.displayName||"non identifiée")));
+  const data=JSON.stringify(capture,null,2);
+  const pre=el("pre",data);pre.style.whiteSpace="pre-wrap";pre.style.overflowWrap="anywhere";details.append(pre);
+  const download=el("button","Télécharger la position de pêche");
+  download.onclick=()=>{const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));const link=document.createElement("a");link.href=url;link.download="m4gix-fishing-position.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+  details.append(download);summary.append(details);
+ }
  summary.append(el("p","Actions manuelles possibles avec AUTO actif · le vol et les œufs éligibles restent prioritaires.","muted"));
  if(inventory?.automationStatus)summary.append(el("p",inventory.automationStatus,"muted"));
  if(inventory?.stats?.offlineDurationSeconds!=null)summary.append(el("small","Hors ligne : calcul du jeu, durée "+fmt(inventory.stats.offlineDurationSeconds)+" s × coefficient "+inventory.stats.offlineRateMultiplier));
