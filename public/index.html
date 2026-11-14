@@ -97,7 +97,7 @@ function rosterFor(egg){
 let adminLastResult=null;
 let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminEggLocation="plot",adminAnimalLocation="plot",adminWaiting=false;
 let settingsDraft=null,settingsBase=null,settingsDirty=false,settingsForm=null,settingsTab="eggs",adminTickNodes=[];
-const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral",Musical:"Musical",Alien:"Abducted",DarkMatter:"Dark Matter"};
+const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral",Musical:"Musical",Alien:"Abducted",DarkMatter:"Dark Matter",Blacklisted:"Blacklisted",Copper:"Copper",Thunderous:"Thunderous",GreatBloom:"Spirit Bloom"};
 function mutationLabel(m){return m.name+" · x"+m.count+" · "+(m.successPercent==null?"Chance inconnue":m.successPercent+" %")+" · "+(m.multiplier==null?"Multiplicateur inconnu":"×"+m.multiplier);}
 function openMutationModal(uid){
  const modal=document.getElementById("mutation-modal");modal.replaceChildren();modal.hidden=false;
@@ -156,7 +156,9 @@ function renderAdminSettings(){
   const global=el("input");global.type="checkbox";global.checked=settingsDraft.AutoMutations;global.dataset.setting="AutoMutations";global.onchange=()=>{settingsDraft.AutoMutations=global.checked;settingsDirty=true;};const globalLabel=el("label","Activer AutoMutations");globalLabel.append(global);groups.mutations.append(globalLabel,el("p","Œufs placés avec un revenu strictement supérieur au minimum /s. Maximum d’essais par œuf et par mutation, conservé lors des téléportations. Arrêt dès réussite ; aucune relance après un résultat incertain.","muted"));
   for(const [id,name]of Object.entries(mutationNames)){
    const prefix="Mutation"+id;settingsDraft[prefix+"Enabled"]??=false;settingsDraft[prefix+"Min"]??=0;settingsDraft[prefix+"Attempts"]??=1;
-   const section=el("div",null,"card"),m=adminInventory.inventory?.mutationConsumables?.find(m=>m.id===id);section.append(el("h2",name),el("p",m?mutationLabel(m):"Métadonnées en attente","muted"));
+   const section=el("div",null,"card"),m=adminInventory.inventory?.mutationConsumables?.find(m=>m.id===id);section.append(el("h2",name));
+   if(m?.imageUrl){const image=el("img");image.src=m.imageUrl;image.alt=name;image.width=48;image.height=48;image.style.objectFit="contain";section.append(image);}
+   section.append(el("p",m?mutationLabel(m):"Métadonnées en attente","muted"));
    for(const [suffix,label,type]of [["Enabled","Activer","checkbox"],["Min","Revenu minimum /s","text"],["Attempts","Essais maximum (1–100)","number"]]){
     const key=prefix+suffix,input=el("input");input.type=type;input.dataset.setting=key;input.setAttribute("aria-label",name+" "+label);
     if(type==="checkbox"){input.checked=settingsDraft[key];input.onchange=()=>{settingsDraft[key]=input.checked;settingsDirty=true;};}

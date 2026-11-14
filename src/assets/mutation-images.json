@@ -30,5 +30,21 @@
   "DarkMatter": {
     "name": "Dark Matter",
     "icon": "93377699933947"
+  },
+  "Blacklisted": {
+    "name": "Blacklisted",
+    "icon": "110752639580758"
+  },
+  "Copper": {
+    "name": "Copper",
+    "icon": "82510121806850"
+  },
+  "Thunderous": {
+    "name": "Thunderous",
+    "icon": "83094668121358"
+  },
+  "GreatBloom": {
+    "name": "Spirit Bloom",
+    "icon": "70859376044018"
   }
 }
