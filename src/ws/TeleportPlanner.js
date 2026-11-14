@@ -4,7 +4,7 @@ const {allowedBiome}=require("../store/Biomes");
 function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
  if(!identity||!settings?.automationActive||(!settings.options?.AutoEggs&&!settings.options?.AutoIndex))return null;
  const options=settings.options;
- const fishing=settings.fishingActive===true&&options.IdleMode==="Fishing";
+ const fishing=settings.fishingActive===true&&(options.AutoCosmicEclipse===true||options.IdleMode==="Fishing");
  const visited=new Set(settings.visitedJobIds||[]);
  const servers=new Map();
  for(const player of players){
