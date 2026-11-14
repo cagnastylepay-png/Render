@@ -123,14 +123,89 @@ function parseAdminAmount(text){
  const match=String(text).trim().replace(",",".").match(/^(\d+(?:\.\d+)?)([a-z]*)$/i);
  if(!match)return NaN;const tier=suffixes.findIndex(x=>x.toLowerCase()===match[2].toLowerCase());return tier<0?NaN:Number(match[1])*1000**tier;
 }
+function notificationSettings(section){
+ const choices={flightSuccess:"Vol réussi",flightFailure:"Vol échoué",butterflies:"Papillons démarrés",
+  skyfall:"Skyfall démarré",cosmic:"Cosmic Eclipse démarrée",slickRick:"Slick Rick est présent"};
+ const inputs={};
+ const activate=el("button","Activer les notifications");
+ const save=el("button","Enregistrer les alertes");
+ const disable=el("button","Désactiver sur cet appareil");
+ const status=el("p","Choisis les alertes à recevoir sur cet appareil.","muted");
+ section.append(activate);
+ for(const [type,name]of Object.entries(choices)){
+  const label=el("label",name),input=el("input");
+  input.type="checkbox";inputs[type]=input;
+  label.append(input);section.append(label);
+ }
+ section.append(save,disable,status);
+ let registration,subscription,configured=false;
+ let endpoint;
+ async function api(body){
+  const response=await fetch("/notifications",body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
+  const result=await response.json();
+  if(!response.ok)throw Error(result.error||"Notifications indisponibles.");
+  return result;
+ }
+ function refresh(){save.disabled=!configured;disable.disabled=!subscription;activate.disabled=configured||!endpoint;}
+ function preferences(){return Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input.checked]));}
+ const supported="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+ refresh();
+ async function initialize(){
+  if(!supported){status.textContent="Ouvre le tableau dans Chrome sur Android pour activer les alertes.";return;}
+  registration=await navigator.serviceWorker.register("/notifications-worker.js");
+  registration=await navigator.serviceWorker.ready;
+  endpoint=(await api()).publicKey;
+  if(!endpoint){status.textContent="Notifications indisponibles sur ce serveur.";return;}
+  subscription=await registration.pushManager.getSubscription();
+  if(subscription){
+   const {preferences}=await api({read:true,subscription});
+   configured=preferences!==null;
+   if(configured){
+    for(const [key,input]of Object.entries(inputs))input.checked=preferences[key]===true;
+    status.textContent="Notifications actives sur cet appareil.";
+   }
+  }
+ }
+ function action(fn){
+  return async()=>{
+   activate.disabled=save.disabled=disable.disabled=true;
+   try{await fn();}catch(error){status.textContent=error.message;}finally{refresh();}
+  };
+ }
+ activate.onclick=action(async()=>{
+  if(await Notification.requestPermission()!=="granted")throw Error("Autorise les notifications dans Chrome.");
+  const key=Uint8Array.from(atob(endpoint.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+  if(subscription){
+   const current=new Uint8Array(subscription.options.applicationServerKey||[]);
+   if(current.length!==key.length||current.some((byte,i)=>byte!==key[i])){
+    await api({remove:true,subscription});await subscription.unsubscribe();subscription=null;
+   }
+  }
+  subscription??=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  await api({subscription,preferences:preferences()});
+  configured=true;status.textContent="Notifications actives sur cet appareil.";
+ });
+ save.onclick=action(async()=>{
+  await api({subscription,preferences:preferences()});
+  status.textContent="Alertes enregistrées.";
+ });
+ disable.onclick=action(async()=>{
+  await api({remove:true,subscription});
+  await subscription.unsubscribe();
+  subscription=null;configured=false;status.textContent="Notifications désactivées sur cet appareil.";
+ });
+ let initialized=false;
+ return ()=>{if(!initialized){initialized=true;void initialize().catch(error=>{status.textContent=error.message;}).finally(refresh);}};
+}
 function renderAdminSettings(){
  const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.settingsRevision,row?.options]);
  if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
  if(!settingsForm||!settingsDirty&&signature!==settingsBase){
   settingsBase=signature;settingsDraft={AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
   const tabs=el("nav",null,"tabs"),groups={};
-  const selectGroup=()=>{for(const [id,panel]of Object.entries(groups))panel.hidden=id!==settingsTab;for(const b of tabs.children)b.setAttribute("aria-pressed",String(b.dataset.group===settingsTab));};
-  for(const [id,label]of [["eggs","Collecte"],["movement","Déplacement"],["sell","Vente"],["fuse","Fusion"],["open","Ouverture"],["place","Placement"],["mutations","AutoMutations"],["help","Aide aux favoris"],["upgrades","Upgrades"]]){const button=el("button",label);button.dataset.group=id;button.onclick=()=>{settingsTab=id;selectGroup();};tabs.append(button);groups[id]=el("section");}settingsForm.append(tabs);
+  let openNotifications;
+  const selectGroup=()=>{save.hidden=reset.hidden=settingsTab==="notifications";if(settingsTab==="notifications")openNotifications?.();for(const [id,panel]of Object.entries(groups))panel.hidden=id!==settingsTab;for(const b of tabs.children)b.setAttribute("aria-pressed",String(b.dataset.group===settingsTab));};
+  for(const [id,label]of [["eggs","Collecte"],["movement","Déplacement"],["sell","Vente"],["fuse","Fusion"],["open","Ouverture"],["place","Placement"],["mutations","AutoMutations"],["help","Aide aux favoris"],["upgrades","Upgrades"],["notifications","Notifications"]]){const button=el("button",label);button.dataset.group=id;button.onclick=()=>{settingsTab=id;selectGroup();};tabs.append(button);groups[id]=el("section");}settingsForm.append(tabs);
   const notice=el("p","Valeurs par seconde : nombres ou suffixes K, M, B, T…","muted");settingsForm.append(notice);
   for(const [key,label]of [["AutoPlotUpgrade","Amélioration automatique du plot"],["AutoTreadmillUpgrade","Amélioration automatique du tapis"],["AutoHelp","Aide aux favoris"],["AutoEggs","AutoEggs"],["AutoIndex","Index manquant"],["AutoTreadmill","Tapis"],["AutoPapillon","Papillons"],["AutoSkyfall","Skyfall"],["AutoCosmicEclipse","Cosmic Eclipse"],["AutoSell","Vente automatique des œufs"],["AutoSellAnimals","Vente automatique des animaux · backpack uniquement"],["AutoFuse","Fusion automatique"],["AutoOpen","Ouverture automatique"],["AutoPlace","Placement automatique"],["QueueNearest","File : plus proche d’abord"]]){
    const line=el("div",null,"toolbar"),toggle=el("input");toggle.type="checkbox";toggle.checked=settingsDraft[key]===true;toggle.dataset.setting=key;
@@ -161,7 +236,9 @@ function renderAdminSettings(){
     const l=el("label",label);l.append(input);section.append(l);
    }groups.mutations.append(section);
   }
-  for(const panel of Object.values(groups))settingsForm.append(panel);selectGroup();
+  groups.notifications.dataset.notificationSettings="";
+  openNotifications=notificationSettings(groups.notifications);
+  for(const panel of Object.values(groups))settingsForm.append(panel);
   const save=el("button","Enregistrer"),reset=el("button","Recharger les valeurs du jeu");
   save.onclick=()=>{
    if(settingsBase!==JSON.stringify([adminEntries[0]?.settingsSessionId,adminEntries[0]?.settingsRevision,adminEntries[0]?.options])){setText(document.getElementById("admin-action-status"),"Les paramètres ont changé : recharge les valeurs avant d’enregistrer.");return;}
@@ -170,10 +247,10 @@ function renderAdminSettings(){
    for(const id of Object.keys(mutationNames)){const p="Mutation"+id;if(!Number.isFinite(settingsDraft[p+"Min"])||settingsDraft[p+"Min"]<0||settingsDraft[p+"Min"]>1e33||!Number.isSafeInteger(settingsDraft[p+"Attempts"])||settingsDraft[p+"Attempts"]<1||settingsDraft[p+"Attempts"]>100){setText(document.getElementById("admin-action-status"),"Paramètres de mutation invalides : "+id);return;}}
    adminCommand("settings.update",{options:settingsDraft});
   };
-  reset.onclick=()=>{settingsDirty=false;settingsForm=null;renderAdmin();};settingsForm.append(save,reset);
+  reset.onclick=()=>{settingsDirty=false;settingsForm=null;renderAdmin();};settingsForm.append(save,reset);selectGroup();
  }
- for(const input of [...settingsForm.querySelectorAll("input"),...settingsForm.querySelectorAll("select")])input.disabled=!adminCanAct();
- for(const button of settingsForm.querySelectorAll("button"))button.disabled=!adminCanAct();
+ for(const input of [...settingsForm.querySelectorAll("input"),...settingsForm.querySelectorAll("select")])if(!input.closest("[data-notification-settings]"))input.disabled=!adminCanAct();
+ for(const button of settingsForm.querySelectorAll("button"))if(!button.closest("[data-notification-settings]"))button.disabled=!adminCanAct();
  return settingsForm;
 }
 function adminItemCard(item,kind){

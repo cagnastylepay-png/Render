@@ -4,17 +4,25 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { mountAutoSAE } = require("./src");
+const {createNotifications}=require("./src/Notifications");
 const { createDashboardAuth } = require("./src/DashboardAuth");
 const {createAnimalThumbnails}=require('./src/assets/AnimalThumbnails');
 
 function createServer(options = {}) {
   const dashboardAuth = options.dashboardAuth === false ? null : createDashboardAuth(options.dashboardAuth);
+  const notifications=createNotifications(dashboardAuth);
   const animalImages=createAnimalThumbnails(options.animalImages);
   const server = http.createServer((req, res) => {
     const route = (req.url || "/").split("?")[0];
     if (route === "/health" && (req.method === "GET" || req.method === "HEAD")) {
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
       res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok", reporting: "ready", dashboardAuthentication: dashboardAuth?.configured === true }));
+      return;
+    }
+    if(route==="/notifications"){void notifications.request(req,res);return;}
+    if(route==="/notifications-worker.js"&&req.method==="GET"){
+      res.writeHead(200,{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"no-cache"});
+      fs.createReadStream(path.join(__dirname,"public","notifications-worker.js")).pipe(res);
       return;
     }
     if (dashboardAuth && dashboardAuth.handle(req, res)) return;
@@ -57,8 +65,8 @@ function createServer(options = {}) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end(req.method === "HEAD" ? undefined : "Not found");
   });
-  const service = mountAutoSAE(server, { ...options, gateway: { ...options.gateway, dashboardAuth } });
-  server.on("close", () => service.close());
+  const service = mountAutoSAE(server, { ...options, gateway: { ...options.gateway, dashboardAuth, notifications } });
+  server.on("close", () => { void service.close();void notifications.close(); });
   server.autoSAE = service;
   return server;
 }

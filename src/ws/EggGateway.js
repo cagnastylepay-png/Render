@@ -14,7 +14,7 @@ function sameToken(provided, expected) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 function attachEggGateway(server, store, players, history, {
-  reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", dashboardAuth = null,
+  reportToken = process.env.SAE_REPORT_TOKEN || "", viewerToken = process.env.SAE_VIEW_TOKEN || "", dashboardAuth = null, notifications = null,
   adminUsername = process.env.ADMIN_USERNAME ?? "MagixSafe", logs: logOptions = {}, settings: settingsOptions = {}
 } = {}) {
   const username = String(adminUsername).trim();
@@ -195,12 +195,28 @@ function attachEggGateway(server, store, players, history, {
           send(ws, { version: 1, type: "settings.ack", sessionId: message.sessionId, revision: message.revision, accepted });
           if (accepted) { ws.settingsSessionId = message.sessionId; broadcastAdmin(); broadcast(); } return;
         }
+        if(message.type==="events.snapshot"){
+          if(!isAdmin(ws)||message.version!==1)return;
+          const now=Date.now()/1000;
+          for(const type of ["butterflies","skyfall","cosmic","slickRick"]){
+            const event=message.events?.[type];
+            if(!Number.isFinite(event?.until)||event.until<=now||event.until>now+86400)continue;
+            const id=String(event.id??Math.round(event.until/5));
+            void notifications?.emit(type,ws.reporterIdentity.jobId+":"+id,"Événement détecté dans le serveur de "+ws.reporterIdentity.name+".");
+          }
+          return;
+        }
         if (message.type === "logs.append") {
           if (!ws.reporterIdentity) throw Error("Player identity required before logs");
           if (message.version !== 1 || typeof message.sessionId !== "string" || message.sessionId.length > 100 || !Array.isArray(message.lines) || message.lines.length > 100 || message.lines.some(line => !Number.isSafeInteger(line.sequence) || line.sequence < 1 || typeof line.text !== "string" || !line.text.length || line.text.length > 4096)) throw Error("Invalid logs batch");
           const accepted = isAdmin(ws), lines = accepted ? message.lines.filter(line => flightResult(line.text)) : [];
           const entries = lines.length ? logs.append(ws.reporterIdentity, { ...message, lines }) : [];
           send(ws, { version: 1, type: "logs.ack", sessionId: message.sessionId, sequence: Math.max(0, ...message.lines.map(line => line.sequence)), accepted });
+          for(const row of entries){
+            const body=row.text.replace(/^\[Auto_SAE\]\[\d+\]\[[^\]]+\]\[FLIGHT_RESULT\]\[[^\]]*\]\s*/,"");
+            const result=body.match(/ (Reussi|Echouee|Echoue)(?:, \{| \|)/);
+            if(result)void notifications?.emit(result[1]==="Reussi"?"flightSuccess":"flightFailure",row.id,body.slice(0,220));
+          }
           if (entries.length) for (const viewer of wss.clients) if (viewer.role === "viewer") send(viewer, { version: 1, type: "logs.append", entries });
           return;
         }
