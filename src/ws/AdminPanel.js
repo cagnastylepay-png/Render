@@ -52,7 +52,8 @@ function validateInventory(m){
  for(const r of [...images,...eggs,...animals])registerGameImageIds(r);
  for(const r of eggs)r.imageUrl=getEggImage(r);for(const r of animals)r.imageUrl=getAnimalImage(r);
  if(m.fishingEnabled!=null&&typeof m.fishingEnabled!=='boolean')throw Error('Invalid fishing status');
- return {fishingCapture,fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
+ if(m.automationEnabled!=null&&typeof m.automationEnabled!=='boolean')throw Error('Invalid automation mode');
+ return {automationEnabled:m.automationEnabled??null,fishingCapture,fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
@@ -73,7 +74,10 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
    }else if(m.action==='settings.update'){
-    const saved=settings.get(admin.reporterIdentity.userId);if(!saved||m.settingsRevision!==saved.revision||m.settingsSessionId!==saved.sessionId)throw Error('Paramètres modifiés : recharge les valeurs');
+    const saved=settings.get(admin.reporterIdentity.userId);
+    const baseMatches=m.baseOptions===undefined ? m.settingsRevision===saved?.revision
+     : JSON.stringify(validateSettings(m.baseOptions))===JSON.stringify(saved?.options);
+    if(!saved||saved.sessionId!==admin.settingsSessionId||m.settingsSessionId!==saved.sessionId||!baseMatches)throw Error('Paramètres modifiés : recharge les valeurs');
     payload={options:validateSettings(m.options),settingsRevision:saved.revision};
    }else{
     if(!inventory||inventory.connectionId!==admin.connectionId||now()-inventory.receivedAt>30000||m.inventoryRevision!==inventory.revision||m.inventorySessionId!==inventory.sessionId)throw Error('Inventaire périmé : attends sa mise à jour');
