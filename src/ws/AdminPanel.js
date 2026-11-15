@@ -75,10 +75,11 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
    }else if(m.action==='settings.update'){
     const saved=settings.get(admin.reporterIdentity.userId);
-    const baseMatches=m.baseOptions===undefined ? m.settingsRevision===saved?.revision
-     : JSON.stringify(validateSettings(m.baseOptions))===JSON.stringify(saved?.options);
-    if(!saved||saved.sessionId!==admin.settingsSessionId||m.settingsSessionId!==saved.sessionId||!baseMatches)throw Error('Paramètres modifiés : recharge les valeurs');
-    payload={options:validateSettings(m.options),settingsRevision:saved.revision};
+    if(!saved||m.settingsSessionId!==saved.sessionId)throw Error('Session des paramètres modifiée : recharge les valeurs');
+    const baseMatches=m.baseOptions===undefined ? m.settingsRevision===saved.revision
+     : JSON.stringify(validateSettings(m.baseOptions))===JSON.stringify(validateSettings(saved.options));
+    if(!baseMatches)throw Error('Valeurs des paramètres modifiées : recharge les valeurs');
+    payload={options:validateSettings(m.options),settingsRevision:saved.revision,settingsSessionId:saved.sessionId};
    }else{
     if(!inventory||inventory.connectionId!==admin.connectionId||now()-inventory.receivedAt>30000||m.inventoryRevision!==inventory.revision||m.inventorySessionId!==inventory.sessionId)throw Error('Inventaire périmé : attends sa mise à jour');
     if(!['equip.best','images.collect'].includes(m.action)){
