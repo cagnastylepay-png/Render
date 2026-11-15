@@ -7,6 +7,7 @@ const { createObserverServers } = require("./ObserverServers");
 const { createClientSettings } = require("../store/ClientSettings");
 const { createClientLogs } = require("../store/ClientLogs");
 const { createAdminPanel } = require("./AdminPanel");
+const { attachLJRPC, path: ljrpcPath } = require("./LJRPCGateway");
 const flightResult = text => typeof text === "string" && /^\[Auto_SAE\]\[\d+\]\[[^\]]+\]\[FLIGHT_RESULT\]\[/.test(text);
 function sameToken(provided, expected) {
   if (!expected) return true;
@@ -125,7 +126,9 @@ function attachEggGateway(server, store, players, history, {
   }
   const unsubscribeSettings = settings.onReady(broadcastAdmin);
   const unsubscribeLogs = logs.onReady(() => { for (const ws of wss.clients) if (ws.role === "viewer") send(ws, logsState()); });
+  const ljrpc = attachLJRPC(server);
   function upgrade(req, socket, head) {
+    if (req.url === ljrpcPath) return;
     if ((req.url || "").split("?")[0] !== "/sae/ws" || wss.clients.size >= 200) { socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
   }
@@ -251,7 +254,7 @@ function attachEggGateway(server, store, players, history, {
     info: () => ({ executionConfigured: false, adminUsername: username, clients: wss.clients.size, reportAuthentication: Boolean(reportToken), viewerAuthentication: Boolean(viewerToken || dashboardAuth?.configured), logsStorage: logs.state().storage, logsLimit: logs.state().limit }),
     async close() {
       if (closed) return; closed = true; panel.close(); unsubscribeSettings(); unsubscribeLogs(); clearInterval(heartbeat); clearTimeout(broadcastTimer);
-      server.removeListener("upgrade",upgrade); for (const ws of wss.clients) ws.terminate(); wss.close(); await Promise.all([logs.close(),settings.close()]);
+      server.removeListener("upgrade",upgrade); for (const ws of wss.clients) ws.terminate(); wss.close(); await Promise.all([logs.close(),settings.close(),ljrpc.close()]);
     }
   };
 }
