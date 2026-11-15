@@ -110,12 +110,14 @@ function openMutationModal(uid){
 }
 const selectedAnimals=new Set();
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
+function adminCanConfigure(){return Boolean(adminEntries[0]?.connected&&!adminInventory.pending&&!adminWaiting);}
 function adminCommand(action,payload={}){
- if(!socket||socket.readyState!==WebSocket.OPEN||!adminCanAct())return;
+ const configuration=action==="automation.set"||action==="settings.update";
+ if(!socket||socket.readyState!==WebSocket.OPEN||!(configuration?adminCanConfigure():adminCanAct()))return;
  const inventory=adminInventory.inventory,row=adminEntries[0];
  adminWaiting=true;
  socket.send(JSON.stringify({version:1,type:"admin.command",clientRequestId:Date.now().toString(36)+Math.random().toString(36).slice(2),action,
-  inventoryRevision:inventory.revision,inventorySessionId:inventory.sessionId,settingsRevision:row?.settingsRevision,settingsSessionId:row?.settingsSessionId,...payload}));
+  inventoryRevision:inventory?.revision,inventorySessionId:inventory?.sessionId,settingsRevision:row?.settingsRevision,settingsSessionId:row?.settingsSessionId,...payload}));
  renderAdmin();
 }
 function adminButton(label,action,payload={},disabled=false){const b=el("button",label);b.disabled=disabled||!adminCanAct();b.onclick=()=>adminCommand(action,payload);return b;}
@@ -198,7 +200,7 @@ function notificationSettings(section){
  return ()=>{if(!initialized){initialized=true;void initialize().catch(error=>{status.textContent=error.message;}).finally(refresh);}};
 }
 function renderAdminSettings(){
- const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.settingsRevision,row?.options]);
+ const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.options]);
  if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
  if(!settingsForm||!settingsDirty&&signature!==settingsBase){
   settingsBase=signature;settingsDraft={AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
@@ -240,17 +242,17 @@ function renderAdminSettings(){
   openNotifications=notificationSettings(groups.notifications);
   for(const panel of Object.values(groups))settingsForm.append(panel);
   const save=el("button","Enregistrer"),reset=el("button","Recharger les valeurs du jeu");
+ save.dataset.saveSettings="";
   save.onclick=()=>{
-   if(settingsBase!==JSON.stringify([adminEntries[0]?.settingsSessionId,adminEntries[0]?.settingsRevision,adminEntries[0]?.options])){setText(document.getElementById("admin-action-status"),"Les paramètres ont changé : recharge les valeurs avant d’enregistrer.");return;}
+   if(settingsBase!==JSON.stringify([adminEntries[0]?.settingsSessionId,adminEntries[0]?.options])){setText(document.getElementById("admin-action-status"),"Les paramètres ont changé : recharge les valeurs avant d’enregistrer.");return;}
    for(const key of Object.keys(settingsDraft)){if(typeof settingsDraft[key]==="number"&&(!Number.isFinite(settingsDraft[key])||settingsDraft[key]<0||settingsDraft[key]>1e33)){setText(document.getElementById("admin-action-status"),"Valeur invalide : "+key);return;}}
    for(const key of ["AutoEggs","AutoSell","AutoSellAnimals","AutoFuse","AutoOpen","AutoPlace"]){if(settingsDraft[key+"Min"]>settingsDraft[key+"Max"]){setText(document.getElementById("admin-action-status"),"Le minimum dépasse le maximum : "+key);return;}}
    for(const id of Object.keys(mutationNames)){const p="Mutation"+id;if(!Number.isFinite(settingsDraft[p+"Min"])||settingsDraft[p+"Min"]<0||settingsDraft[p+"Min"]>1e33||!Number.isSafeInteger(settingsDraft[p+"Attempts"])||settingsDraft[p+"Attempts"]<1||settingsDraft[p+"Attempts"]>100){setText(document.getElementById("admin-action-status"),"Paramètres de mutation invalides : "+id);return;}}
-   adminCommand("settings.update",{options:settingsDraft});
+   adminCommand("settings.update",{options:settingsDraft,baseOptions:adminEntries[0].options});
   };
   reset.onclick=()=>{settingsDirty=false;settingsForm=null;renderAdmin();};settingsForm.append(save,reset);selectGroup();
  }
- for(const input of [...settingsForm.querySelectorAll("input"),...settingsForm.querySelectorAll("select")])if(!input.closest("[data-notification-settings]"))input.disabled=!adminCanAct();
- for(const button of settingsForm.querySelectorAll("button"))if(!button.closest("[data-notification-settings]"))button.disabled=!adminCanAct();
+ settingsForm.querySelector("[data-save-settings]").disabled=!adminCanConfigure();
  return settingsForm;
 }
 function adminItemCard(item,kind){
@@ -299,7 +301,11 @@ function renderAdmin(){
  const summary=el("article",null,"card admin-summary");summary.append(el("h2",adminUsername),el("p",row?.connected?"● Connecté":"○ Déconnecté"));
  const stats=el("div",null,"metrics");
  for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
- summary.append(adminButton(row?.automationEnabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer","automation.set",{enabled:!row?.automationEnabled}));
+ const enabled=(adminInventory.connected?inventory?.automationEnabled:null)??row?.automationEnabled;
+ const autoButton=el("button",enabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer");
+ autoButton.disabled=!adminCanConfigure();
+ autoButton.onclick=()=>adminCommand("automation.set",{enabled:!enabled});
+ summary.append(autoButton);
  if(inventory?.fishingCapture){
   const capture=inventory.fishingCapture;
   const details=el("details");details.append(el("summary","Position de pêche enregistrée"));
