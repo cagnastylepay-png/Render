@@ -302,10 +302,15 @@ function renderAdmin(){
  const stats=el("div",null,"metrics");
  for(const [key,label,suffix]of [["speedPower","Vitesse",""],["money","Argent",""],["incomePerSecond","Revenu /s","/s"],["offlinePerDay","Revenu /jour hors ligne","/jour"]]){const metric=el("div",null,"metric");metric.append(el("small",label),el("strong",fmt(inventory?.stats?.[key])+suffix));stats.append(metric);}summary.append(stats);
  const enabled=(adminInventory.connected?inventory?.automationEnabled:null)??row?.automationEnabled;
- const autoButton=el("button",enabled?"AUTO : ON — arrêter":"AUTO : OFF — démarrer");
- autoButton.disabled=!adminCanConfigure();
- autoButton.onclick=()=>adminCommand("automation.set",{enabled:!enabled});
- summary.append(autoButton);
+ const autoControls=el("div",null,"toolbar");
+ autoControls.append(el("span",enabled===true?"AUTO : ON":enabled===false?"AUTO : OFF":"AUTO : état en attente"));
+ for(const [label,target] of [["Démarrer AUTO",true],["Arrêter AUTO",false]]){
+  const button=el("button",label);
+  button.disabled=!adminCanConfigure();
+  button.onclick=()=>adminCommand("automation.set",{enabled:target});
+  autoControls.append(button);
+ }
+ summary.append(autoControls);
  if(inventory?.fishingCapture){
   const capture=inventory.fishingCapture;
   const details=el("details");details.append(el("summary","Position de pêche enregistrée"));
