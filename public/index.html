@@ -109,10 +109,11 @@ function openMutationModal(uid){
  const close=el("button","Fermer");close.onclick=()=>{modal.hidden=true;};panel.append(list,close);modal.append(panel);
 }
 const selectedAnimals=new Set();
+let lastTrajectory=null,liveTrajectory=null;
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
 function adminCanConfigure(){return Boolean(adminEntries[0]?.connected&&!adminInventory.pending&&!adminWaiting);}
 function adminCommand(action,payload={}){
- const configuration=action==="automation.set"||action==="settings.update";
+ const configuration=action==="automation.set"||action==="settings.update"||action.startsWith("trajectory.");
  if(!socket||socket.readyState!==WebSocket.OPEN||!(configuration?adminCanConfigure():adminCanAct()))return;
  const inventory=adminInventory.inventory,row=adminEntries[0];
  adminWaiting=true;
@@ -311,6 +312,26 @@ function renderAdmin(){
   autoControls.append(button);
  }
  summary.append(autoControls);
+ const trajectoryControls=el("div",null,"toolbar");
+ for(const [label,action] of [["Enregistrer un trajet","trajectory.start"],["Arrêter et récupérer","trajectory.stop"]]){
+  const button=el("button",label);button.disabled=!adminCanConfigure();
+  button.onclick=()=>adminCommand(action);trajectoryControls.append(button);
+ }
+ if(lastTrajectory){
+  const download=el("button","Télécharger le trajet JSON");
+  download.onclick=()=>{
+   const url=URL.createObjectURL(new Blob([JSON.stringify(lastTrajectory,null,2)],{type:"application/json"}));
+   const link=document.createElement("a");link.href=url;link.download="m4gix-trajet-"+lastTrajectory.startedAt+".json";link.click();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  trajectoryControls.append(download,el("small",lastTrajectory.samples.length+" points · "+(lastTrajectory.durationMs/1000).toFixed(1)+" s"));
+ }
+ summary.append(trajectoryControls);
+ if(liveTrajectory&&liveTrajectory.startedAt!==lastTrajectory?.startedAt){
+  const sample=liveTrajectory.sample;
+  summary.append(el("p",sample.t+" ms · Position "+sample.p.join(", ")+" · Plus grand pas "+liveTrajectory.maxStep+" studs · "+(sample.carrying?"Œuf porté":"Sans œuf"),"muted"));
+  if(liveTrajectory.events.length)summary.append(el("pre",liveTrajectory.events.map(e=>e.t+" ms · "+e.kind+" "+JSON.stringify(e.value??"")).join("\n")));
+ }
  if(inventory?.fishingCapture){
   const capture=inventory.fishingCapture;
   const details=el("details");details.append(el("summary","Position de pêche enregistrée"));
@@ -551,6 +572,10 @@ function connect(){
     adminInventory=message;adminWaiting=false;
     if(message.result&&message.result.requestId!==adminLastResult){adminLastResult=message.result.requestId;if(message.result.action==="settings.update"&&message.result.status==="confirmed"){settingsDirty=false;settingsForm=null;}}
     renderAdmin();
+   }else if(message.type==="admin.trajectory.progress"){
+    const events=liveTrajectory?.startedAt===message.startedAt?liveTrajectory.events:[];
+    liveTrajectory={...message,events:[...events,...message.events].slice(-12)};renderAdmin();
+   }else if(message.type==="admin.trajectory"){lastTrajectory=message.trajectory;renderAdmin();
    }else if(message.type==="admin.command.result"){adminWaiting=false;adminInventory.result=message;renderAdmin();}
    else if(message.type==="admin.command.ack"){adminWaiting=false;}
    else if(message.type==="eggs.state"){
