@@ -63,8 +63,10 @@ function attachLJRPC(server, { luaToken = process.env.LJRPC_LUA_TOKEN, clientTok
         return ws.close(1008, "Invalid RPC envelope");
       if (role === "lua") {
         if (!pending || pending.id !== message.id) return;
-        if (Object.hasOwn(message, "result") === Object.hasOwn(message, "error") ||
-            (message.error && (!Number.isInteger(message.error.code) || typeof message.error.message !== "string")))
+        const hasResult = Object.hasOwn(message, "result");
+        const hasError = Object.hasOwn(message, "error");
+        if (hasResult === hasError ||
+            (hasError && (!message.error || !Number.isInteger(message.error.code) || typeof message.error.message !== "string")))
           return ws.close(1008, "Invalid RPC response");
         finish();
         return send(peers.client, message);
