@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
 const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
-const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set']);
+const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set','trajectory.start','trajectory.stop']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateFishingCapture(value){
  if(value==null)return null;
@@ -73,6 +73,8 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    let payload={};
    if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
+   }else if(m.action==='trajectory.start'||m.action==='trajectory.stop'){
+    // Movement diagnostics do not depend on inventory.
    }else if(m.action==='settings.update'){
     const saved=settings.get(admin.reporterIdentity.userId);
     if(!saved||m.settingsSessionId!==saved.sessionId)throw Error('Session des paramètres modifiée : recharge les valeurs');
@@ -100,11 +102,20 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
      }
     }
    }
-   const requestId=randomUUID();pending={requestId,clientRequestId:m.clientRequestId,connectionId:admin.connectionId,action:m.action,timer:setTimeout(()=>finish('unknown','Délai dépassé : résultat inconnu, aucune relance automatique.'),120000)};pending.timer.unref();
+   const requestId=randomUUID();pending={requestId,clientRequestId:m.clientRequestId,connectionId:admin.connectionId,viewer,action:m.action,timer:setTimeout(()=>finish('unknown','Délai dépassé : résultat inconnu, aucune relance automatique.'),120000)};pending.timer.unref();
    send(admin,{version:1,type:'admin.command',requestId,action:m.action,...payload});send(viewer,{version:1,type:'admin.command.ack',requestId});broadcast();
   },
   result(ws,m){if(!pending||pending.connectionId!==ws.connectionId||pending.requestId!==m.requestId)return false;
-   if(!['confirmed','rejected','unknown'].includes(m.status)||typeof m.message!=='string'||m.message.length>500)throw Error('Invalid admin result');finish(m.status,m.message);onChange();return true;},
+   if(!['confirmed','rejected','unknown'].includes(m.status)||typeof m.message!=='string'||m.message.length>500)throw Error('Invalid admin result');const viewer=pending.viewer;
+   const trace=pending.action==='trajectory.stop'&&m.status==='confirmed';
+   const trajectory=trace?m.trajectory:null;
+   if(trace&&(!trajectory||trajectory.version!==1||!Array.isArray(trajectory.samples)||trajectory.samples.length>1500||
+       !Array.isArray(trajectory.events)||trajectory.events.length>300||JSON.stringify(trajectory).length>600000)){
+     finish('rejected','Capture invalide ou trop volumineuse.');return false;
+   }
+   finish(m.status,m.message);
+   if(trajectory)send(viewer,{version:1,type:'admin.trajectory',trajectory});
+   onChange();return true;},
   close(){if(pending)clearTimeout(pending.timer);}
  };
 }
