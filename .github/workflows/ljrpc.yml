@@ -1,0 +1,26 @@
+name: LJRPC relay
+on:
+  push:
+    paths:
+      - 'src/ws/LJRPCGateway.js'
+      - 'test/ljrpc.test.js'
+      - '.github/workflows/ljrpc.yml'
+      - 'package*.json'
+  pull_request:
+    paths:
+      - 'src/ws/LJRPCGateway.js'
+      - 'test/ljrpc.test.js'
+      - '.github/workflows/ljrpc.yml'
+      - 'package*.json'
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: node --test test/ljrpc.test.js
