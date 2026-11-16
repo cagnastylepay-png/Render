@@ -164,6 +164,24 @@ function attachEggGateway(server, store, players, history, {
           if(ws.role!=='viewer')throw Error('Only dashboard viewers may control Admin');panel.command(ws,message);return;
         }
         if (message.type === "delivery.configure") throw Error("Favorite management removed; ADMIN_USERNAME configures the admin");
+        if (message.type === "egg.steal") {
+          if (ws.role !== "viewer") throw Error("Only dashboard viewers may request an egg");
+          if ([message.placeId, message.jobId, message.uid].some(value => typeof value !== "string" || !value || value.length > 128)) throw Error("Invalid egg destination");
+          const now = Date.now();
+          const egg = store.state().eggs.find(row => row.placeId === message.placeId && row.jobId === message.jobId &&
+            row.uid === message.uid && row.expiresAt > now && !row.observationOnly && !row.carrierUserId &&
+            (row.state === "Slot" || row.state === "Dropped"));
+          const client = adminSocket();
+          if (!egg || !client || client.reporterIdentity.placeId !== message.placeId) {
+            send(ws, { version: 1, type: "egg.steal.ack", count: 0, reason: !egg ? "Œuf indisponible ou expiré." : "Admin indisponible." });
+            return;
+          }
+          client.manualTeleportUntil = Math.min(egg.expiresAt, now + 60000);
+          send(client, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: now,
+            target: { ...egg, expiresAt: client.manualTeleportUntil }, immediate: true, force: true, manualSteal: true });
+          send(ws, { version: 1, type: "egg.steal.ack", count: 1, name: egg.name });
+          return;
+        }
         if (message.type === "teleport.manual") {
           if (ws.role !== "viewer") throw Error("Only dashboard viewers may force a teleport");
           if (typeof message.placeId !== "string" || typeof message.jobId !== "string" || !message.jobId || message.jobId.length > 128) throw Error("Invalid destination");
