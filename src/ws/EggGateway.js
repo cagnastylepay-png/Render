@@ -205,6 +205,11 @@ function attachEggGateway(server, store, players, history, {
           return;
         }
         if (ws.role !== "reporter") throw Error("Viewer is read-only");
+        if(message.type==='admin.trajectory.progress'){
+          if(!isAdmin(ws)||message.version!==1||raw.length>32000||!Array.isArray(message.events)||!Array.isArray(message.sample?.p))return;
+          for(const viewer of wss.clients)if(viewer.role==='viewer')send(viewer,message);
+          return;
+        }
         if(message.type==='admin.inventory.snapshot'||message.type==='admin.command.result'){
           if(!isAdmin(ws))throw Error('Only configured Admin.lua may report admin data');
           if(message.type==='admin.command.result'){panel.result(ws,message);return;}
