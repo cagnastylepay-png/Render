@@ -12,7 +12,7 @@ function validateSettings(input){
  const maximum=input.AutoEggsMaxBiome===undefined?"All":input.AutoEggsMaxBiome;
  if(!validMaxBiome(maximum))throw Error("Invalid maximum biome");
  result.AutoEggsMaxBiome=maximum;
- for(const key of ["AutoPlotUpgrade","AutoTreadmillUpgrade","AutoSkyfall","AutoCosmicEclipse","AutoSlickRick","AutoStormRush"]){if(input[key]!==undefined&&typeof input[key]!=="boolean")throw Error("Invalid "+key);result[key]=input[key]===true;}
+ for(const key of ["AutoPlotUpgrade","AutoTreadmillUpgrade","AutoSkyfall","AutoStormGlass","AutoCosmicEclipse","AutoSlickRick","AutoStormRush"]){if(input[key]!==undefined&&typeof input[key]!=="boolean")throw Error("Invalid "+key);result[key]=input[key]===true;}
  const help=input.AutoHelp??false,helpMin=input.AutoHelpMin??2e9,favorites=input.HelpFavorites??"";
  if(typeof help!=="boolean"||typeof helpMin!=="number"||!Number.isFinite(helpMin)||helpMin<0||helpMin>1e33||typeof favorites!=="string"||favorites.length>1100)throw Error("Invalid help settings");
  const names=favorites.split(/[,;\s]+/).filter(Boolean);
