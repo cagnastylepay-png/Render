@@ -360,10 +360,22 @@ function setMutation(view,item){
  const names=[...new Set([item.baseMutation,...(Array.isArray(item.mutations)?item.mutations:[])].filter(v=>typeof v==="string"&&v.trim()&&!/^(normal|none|default)$/i.test(v)).map(v=>v.trim()))];
  setText(view.mutation,names.join(" · "));view.mutation.hidden=names.length===0;
 }
-function createCard(){
+function createCard(stealable=false){
  const node=el("article",null,"card"),head=el("div",null,"card-head"),heading=el("div"),rarity=el("div",null,"rarity"),name=el("h2");
  const mutation=el("div",null,"mutation");mutation.hidden=true;heading.append(rarity,mutation,name);
- head.append(heading);node.append(head);
+ head.append(heading);
+ const steal=stealable?el("button","STEAL"):null;
+ if(steal){
+  steal.type="button";
+  steal.onclick=()=>{
+   const egg=view.egg;
+   if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour envoyer STEAL.");return;}
+   socket.send(JSON.stringify({version:1,type:"egg.steal",placeId:egg.placeId,jobId:egg.jobId,uid:egg.uid}));
+   setText(status,"STEAL demandé pour "+egg.name+"…");
+  };
+  head.append(steal);
+ }
+ node.append(head);
  const art=el("div",null,"egg-art"),placeholder=el("span","🥚"),image=el("img");image.loading="eager";image.hidden=true;
  image.onload=()=>{placeholder.hidden=true;image.hidden=false;};image.onerror=()=>{image.hidden=true;placeholder.hidden=false;};
  art.append(placeholder,image);node.append(art);
@@ -374,7 +386,8 @@ function createCard(){
  values.expires.className="timer";node.append(metrics);
  const roster=el("details",null,"players"),rosterSummary=el("summary","Joueurs (0)"),rosterList=el("div",null,"roster");roster.append(rosterSummary,rosterList);node.append(roster);
  const details=el("details"),detailsSummary=el("summary","Tous les détails"),detailsBody=el("pre");details.append(detailsSummary,detailsBody);node.append(details);
- return {node,art,metrics,rarity,mutation,name,image,placeholder,values,roster,rosterSummary,rosterList,rosterSignature:null,details,detailsBody,imageUrl:null};
+ const view={node,art,metrics,rarity,mutation,name,image,placeholder,values,roster,rosterSummary,rosterList,rosterSignature:null,details,detailsBody,imageUrl:null,steal};
+ return view;
 }
 function updateRoster(view,egg){
  const known=rosterFor(egg),signature=JSON.stringify([known,[...adminUsers].sort(),deliveryReady]);
@@ -391,6 +404,8 @@ function updateRoster(view,egg){
  if(!known.length)view.rosterList.append(el("small","Roster en attente."));
 }
 function updateCard(view,egg){
+ view.egg=egg;
+ if(view.steal){view.steal.disabled=!egg.uid;view.steal.setAttribute("aria-label","STEAL · "+egg.name);}
  view.node.dataset.rarity=egg.rarity;
  setText(view.rarity,egg.rarity);setText(view.name,egg.name);
  setMutation(view,egg);
@@ -475,7 +490,7 @@ function renderCards(){
   group.eggs.forEach((egg,eggIndex)=>{
    const key=egg.key||JSON.stringify([egg.placeId,egg.jobId,egg.uid]);eggKeys.add(key);
    let eggView=server.eggs.get(key);
-   if(!eggView){eggView=createCard();server.eggs.set(key,eggView);}
+   if(!eggView){eggView=createCard(true);server.eggs.set(key,eggView);}
    updateCard(eggView,egg);cardViews.set("egg/"+key,eggView);
    if(server.list.children[eggIndex]!==eggView.node)server.list.insertBefore(eggView.node,server.list.children[eggIndex]||null);
   });
@@ -529,6 +544,7 @@ function connect(){
   try{
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
+   if(message.type==="egg.steal.ack"){setText(status,message.count?"STEAL transmis à Admin pour "+message.name+".":message.reason);}
    if(message.type==="teleport.manual.ack"){setText(status,message.count?"GO envoyé à l’admin connecté.":"Admin indisponible ou déjà sur ce serveur.");}
    else if(message.type==="admin.state"){adminUsername=message.username;adminEntries=[message.entry];adminStorage=message.storage;adminUsers=new Set(message.entry.userId?[message.entry.userId]:[]);deliveryReady=true;setText(document.getElementById("delivery-info"),"Admin : "+adminUsername+" · "+(message.entry.connected?"Connecté":"Déconnecté"));renderAdmin();renderCards();renderLogs();}
    else if(message.type==="admin.inventory.state"){
