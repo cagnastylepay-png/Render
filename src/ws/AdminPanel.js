@@ -80,7 +80,7 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
      if(mode==='walk'){
       if(!positive(m.walkSpeed))throw Error('Vitesse Walk positive requise');payload.walkSpeed=m.walkSpeed;
      }else if(mode==='tween'){
-      if(!positive(m.tweenDuration))throw Error('Durée Tween positive requise');payload.tweenDuration=m.tweenDuration;
+      if(!positive(m.tweenSpeed))throw Error('Vitesse Tween positive requise');payload.tweenSpeed=m.tweenSpeed;
      }else if(mode==='teleport'){
       if(!positive(m.stepStuds)||!Number.isSafeInteger(m.intervalMs)||m.intervalMs<1)throw Error('Distance positive et intervalle entier positif requis');
       payload.stepStuds=m.stepStuds;payload.intervalMs=m.intervalMs;

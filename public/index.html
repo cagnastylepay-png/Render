@@ -44,7 +44,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 </div>
 <div class="toolbar" style="margin-bottom:16px">
 <label><input id="movement-test-tween" type="checkbox"> Tween</label>
-<label>Durée Tween (s) <input id="movement-test-duration" type="number" min="0.01" step="0.1" value="2" style="width:120px" disabled></label>
+<label>Vitesse Tween (studs/s) <input id="movement-test-duration" type="number" min="0.01" step="1" value="200" style="width:120px" disabled></label>
 </div>
 <div class="toolbar">
 <label><input id="movement-test-teleport" type="checkbox" checked> Téléportation</label>
@@ -637,7 +637,7 @@ for(const name of ["servers","logs","admin","test"])document.getElementById("tab
 document.getElementById("movement-test-studs").value="2";
 document.getElementById("movement-test-interval").value="80";
 document.getElementById("movement-test-speed").value="16";
-document.getElementById("movement-test-duration").value="2";
+document.getElementById("movement-test-duration").value="200";
 let movementTestMode="teleport";
 function selectMovementTestMode(mode){
  movementTestMode=mode;
@@ -655,7 +655,7 @@ function sendMovementTest(action){
  if(movementTestMode==="walk"){
   payload.walkSpeed=Number(document.getElementById("movement-test-speed").value);valid=positive(payload.walkSpeed);
  }else if(movementTestMode==="tween"){
-  payload.tweenDuration=Number(document.getElementById("movement-test-duration").value);valid=positive(payload.tweenDuration);
+  payload.tweenSpeed=Number(document.getElementById("movement-test-duration").value);valid=positive(payload.tweenSpeed);
  }else{
   payload.stepStuds=Number(document.getElementById("movement-test-studs").value);
   payload.intervalMs=Number(document.getElementById("movement-test-interval").value);

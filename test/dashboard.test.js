@@ -42,7 +42,7 @@ test('Walk, Tween and Teleport checkboxes are exclusive and send their own value
  h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
  field('tween').onchange();field('duration').value='4';
  assert.equal(field('walk').checked,false);assert.equal(field('tween').checked,true);
- field('apply').onclick();assert.equal(h.sent.at(-1).mode,'tween');assert.equal(h.sent.at(-1).tweenDuration,4);
+ field('apply').onclick();assert.equal(h.sent.at(-1).mode,'tween');assert.equal(h.sent.at(-1).tweenSpeed,4);
  h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
  field('teleport').onchange();assert.equal(field('studs').disabled,false);assert.equal(field('tween').checked,false);
  field('start').onclick();assert.equal(h.sent.at(-1).mode,'teleport');assert.equal(h.sent.at(-1).stepStuds,2);
