@@ -36,8 +36,19 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <p id="admin-device-status" class="muted">Connexion LDCloud dans l’aperçu si demandée.</p>
 <div id="admin-device-screen" hidden></div>
 </section>
-<div class="toolbar"><nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav><button id="movement-test-start" disabled>Start Test</button><button id="movement-test-stop" disabled>Stop Test</button></div>
+<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button><button id="tab-test" role="tab" aria-selected="false" aria-controls="panel-test">Test</button></nav>
+<section id="panel-test" role="tabpanel" aria-labelledby="tab-test" hidden>
+<div class="toolbar">
+<label>Distance par saut (studs) <input id="movement-test-studs" type="number" min="0.01" step="0.1" value="2" style="width:120px"></label>
+<label>Intervalle (ms) <input id="movement-test-interval" type="number" min="1" step="1" value="80" style="width:120px"></label>
+</div>
+<div class="toolbar" style="margin-top:16px">
+<button id="movement-test-start" disabled>Start</button><button id="movement-test-stop" disabled>Stop</button><button id="movement-test-apply" disabled>Envoyer les valeurs</button>
+</div>
+<p class="muted">Vers l’œuf le plus éloigné du serveur courant. Les valeurs peuvent être appliquées pendant le trajet.</p>
+<p id="movement-test-result" class="muted" role="status" hidden></p>
 <p id="movement-test-status" class="muted" role="status" hidden></p>
+</section>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
 <p id="delivery-info" class="muted">Chargement de l’admin…</p>
 <p class="muted">Une carte par serveur · GO téléporte immédiatement l’admin connecté vers ce serveur.</p>
@@ -296,10 +307,10 @@ function tickAdmin(){
  }
 }
 function renderAdmin(){
- for(const id of ["movement-test-start","movement-test-stop"])document.getElementById(id).disabled=!adminCanConfigure();
+ for(const id of ["movement-test-start","movement-test-stop","movement-test-apply"])document.getElementById(id).disabled=!adminCanConfigure();
  const testStatus=document.getElementById("movement-test-status"),testResult=adminInventory.result;
  if(testResult?.action?.startsWith("movement.test.")){
-  testStatus.hidden=false;setText(testStatus,testResult.message);
+  const result=document.getElementById("movement-test-result");result.hidden=false;setText(result,testResult.message);
  }
  const testNotice=adminInventory.inventory?.automationStatus;
  if(testNotice?.includes("Test ·")){
@@ -611,11 +622,23 @@ function connect(){
  };current.onerror=()=>{};
 }
 function switchPanel(name){
- for(const tab of ["servers","logs","admin"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+ for(const tab of ["servers","logs","admin","test"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
-for(const name of ["servers","logs","admin"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
-document.getElementById("movement-test-start").onclick=()=>adminCommand("movement.test.start");
+for(const name of ["servers","logs","admin","test"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
+document.getElementById("movement-test-studs").value="2";
+document.getElementById("movement-test-interval").value="80";
+function sendMovementTest(action){
+ const stepStuds=Number(document.getElementById("movement-test-studs").value);
+ const intervalMs=Number(document.getElementById("movement-test-interval").value);
+ if(!Number.isFinite(stepStuds)||stepStuds<=0||!Number.isSafeInteger(intervalMs)||intervalMs<1){
+  const status=document.getElementById("movement-test-result");status.hidden=false;
+  setText(status,"Indique une distance positive et un intervalle entier d’au moins 1 ms.");return;
+ }
+ adminCommand(action,{stepStuds,intervalMs});
+}
+document.getElementById("movement-test-start").onclick=()=>sendMovementTest("movement.test.start");
 document.getElementById("movement-test-stop").onclick=()=>adminCommand("movement.test.stop");
+document.getElementById("movement-test-apply").onclick=()=>sendMovementTest("movement.test.update");
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();connect();
 </script></body></html>

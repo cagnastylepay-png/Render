@@ -12,6 +12,25 @@ test('movement test buttons send separate start and stop commands without invent
  h.emit({type:'admin.command.result',action:'movement.test.start',status:'confirmed',message:'Test démarré'});
  stop.onclick();assert.equal(h.sent.at(-1).action,'movement.test.stop');
 });
+
+test('Test tab preserves edited movement values and sends them on start and live update',()=>{
+ const h=harness();
+ h.document.getElementById('tab-test').onclick();
+ assert.equal(h.document.getElementById('panel-test').hidden,false);
+ const studs=h.document.getElementById('movement-test-studs'),interval=h.document.getElementById('movement-test-interval');
+ assert.equal(studs.value,'2');assert.equal(interval.value,'80');
+ studs.value='4.5';interval.value='35';
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
+ assert.equal(studs.value,'4.5');assert.equal(interval.value,'35');
+ h.document.getElementById('movement-test-start').onclick();
+ assert.equal(h.sent.at(-1).stepStuds,4.5);assert.equal(h.sent.at(-1).intervalMs,35);
+ h.emit({type:'admin.command.result',action:'movement.test.start',status:'confirmed',message:'Test démarré'});
+ studs.value='6';h.document.getElementById('movement-test-apply').onclick();
+ assert.equal(h.sent.at(-1).action,'movement.test.update');assert.equal(h.sent.at(-1).stepStuds,6);
+ h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Valeurs appliquées'});
+ const count=h.sent.length;interval.value='0';h.document.getElementById('movement-test-apply').onclick();
+ assert.equal(h.sent.length,count);
+});
 test("logs tab renders live text and caps 1000 lines without egg events panel",()=>{
  const h=harness();
  const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));

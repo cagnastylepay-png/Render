@@ -18,6 +18,16 @@ test('movement start and stop work without an inventory snapshot and are forward
  assert.equal(h.messages.filter(x=>x.ws===h.admin).length,2);
 });
 
+test('movement values are validated and update commands work without inventory',t=>{
+ const h=harness(t);
+ for(const values of [{stepStuds:0,intervalMs:80},{stepStuds:2,intervalMs:0},{stepStuds:Infinity,intervalMs:80},{stepStuds:2,intervalMs:1.5}]){
+  assert.throws(()=>h.command('movement.test.update',values));
+ }
+ h.command('movement.test.update',{stepStuds:3.5,intervalMs:45});
+ const forwarded=h.messages.findLast(x=>x.ws===h.admin).m;
+ assert.equal(forwarded.stepStuds,3.5);assert.equal(forwarded.intervalMs,45);
+});
+
 test('mutation stock validates counts and live probabilities; commands require placed eggs, stock and a missing mutation',t=>{
  const h=harness(t),stock=[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}];
  const snapshot={...inventory(),mutationConsumables:stock};

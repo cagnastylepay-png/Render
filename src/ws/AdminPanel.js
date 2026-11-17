@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
 const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
-const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set','trajectory.start','trajectory.stop','movement.test.start','movement.test.stop']);
+const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set','trajectory.start','trajectory.stop','movement.test.start','movement.test.stop','movement.test.update']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateFishingCapture(value){
  if(value==null)return null;
@@ -73,7 +73,12 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    let payload={};
    if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
-   }else if(m.action==='trajectory.start'||m.action==='trajectory.stop'||m.action==='movement.test.start'||m.action==='movement.test.stop'){
+   }else if(m.action==='movement.test.update'||m.action==='movement.test.start'){
+    if(m.action==='movement.test.update'||m.stepStuds!==undefined||m.intervalMs!==undefined){
+     if(typeof m.stepStuds!=='number'||!Number.isFinite(m.stepStuds)||m.stepStuds<=0||!Number.isSafeInteger(m.intervalMs)||m.intervalMs<1)throw Error('Distance positive et intervalle entier positif requis');
+     payload={stepStuds:m.stepStuds,intervalMs:m.intervalMs};
+    }
+   }else if(m.action==='trajectory.start'||m.action==='trajectory.stop'||m.action==='movement.test.stop'){
     // Movement diagnostics do not depend on inventory.
    }else if(m.action==='settings.update'){
     const saved=settings.get(admin.reporterIdentity.userId);
