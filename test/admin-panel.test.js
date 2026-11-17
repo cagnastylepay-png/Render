@@ -6,6 +6,18 @@ for(const key of ['AutoEggs','AutoSell','AutoFuse','AutoOpen','AutoPlace']){opti
 const item=(uid,location='backpack',extra={})=>({uid,name:'Cat',category:'Cat',location,...extra});
 const inventory=(revision=1)=>({version:1,type:'admin.inventory.snapshot',sessionId:'inventory',revision,stats:{money:1e12,speedPower:1e9,incomePerSecond:3e9,offlinePerDay:3e9*36000*.1,offlineDurationSeconds:36000,offlineRateMultiplier:.1},eggs:[item('open','plot',{ready:true,remainingSeconds:0}),item('growing','plot',{ready:false,remainingSeconds:90}),item('egg')],animals:[item('a'),item('b'),item('c'),item('worn','plot'),item('locked','backpack',{locked:true})]});
 
+test('movement start and stop work without an inventory snapshot and are forwarded once',t=>{
+ const h=harness(t);
+ for(const action of ['movement.test.start','movement.test.stop']){
+  h.command(action);
+  const forwarded=h.messages.findLast(x=>x.ws===h.admin).m;
+  assert.equal(forwarded.action,action);
+  assert.equal(forwarded.uid,undefined);
+  h.panel.result(h.admin,{requestId:forwarded.requestId,status:'confirmed',message:'Test'});
+ }
+ assert.equal(h.messages.filter(x=>x.ws===h.admin).length,2);
+});
+
 test('mutation stock validates counts and live probabilities; commands require placed eggs, stock and a missing mutation',t=>{
  const h=harness(t),stock=[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}];
  const snapshot={...inventory(),mutationConsumables:stock};

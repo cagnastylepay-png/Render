@@ -36,7 +36,8 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <p id="admin-device-status" class="muted">Connexion LDCloud dans l’aperçu si demandée.</p>
 <div id="admin-device-screen" hidden></div>
 </section>
-<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav>
+<div class="toolbar"><nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav><button id="movement-test-start" disabled>Start Test</button><button id="movement-test-stop" disabled>Stop Test</button></div>
+<p id="movement-test-status" class="muted" role="status" hidden></p>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
 <p id="delivery-info" class="muted">Chargement de l’admin…</p>
 <p class="muted">Une carte par serveur · GO téléporte immédiatement l’admin connecté vers ce serveur.</p>
@@ -113,7 +114,7 @@ let lastTrajectory=null,liveTrajectory=null;
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
 function adminCanConfigure(){return Boolean(adminEntries[0]?.connected&&!adminInventory.pending&&!adminWaiting);}
 function adminCommand(action,payload={}){
- const configuration=action==="automation.set"||action==="settings.update"||action.startsWith("trajectory.");
+ const configuration=action==="automation.set"||action==="settings.update"||action.startsWith("trajectory.")||action.startsWith("movement.test.");
  if(!socket||socket.readyState!==WebSocket.OPEN||!(configuration?adminCanConfigure():adminCanAct()))return;
  const inventory=adminInventory.inventory,row=adminEntries[0];
  adminWaiting=true;
@@ -295,6 +296,15 @@ function tickAdmin(){
  }
 }
 function renderAdmin(){
+ for(const id of ["movement-test-start","movement-test-stop"])document.getElementById(id).disabled=!adminCanConfigure();
+ const testStatus=document.getElementById("movement-test-status"),testResult=adminInventory.result;
+ if(testResult?.action?.startsWith("movement.test.")){
+  testStatus.hidden=false;setText(testStatus,testResult.message);
+ }
+ const testNotice=adminInventory.inventory?.automationStatus;
+ if(testNotice?.includes("Test ·")){
+  testStatus.hidden=false;setText(testStatus,testNotice.slice(testNotice.indexOf("Test ·")));
+ }
  setText(document.getElementById("tab-admin"),"Admin");
  const container=document.getElementById("admin-cards");container.replaceChildren();adminTickNodes=[];
  const row=adminEntries[0],inventory=adminInventory.inventory;
@@ -604,6 +614,8 @@ function switchPanel(name){
  for(const tab of ["servers","logs","admin"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
 for(const name of ["servers","logs","admin"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
+document.getElementById("movement-test-start").onclick=()=>adminCommand("movement.test.start");
+document.getElementById("movement-test-stop").onclick=()=>adminCommand("movement.test.stop");
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();connect();
 </script></body></html>

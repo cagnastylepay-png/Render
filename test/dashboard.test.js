@@ -1,6 +1,17 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../public/index.html"),"utf8");
+
+test('movement test buttons send separate start and stop commands without inventory',()=>{
+ const h=harness();
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
+ const start=h.document.getElementById('movement-test-start');
+ const stop=h.document.getElementById('movement-test-stop');
+ assert.equal(start.disabled,false);
+ start.onclick();assert.equal(h.sent.at(-1).action,'movement.test.start');
+ h.emit({type:'admin.command.result',action:'movement.test.start',status:'confirmed',message:'Test démarré'});
+ stop.onclick();assert.equal(h.sent.at(-1).action,'movement.test.stop');
+});
 test("logs tab renders live text and caps 1000 lines without egg events panel",()=>{
  const h=harness();
  const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));
