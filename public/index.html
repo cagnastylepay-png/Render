@@ -38,7 +38,16 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 </section>
 <nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button><button id="tab-test" role="tab" aria-selected="false" aria-controls="panel-test">Test</button></nav>
 <section id="panel-test" role="tabpanel" aria-labelledby="tab-test" hidden>
+<div class="toolbar" style="margin-bottom:16px">
+<label><input id="movement-test-walk" type="checkbox"> Walk</label>
+<label>Vitesse Walk (studs/s) <input id="movement-test-speed" type="number" min="0.01" step="1" value="16" style="width:120px" disabled></label>
+</div>
+<div class="toolbar" style="margin-bottom:16px">
+<label><input id="movement-test-tween" type="checkbox"> Tween</label>
+<label>Durée Tween (s) <input id="movement-test-duration" type="number" min="0.01" step="0.1" value="2" style="width:120px" disabled></label>
+</div>
 <div class="toolbar">
+<label><input id="movement-test-teleport" type="checkbox" checked> Téléportation</label>
 <label>Distance par saut (studs) <input id="movement-test-studs" type="number" min="0.01" step="0.1" value="2" style="width:120px"></label>
 <label>Intervalle (ms) <input id="movement-test-interval" type="number" min="1" step="1" value="80" style="width:120px"></label>
 </div>
@@ -627,14 +636,36 @@ function switchPanel(name){
 for(const name of ["servers","logs","admin","test"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("movement-test-studs").value="2";
 document.getElementById("movement-test-interval").value="80";
+document.getElementById("movement-test-speed").value="16";
+document.getElementById("movement-test-duration").value="2";
+let movementTestMode="teleport";
+function selectMovementTestMode(mode){
+ movementTestMode=mode;
+ for(const name of ["walk","tween","teleport"])document.getElementById("movement-test-"+name).checked=name===mode;
+ document.getElementById("movement-test-speed").disabled=mode!=="walk";
+ document.getElementById("movement-test-duration").disabled=mode!=="tween";
+ for(const field of ["studs","interval"])document.getElementById("movement-test-"+field).disabled=mode!=="teleport";
+}
+for(const mode of ["walk","tween","teleport"])document.getElementById("movement-test-"+mode).onchange=()=>selectMovementTestMode(mode);
+selectMovementTestMode("teleport");
 function sendMovementTest(action){
- const stepStuds=Number(document.getElementById("movement-test-studs").value);
- const intervalMs=Number(document.getElementById("movement-test-interval").value);
- if(!Number.isFinite(stepStuds)||stepStuds<=0||!Number.isSafeInteger(intervalMs)||intervalMs<1){
-  const status=document.getElementById("movement-test-result");status.hidden=false;
-  setText(status,"Indique une distance positive et un intervalle entier d’au moins 1 ms.");return;
+ const payload={mode:movementTestMode};
+ const positive=value=>Number.isFinite(value)&&value>0;
+ let valid;
+ if(movementTestMode==="walk"){
+  payload.walkSpeed=Number(document.getElementById("movement-test-speed").value);valid=positive(payload.walkSpeed);
+ }else if(movementTestMode==="tween"){
+  payload.tweenDuration=Number(document.getElementById("movement-test-duration").value);valid=positive(payload.tweenDuration);
+ }else{
+  payload.stepStuds=Number(document.getElementById("movement-test-studs").value);
+  payload.intervalMs=Number(document.getElementById("movement-test-interval").value);
+  valid=positive(payload.stepStuds)&&Number.isSafeInteger(payload.intervalMs)&&payload.intervalMs>=1;
  }
- adminCommand(action,{stepStuds,intervalMs});
+ if(!valid){
+  const status=document.getElementById("movement-test-result");status.hidden=false;
+  setText(status,"Indique des valeurs positives. L’intervalle doit être un entier d’au moins 1 ms.");return;
+ }
+ adminCommand(action,payload);
 }
 document.getElementById("movement-test-start").onclick=()=>sendMovementTest("movement.test.start");
 document.getElementById("movement-test-stop").onclick=()=>adminCommand("movement.test.stop");

@@ -74,9 +74,17 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
    }else if(m.action==='movement.test.update'||m.action==='movement.test.start'){
-    if(m.action==='movement.test.update'||m.stepStuds!==undefined||m.intervalMs!==undefined){
-     if(typeof m.stepStuds!=='number'||!Number.isFinite(m.stepStuds)||m.stepStuds<=0||!Number.isSafeInteger(m.intervalMs)||m.intervalMs<1)throw Error('Distance positive et intervalle entier positif requis');
-     payload={stepStuds:m.stepStuds,intervalMs:m.intervalMs};
+    if(m.action==='movement.test.update'||m.mode!==undefined||m.stepStuds!==undefined||m.intervalMs!==undefined){
+     const mode=m.mode??'teleport',positive=v=>typeof v==='number'&&Number.isFinite(v)&&v>0;
+     payload={mode};
+     if(mode==='walk'){
+      if(!positive(m.walkSpeed))throw Error('Vitesse Walk positive requise');payload.walkSpeed=m.walkSpeed;
+     }else if(mode==='tween'){
+      if(!positive(m.tweenDuration))throw Error('Durée Tween positive requise');payload.tweenDuration=m.tweenDuration;
+     }else if(mode==='teleport'){
+      if(!positive(m.stepStuds)||!Number.isSafeInteger(m.intervalMs)||m.intervalMs<1)throw Error('Distance positive et intervalle entier positif requis');
+      payload.stepStuds=m.stepStuds;payload.intervalMs=m.intervalMs;
+     }else throw Error('Mode de déplacement inconnu');
     }
    }else if(m.action==='trajectory.start'||m.action==='trajectory.stop'||m.action==='movement.test.stop'){
     // Movement diagnostics do not depend on inventory.

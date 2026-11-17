@@ -31,6 +31,22 @@ test('Test tab preserves edited movement values and sends them on start and live
  const count=h.sent.length;interval.value='0';h.document.getElementById('movement-test-apply').onclick();
  assert.equal(h.sent.length,count);
 });
+
+test('Walk, Tween and Teleport checkboxes are exclusive and send their own values',()=>{
+ const h=harness(),field=name=>h.document.getElementById('movement-test-'+name);
+ h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
+ field('walk').onchange();field('speed').value='45';
+ assert.equal(field('walk').checked,true);assert.equal(field('teleport').checked,false);
+ assert.equal(field('studs').disabled,true);assert.equal(field('speed').disabled,false);
+ field('apply').onclick();assert.equal(h.sent.at(-1).mode,'walk');assert.equal(h.sent.at(-1).walkSpeed,45);
+ h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
+ field('tween').onchange();field('duration').value='4';
+ assert.equal(field('walk').checked,false);assert.equal(field('tween').checked,true);
+ field('apply').onclick();assert.equal(h.sent.at(-1).mode,'tween');assert.equal(h.sent.at(-1).tweenDuration,4);
+ h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
+ field('teleport').onchange();assert.equal(field('studs').disabled,false);assert.equal(field('tween').checked,false);
+ field('start').onclick();assert.equal(h.sent.at(-1).mode,'teleport');assert.equal(h.sent.at(-1).stepStuds,2);
+});
 test("logs tab renders live text and caps 1000 lines without egg events panel",()=>{
  const h=harness();
  const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));

@@ -28,6 +28,18 @@ test('movement values are validated and update commands work without inventory',
  assert.equal(forwarded.stepStuds,3.5);assert.equal(forwarded.intervalMs,45);
 });
 
+test('Walk and Tween commands accept only the settings for their selected mode',t=>{
+ const h=harness(t);
+ for(const values of [{mode:'other'},{mode:'walk',walkSpeed:0},{mode:'tween',tweenDuration:Infinity}])assert.throws(()=>h.command('movement.test.update',values));
+ for(const values of [{mode:'walk',walkSpeed:32},{mode:'tween',tweenDuration:3.5}]){
+  h.command('movement.test.update',{...values,stepStuds:999});
+  const forwarded=h.messages.findLast(x=>x.ws===h.admin).m;
+  assert.equal(forwarded.mode,values.mode);assert.equal(forwarded.stepStuds,undefined);
+  assert.equal(forwarded.walkSpeed,values.walkSpeed);assert.equal(forwarded.tweenDuration,values.tweenDuration);
+  h.panel.result(h.admin,{requestId:forwarded.requestId,status:'confirmed',message:'Test'});
+ }
+});
+
 test('mutation stock validates counts and live probabilities; commands require placed eggs, stock and a missing mutation',t=>{
  const h=harness(t),stock=[{id:'Boss',name:'Fractured',count:3,successPercent:10,multiplier:2.75}];
  const snapshot={...inventory(),mutationConsumables:stock};
