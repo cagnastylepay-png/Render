@@ -27,7 +27,6 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
   competition.has(JSON.stringify([egg.placeId,egg.jobId]))&&
   !egg.carrierUserId&&egg.state!=="Carried"&&egg.state!=="Claimed"&&!egg.observationOnly&&
   Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
-   (fishing&&options.AutoEggs&&egg.rarity==="Divine")||
    (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
  candidates.sort((a,b)=>{
   if(a.incomePerSecond!==b.incomePerSecond)return b.incomePerSecond-a.incomePerSecond;
