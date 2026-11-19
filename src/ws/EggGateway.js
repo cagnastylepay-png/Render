@@ -120,11 +120,25 @@ function attachEggGateway(server, store, players, history, {
       }
     }finally{spreading=false;}
   }
+  function presenceState() {
+    const presence = players.state();
+    const byServer = new Map();
+    for (const client of wss.clients) {
+      const identity = client.reporterIdentity, events = client.stormEvents;
+      if (client.readyState !== WebSocket.OPEN || !identity || !events || (!events.stormglass && !events.stormRush)) continue;
+      const key = JSON.stringify([identity.placeId, identity.jobId]);
+      const current = byServer.get(key) || { placeId: identity.placeId, jobId: identity.jobId, stormglass: false, stormRush: null };
+      current.stormglass ||= events.stormglass;
+      if (events.stormRush === "Rush" || !current.stormRush) current.stormRush = events.stormRush;
+      byServer.set(key, current);
+    }
+    return { ...presence, stormEvents: [...byServer.values()] };
+  }
   function broadcast() {
     if (broadcastTimer || closed) return;
     broadcastTimer = setTimeout(() => {
       broadcastTimer = undefined;
-      const eggs = store.state(), presence = players.state();
+      const eggs = store.state(), presence = presenceState();
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, eggs); send(ws, presence); }
       broadcastAdmin(); deliverTargets(); deliverTeleport(); distributeObservers();
     }, 200);
@@ -162,7 +176,7 @@ function attachEggGateway(server, store, players, history, {
           ws.claimedReporterUserId = typeof message.reporterUserId === "string" ? message.reporterUserId : null;
           clearTimeout(handshake); send(ws, { version: 1, type: "hello.ack", role: ws.role });
           if (ws.role === "reporter") reporterPolicy(ws);
-          else { send(ws, store.state()); send(ws, players.state()); send(ws, logsState()); sendAdminState(ws); send(ws,panel.state()); }
+          else { send(ws, store.state()); send(ws, presenceState()); send(ws, logsState()); sendAdminState(ws); send(ws,panel.state()); }
           return;
         }
         if (message.type === "ping") { send(ws, { version: 1, type: "pong" }); return; }
@@ -280,6 +294,10 @@ function attachEggGateway(server, store, players, history, {
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
           if (accepted) {
             ws.reporterIdentity = { name: reporter.name, displayName: reporter.displayName, userId: reporter.userId, placeId: message.placeId, jobId: message.jobId };
+            ws.stormEvents = ws.clientKind === "observer" && ws.observerOnly ? {
+              stormglass: message.stormglass === true,
+              stormRush: ["Charging","Rush"].includes(message.stormRush) ? message.stormRush : null
+            } : null;
             for(const previous of wss.clients){
               if(previous!==ws&&previous.role==='reporter'&&previous.reporterIdentity?.userId===reporter.userId&&previous.reporterIdentity.jobId!==message.jobId){
                 previous.superseded=true;previous.reporterIdentity=null;players.remove(previous.connectionId);previous.close(1000,'Reporter moved to another server');
