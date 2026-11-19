@@ -36,28 +36,7 @@ details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{w
 <p id="admin-device-status" class="muted">Connexion LDCloud dans l’aperçu si demandée.</p>
 <div id="admin-device-screen" hidden></div>
 </section>
-<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button><button id="tab-test" role="tab" aria-selected="false" aria-controls="panel-test">Test</button></nav>
-<section id="panel-test" role="tabpanel" aria-labelledby="tab-test" hidden>
-<div class="toolbar" style="margin-bottom:16px">
-<label><input id="movement-test-walk" type="checkbox"> Walk</label>
-<label>Vitesse Walk (studs/s) <input id="movement-test-speed" type="number" min="0.01" step="1" value="16" style="width:120px" disabled></label>
-</div>
-<div class="toolbar" style="margin-bottom:16px">
-<label><input id="movement-test-tween" type="checkbox"> Tween</label>
-<label>Vitesse Tween (studs/s) <input id="movement-test-duration" type="number" min="0.01" step="1" value="200" style="width:120px" disabled></label>
-</div>
-<div class="toolbar">
-<label><input id="movement-test-teleport" type="checkbox" checked> Téléportation</label>
-<label>Distance par saut (studs) <input id="movement-test-studs" type="number" min="0.01" step="0.1" value="2" style="width:120px"></label>
-<label>Intervalle (ms) <input id="movement-test-interval" type="number" min="1" step="1" value="80" style="width:120px"></label>
-</div>
-<div class="toolbar" style="margin-top:16px">
-<button id="movement-test-start" disabled>Start</button><button id="movement-test-stop" disabled>Stop</button><button id="movement-test-apply" disabled>Envoyer les valeurs</button>
-</div>
-<p class="muted">Vers l’œuf le plus éloigné du serveur courant. Les valeurs peuvent être appliquées pendant le trajet.</p>
-<p id="movement-test-result" class="muted" role="status" hidden></p>
-<p id="movement-test-status" class="muted" role="status" hidden></p>
-</section>
+<nav class="tabs" role="tablist"><button id="tab-servers" role="tab" aria-selected="true" aria-controls="panel-servers">Servers (0)</button><button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs">Vols (0)</button><button id="tab-admin" role="tab" aria-selected="false" aria-controls="panel-admin">Admin</button></nav>
 <section id="panel-servers" role="tabpanel" aria-labelledby="tab-servers">
 <p id="delivery-info" class="muted">Chargement de l’admin…</p>
 <p class="muted">Une carte par serveur · GO téléporte immédiatement l’admin connecté vers ce serveur.</p>
@@ -130,11 +109,10 @@ function openMutationModal(uid){
  const close=el("button","Fermer");close.onclick=()=>{modal.hidden=true;};panel.append(list,close);modal.append(panel);
 }
 const selectedAnimals=new Set();
-let lastTrajectory=null,liveTrajectory=null;
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
 function adminCanConfigure(){return Boolean(adminEntries[0]?.connected&&!adminInventory.pending&&!adminWaiting);}
 function adminCommand(action,payload={}){
- const configuration=action==="automation.set"||action==="settings.update"||action.startsWith("trajectory.")||action.startsWith("movement.test.");
+ const configuration=action==="automation.set"||action==="settings.update";
  if(!socket||socket.readyState!==WebSocket.OPEN||!(configuration?adminCanConfigure():adminCanAct()))return;
  const inventory=adminInventory.inventory,row=adminEntries[0];
  adminWaiting=true;
@@ -298,15 +276,6 @@ function tickAdmin(){
  }
 }
 function renderAdmin(){
- for(const id of ["movement-test-start","movement-test-stop","movement-test-apply"])document.getElementById(id).disabled=!adminCanConfigure();
- const testStatus=document.getElementById("movement-test-status"),testResult=adminInventory.result;
- if(testResult?.action?.startsWith("movement.test.")){
-  const result=document.getElementById("movement-test-result");result.hidden=false;setText(result,testResult.message);
- }
- const testNotice=adminInventory.inventory?.automationStatus;
- if(testNotice?.includes("Test ·")){
-  testStatus.hidden=false;setText(testStatus,testNotice.slice(testNotice.indexOf("Test ·")));
- }
  setText(document.getElementById("tab-admin"),"Admin");
  const container=document.getElementById("admin-cards");container.replaceChildren();adminTickNodes=[];
  const row=adminEntries[0],inventory=adminInventory.inventory;
@@ -324,26 +293,6 @@ function renderAdmin(){
   autoControls.append(button);
  }
  summary.append(autoControls);
- const trajectoryControls=el("div",null,"toolbar");
- for(const [label,action] of [["Enregistrer un trajet","trajectory.start"],["Arrêter et récupérer","trajectory.stop"]]){
-  const button=el("button",label);button.disabled=!adminCanConfigure();
-  button.onclick=()=>adminCommand(action);trajectoryControls.append(button);
- }
- if(lastTrajectory){
-  const download=el("button","Télécharger le trajet JSON");
-  download.onclick=()=>{
-   const url=URL.createObjectURL(new Blob([JSON.stringify(lastTrajectory,null,2)],{type:"application/json"}));
-   const link=document.createElement("a");link.href=url;link.download="m4gix-trajet-"+lastTrajectory.startedAt+".json";link.click();
-   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  };
-  trajectoryControls.append(download,el("small",lastTrajectory.samples.length+" points · "+(lastTrajectory.durationMs/1000).toFixed(1)+" s"));
- }
- summary.append(trajectoryControls);
- if(liveTrajectory&&liveTrajectory.startedAt!==lastTrajectory?.startedAt){
-  const sample=liveTrajectory.sample;
-  summary.append(el("p",sample.t+" ms · Position "+sample.p.join(", ")+" · Plus grand pas "+liveTrajectory.maxStep+" studs · "+(sample.carrying?"Œuf porté":"Sans œuf"),"muted"));
-  if(liveTrajectory.events.length)summary.append(el("pre",liveTrajectory.events.map(e=>e.t+" ms · "+e.kind+" "+JSON.stringify(e.value??"")).join("\n")));
- }
  if(inventory?.fishingCapture){
   const capture=inventory.fishingCapture;
   const details=el("details");details.append(el("summary","Position de pêche enregistrée"));
@@ -359,16 +308,9 @@ function renderAdmin(){
  if(inventory?.stats?.offlineDurationSeconds!=null)summary.append(el("small","Hors ligne : calcul du jeu, durée "+fmt(inventory.stats.offlineDurationSeconds)+" s × coefficient "+inventory.stats.offlineRateMultiplier));
  const logs=el("button","Voir les vols");logs.onclick=()=>{renderLogs();switchPanel("logs");};summary.append(logs);container.append(summary);
  const actionStatus=el("p",adminWaiting?"Envoi…":adminInventory.pending?"Action en cours…":adminInventory.result?(adminInventory.result.status==="confirmed"?"✓ ":"⚠ ")+adminInventory.result.message:"","muted");actionStatus.id="admin-action-status";container.append(actionStatus);
- const nav=el("nav",null,"tabs");for(const [id,label]of [["eggs","Mes Œufs"],["animals","Mes Animaux"],["mutations","Mutations"],["images","Images"],["settings","Paramètres"]]){const button=el("button",label);button.setAttribute("aria-pressed",String(adminSection===id));button.onclick=()=>{adminSection=id;renderAdmin();};nav.append(button);}container.append(nav);
+ const nav=el("nav",null,"tabs");for(const [id,label]of [["eggs","Mes Œufs"],["animals","Mes Animaux"],["mutations","Mutations"],["settings","Paramètres"]]){const button=el("button",label);button.setAttribute("aria-pressed",String(adminSection===id));button.onclick=()=>{adminSection=id;renderAdmin();};nav.append(button);}container.append(nav);
  if(adminSection==="settings"){container.append(renderAdminSettings());return;}
  if(!inventory){container.append(el("p","Lance Admin.lua sur "+adminUsername+" pour afficher le plot et le backpack.","empty"));return;}
- if(adminSection==="images"){
-  container.append(adminButton("Récupérer les IDs d’image","images.collect"),el("p","Admin lit le catalogue du jeu actuel. Les IDs validés permettent aussi de charger les images manquantes dans les cartes. La lecture est possible avec AUTO actif.","muted"));
-  const owned=new Map();for(const item of [...inventory.eggs,...inventory.animals])if(item.eggImageAssetId||item.animalImageAssetId)owned.set(item.category,{category:item.category,name:item.name,eggImageAssetId:item.eggImageAssetId,animalImageAssetId:item.animalImageAssetId});
-  const list=(inventory.imageCatalog?.length?inventory.imageCatalog:[...owned.values()]).slice().sort((a,b)=>a.name.localeCompare(b.name));
-  container.append(el("h2","Images récupérées ("+list.length+")"));
-  const text=el("pre",list.map(item=>item.name+" ["+item.category+"]\nŒuf : "+(item.eggImageAssetId||"indisponible")+" · Animal : "+(item.animalImageAssetId||"indisponible")).join("\n\n")||"Relance Admin.lua puis récupère le catalogue.");text.style.whiteSpace="pre-wrap";text.style.overflowWrap="anywhere";container.append(text);return;
- }
  if(adminSection==="mutations"){
   const grid=el("div",null,"cards");for(const m of inventory.mutationConsumables||[]){const card=el("article",null,"card");if(m.imageUrl){const image=el("img");image.src=m.imageUrl;image.alt=m.name;image.loading="lazy";image.style.cssText="display:block;width:112px;height:112px;object-fit:contain;margin:16px auto";card.append(image);}card.append(el("h2",m.name),el("p","Disponibles : "+m.count),el("p","Réussite : "+(m.successPercent==null?"Inconnue":m.successPercent+" %")),el("p","Multiplicateur : "+(m.multiplier==null?"Inconnu":"×"+m.multiplier)));grid.append(card);}
   if(!grid.children.length)grid.append(el("p","Relance Admin.lua pour transmettre les consommables.","empty"));container.append(grid,el("p","Stock du backpack et du consommable équipé. Les bonus se cumulent : 1 + somme des (multiplicateurs − 1).","muted"));if(inventory.mutationStatus)container.append(el("p",inventory.mutationStatus,"muted"));return;
@@ -584,10 +526,6 @@ function connect(){
     adminInventory=message;adminWaiting=false;
     if(message.result&&message.result.requestId!==adminLastResult){adminLastResult=message.result.requestId;if(message.result.action==="settings.update"&&message.result.status==="confirmed"){settingsDirty=false;settingsForm=null;}}
     renderAdmin();
-   }else if(message.type==="admin.trajectory.progress"){
-    const events=liveTrajectory?.startedAt===message.startedAt?liveTrajectory.events:[];
-    liveTrajectory={...message,events:[...events,...message.events].slice(-12)};renderAdmin();
-   }else if(message.type==="admin.trajectory"){lastTrajectory=message.trajectory;renderAdmin();
    }else if(message.type==="admin.command.result"){adminWaiting=false;adminInventory.result=message;renderAdmin();}
    else if(message.type==="admin.command.ack"){adminWaiting=false;}
    else if(message.type==="eggs.state"){
@@ -613,45 +551,9 @@ function connect(){
  };current.onerror=()=>{};
 }
 function switchPanel(name){
- for(const tab of ["servers","logs","admin","test"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
+ for(const tab of ["servers","logs","admin"]){document.getElementById("tab-"+tab).setAttribute("aria-selected",String(tab===name));document.getElementById("panel-"+tab).hidden=tab!==name;}
 }
-for(const name of ["servers","logs","admin","test"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
-document.getElementById("movement-test-studs").value="2";
-document.getElementById("movement-test-interval").value="80";
-document.getElementById("movement-test-speed").value="16";
-document.getElementById("movement-test-duration").value="200";
-let movementTestMode="teleport";
-function selectMovementTestMode(mode){
- movementTestMode=mode;
- for(const name of ["walk","tween","teleport"])document.getElementById("movement-test-"+name).checked=name===mode;
- document.getElementById("movement-test-speed").disabled=mode!=="walk";
- document.getElementById("movement-test-duration").disabled=mode!=="tween";
- for(const field of ["studs","interval"])document.getElementById("movement-test-"+field).disabled=mode!=="teleport";
-}
-for(const mode of ["walk","tween","teleport"])document.getElementById("movement-test-"+mode).onchange=()=>selectMovementTestMode(mode);
-selectMovementTestMode("teleport");
-function sendMovementTest(action){
- const payload={mode:movementTestMode};
- const positive=value=>Number.isFinite(value)&&value>0;
- let valid;
- if(movementTestMode==="walk"){
-  payload.walkSpeed=Number(document.getElementById("movement-test-speed").value);valid=positive(payload.walkSpeed);
- }else if(movementTestMode==="tween"){
-  payload.tweenSpeed=Number(document.getElementById("movement-test-duration").value);valid=positive(payload.tweenSpeed);
- }else{
-  payload.stepStuds=Number(document.getElementById("movement-test-studs").value);
-  payload.intervalMs=Number(document.getElementById("movement-test-interval").value);
-  valid=positive(payload.stepStuds)&&Number.isSafeInteger(payload.intervalMs)&&payload.intervalMs>=1;
- }
- if(!valid){
-  const status=document.getElementById("movement-test-result");status.hidden=false;
-  setText(status,"Indique des valeurs positives. L’intervalle doit être un entier d’au moins 1 ms.");return;
- }
- adminCommand(action,payload);
-}
-document.getElementById("movement-test-start").onclick=()=>sendMovementTest("movement.test.start");
-document.getElementById("movement-test-stop").onclick=()=>adminCommand("movement.test.stop");
-document.getElementById("movement-test-apply").onclick=()=>sendMovementTest("movement.test.update");
+for(const name of ["servers","logs","admin"])document.getElementById("tab-"+name).onclick=()=>switchPanel(name);
 document.getElementById("connect").onclick=connect;
 setInterval(tick,1000);renderCards();connect();
 </script></body></html>
