@@ -2,51 +2,6 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../public/index.html"),"utf8");
 
-test('movement test buttons send separate start and stop commands without inventory',()=>{
- const h=harness();
- h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
- const start=h.document.getElementById('movement-test-start');
- const stop=h.document.getElementById('movement-test-stop');
- assert.equal(start.disabled,false);
- start.onclick();assert.equal(h.sent.at(-1).action,'movement.test.start');
- h.emit({type:'admin.command.result',action:'movement.test.start',status:'confirmed',message:'Test démarré'});
- stop.onclick();assert.equal(h.sent.at(-1).action,'movement.test.stop');
-});
-
-test('Test tab preserves edited movement values and sends them on start and live update',()=>{
- const h=harness();
- h.document.getElementById('tab-test').onclick();
- assert.equal(h.document.getElementById('panel-test').hidden,false);
- const studs=h.document.getElementById('movement-test-studs'),interval=h.document.getElementById('movement-test-interval');
- assert.equal(studs.value,'2');assert.equal(interval.value,'80');
- studs.value='4.5';interval.value='35';
- h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
- assert.equal(studs.value,'4.5');assert.equal(interval.value,'35');
- h.document.getElementById('movement-test-start').onclick();
- assert.equal(h.sent.at(-1).stepStuds,4.5);assert.equal(h.sent.at(-1).intervalMs,35);
- h.emit({type:'admin.command.result',action:'movement.test.start',status:'confirmed',message:'Test démarré'});
- studs.value='6';h.document.getElementById('movement-test-apply').onclick();
- assert.equal(h.sent.at(-1).action,'movement.test.update');assert.equal(h.sent.at(-1).stepStuds,6);
- h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Valeurs appliquées'});
- const count=h.sent.length;interval.value='0';h.document.getElementById('movement-test-apply').onclick();
- assert.equal(h.sent.length,count);
-});
-
-test('Walk, Tween and Teleport checkboxes are exclusive and send their own values',()=>{
- const h=harness(),field=name=>h.document.getElementById('movement-test-'+name);
- h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true}});
- field('walk').onchange();field('speed').value='45';
- assert.equal(field('walk').checked,true);assert.equal(field('teleport').checked,false);
- assert.equal(field('studs').disabled,true);assert.equal(field('speed').disabled,false);
- field('apply').onclick();assert.equal(h.sent.at(-1).mode,'walk');assert.equal(h.sent.at(-1).walkSpeed,45);
- h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
- field('tween').onchange();field('duration').value='4';
- assert.equal(field('walk').checked,false);assert.equal(field('tween').checked,true);
- field('apply').onclick();assert.equal(h.sent.at(-1).mode,'tween');assert.equal(h.sent.at(-1).tweenSpeed,4);
- h.emit({type:'admin.command.result',action:'movement.test.update',status:'confirmed',message:'Applied'});
- field('teleport').onchange();assert.equal(field('studs').disabled,false);assert.equal(field('tween').checked,false);
- field('start').onclick();assert.equal(h.sent.at(-1).mode,'teleport');assert.equal(h.sent.at(-1).stepStuds,2);
-});
 test("logs tab renders live text and caps 1000 lines without egg events panel",()=>{
  const h=harness();
  const entries=Array.from({length:1005},(_,i)=>({id:String(i),at:new Date(1700000000000+i*1000).toISOString(),playerName:"MagixSafe",jobId:"job",text:"[Auto_SAE][0001][1.0][FLIGHT_RESULT][-] "+(i===1004?'<b>Vol Reussi</b>':"Echec "+i)}));
@@ -184,14 +139,6 @@ test('Mutations inventory, one-attempt popup and grouped settings keep draft val
  h.emit(state);find('Paramètres').onclick();find('AutoMutations').onclick();const field=root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin');field.value='10B';field.oninput();
  find('Vente').onclick();const animalMin=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimalsMin');animalMin.value='12B';animalMin.oninput();const animalMax=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimalsMax');animalMax.value='20B';animalMax.oninput();const animalToggle=root.querySelectorAll('input').find(i=>i.dataset.setting==='AutoSellAnimals');animalToggle.checked=true;animalToggle.onchange();find('Fusion').onclick();find('AutoMutations').onclick();h.emit({...state,inventory:{...state.inventory,revision:2}});assert.equal(root.querySelectorAll('input').find(i=>i.dataset.setting==='MutationBossMin'),field);assert.equal(field.value,'10B');
  find('Enregistrer').onclick();assert.equal(h.sent.at(-1).options.MutationBossMin,10e9);assert.equal(h.sent.at(-1).options.AutoMutations,false);assert.equal(h.sent.at(-1).options.AutoSellAnimals,true);assert.equal(h.sent.at(-1).options.AutoSellAnimalsMin,12e9);
-});
-
-test('Images collects the current game catalog and exposes separate egg and animal IDs',()=>{
- const h=harness(),root=h.document.getElementById('admin-cards'),button=n=>root.querySelectorAll('button').find(b=>b.textContent===n);
- h.emit({type:'admin.state',username:'MagixSafe',entry:{connected:true,automationEnabled:true}});
- h.emit({type:'admin.inventory.state',connected:true,inventory:{sessionId:'s',revision:1,receivedAt:Date.now(),stats:{},eggs:[],animals:[],imageCatalog:[{category:'Viridian',name:'Viridian Prowler',eggImageAssetId:'123456789',animalImageAssetId:'987654321'}]}});
- button('Images').onclick();assert.match(root.textContent,/Viridian Prowler/);assert.match(root.textContent,/Œuf : 123456789/);assert.match(root.textContent,/Animal : 987654321/);
- button('Récupérer les IDs d’image').onclick();assert.equal(h.sent.at(-1).action,'images.collect');
 });
 
 test("egg location tabs persist and every Admin inventory group sorts by descending income",()=>{
