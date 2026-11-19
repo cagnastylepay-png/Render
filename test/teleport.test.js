@@ -34,12 +34,13 @@ test("missing index targets bypass income ranges only when enabled and still obe
  assert.equal(planTeleport(identity,settings,[egg],10000,full),null);
 });
 
-const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true,TeleportInstantMin:10e9};
+const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true};
 for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=100e9;}
 test("teleport planner applies each favorite's running status, ranges, expiry and visited servers",()=>{
  const roster=[{placeId:"123",jobId:"remote",userId:"2",reporterConnected:true,speedPower:100},{placeId:"123",jobId:"another",userId:"3",reporterConnected:true,speedPower:100}];
  const identity={placeId:"123",jobId:"home"},settings={automationActive:true,options},egg={key:"123/remote/egg",placeId:"123",jobId:"remote",expiresAt:20000,incomePerSecond:3e9};
- assert.equal(planTeleport(identity,settings,[egg],10000,roster).immediate,false);
+ assert.equal(planTeleport(identity,settings,[egg],10000,roster).immediate,true);
+ assert.equal(planTeleport(identity,settings,[egg,{...egg,jobId:identity.jobId}],10000,roster),null);
  assert.equal(planTeleport(identity,settings,[{...egg,incomePerSecond:10e9}],10000,roster).immediate,true);
  for(const bad of [{...egg,placeId:"other"},{...egg,jobId:"home"},{...egg,incomePerSecond:1e9},{...egg,incomePerSecond:200e9},{...egg,expiresAt:10000},{...egg,carrierUserId:3},{...egg,state:"Carried"}])assert.equal(planTeleport(identity,settings,[bad],10000,roster),null);
  assert.equal(planTeleport(identity,{...settings,automationActive:false},[egg],10000,roster),null);
