@@ -19,8 +19,6 @@ function validateSettings(input){
  if(names.length>50||names.some(name=>!(/^[A-Za-z0-9_]{3,20}$/).test(name)))throw Error("Invalid help favorites");
  const seen=new Set();result.HelpFavorites=names.filter(name=>{const key=name.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).join(", ");
  result.AutoHelp=help;result.AutoHelpMin=helpMin;
- if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
- result.TeleportInstantMin=input.TeleportInstantMin??50e9;
  if(input.AutoMutations!==undefined&&typeof input.AutoMutations!=="boolean")throw Error("Invalid AutoMutations");
  result.AutoMutations=input.AutoMutations===true;
  const animalEnabled=input.AutoSellAnimals??false,animalMin=input.AutoSellAnimalsMin??0,animalMax=input.AutoSellAnimalsMax??2e9;
