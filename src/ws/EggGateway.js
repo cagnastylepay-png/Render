@@ -97,12 +97,58 @@ function attachEggGateway(server, store, players, history, {
     const admin = adminSocket()?.reporterIdentity;
     return Boolean(identity && admin && identity.placeId === admin.placeId && identity.jobId === admin.jobId);
   }
+  let groupReservation;
+  function cancelGroupReservation() {
+    if (!groupReservation) return;
+    send(groupReservation.observer, { version: 1, type: "observer.group", target: null });
+    groupReservation = undefined;
+  }
+  function activeGroupAdmin() {
+    const admin = adminSocket();
+    return admin && settings.get(admin.reporterIdentity.userId)?.options?.GroupMode === true ? admin : null;
+  }
+  function fillAdminServer(admin, clients, now) {
+    const destination = admin.reporterIdentity, capacity = admin.groupCapacity;
+    if (groupReservation) {
+      const { jobId, userId, until } = groupReservation;
+      if (jobId !== destination.jobId) cancelGroupReservation();
+      else if (capacity?.userIds.has(userId)) groupReservation = undefined;
+      else if (now < until) return;
+      else cancelGroupReservation();
+    }
+    if (!capacity || now - capacity.at > 25000 || capacity.userIds.size >= capacity.maxPlayers) return;
+    if (clients.some(client => client.manualObserverHopUntil > now)) return;
+    const candidates = clients.filter(client => client.role === "reporter" && client.observerOnly && !client.superseded &&
+      client.reporterIdentity?.placeId === destination.placeId && client.reporterIdentity.jobId !== destination.jobId &&
+      !capacity.userIds.has(client.reporterIdentity.userId) && (client.groupRetryAt || 0) <= now);
+    candidates.sort((a,b) => (a.groupLastAttempt || 0) - (b.groupLastAttempt || 0));
+    const observer = candidates[0];
+    if (!observer) return;
+    const source = observer.reporterIdentity;
+    observer.groupLastAttempt = now;
+    observer.groupRetryAt = now + 125000;
+    groupReservation = { observer, userId: source.userId, jobId: destination.jobId, until: now + 125000 };
+    send(observer, { version: 1, type: "observer.group", target: {
+      placeId: source.placeId, jobId: source.jobId, destinationJobId: destination.jobId, delaySeconds: 0
+    } });
+  }
   let spreading=false;
   async function distributeObservers(){
     if(spreading||closed)return;
     spreading=true;
     try{
       const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
+      const admin = activeGroupAdmin();
+      if (admin) {
+        for (const client of clients) {
+          if (!client.observerOnly || client.spreadSignature === "null") continue;
+          client.spreadSignature = "null";
+          send(client, { version: 1, type: "observer.spread", target: null });
+        }
+        fillAdminServer(admin, clients, Date.now());
+        return;
+      }
+      cancelGroupReservation();
       const plans=planObserverSpread(clients);
       for(const [ws,group]of plans){
         if(ws.manualObserverHopUntil>Date.now())continue;
@@ -228,6 +274,7 @@ function attachEggGateway(server, store, players, history, {
             client.clientKind==="observer"&&client.observerOnly&&!client.superseded&&
             client.reporterIdentity?.placeId===message.placeId&&client.reporterIdentity.jobId===message.jobId);
           if (!observer) { ack("Aucun observer connecté sur ce serveur.");return; }
+          if (groupReservation?.jobId === destination.jobId) { ack("Un observer est déjà attendu sur le serveur d’Admin.");return; }
           if (observer.manualObserverHopUntil>now) { ack("Une demande est déjà en cours pour cet observer.");return; }
           observer.manualObserverHopUntil=now+30000;
           observer.spreadSignature=undefined;
@@ -308,6 +355,11 @@ function attachEggGateway(server, store, players, history, {
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
           if (accepted) {
             ws.reporterIdentity = { name: reporter.name, displayName: reporter.displayName, userId: reporter.userId, placeId: message.placeId, jobId: message.jobId };
+            if (isAdmin(ws)) {
+              const maxPlayers = message.maxPlayers;
+              ws.groupCapacity = Number.isSafeInteger(maxPlayers) && maxPlayers > 0 && maxPlayers <= 500
+                ? { maxPlayers, userIds: new Set(message.players.map(row => row.userId)), at: Date.now() } : null;
+            }
             ws.stormEvents = ws.clientKind === "observer" && ws.observerOnly ? {
               stormglass: message.stormglass === true,
               stormRush: ["Charging","Rush"].includes(message.stormRush) ? message.stormRush : null
