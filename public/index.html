@@ -22,7 +22,7 @@ label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 details{margin-top:9px}summary{cursor:pointer;color:#a4b2ca;font-size:12px}pre{white-space:pre-wrap;word-break:break-word;font-size:11px;max-height:320px;overflow:auto}
 .notifications{margin-top:24px;background:#141c2b;border:1px solid #303d53;border-radius:10px;padding:14px}.notifications ol{margin:10px 0 0;padding-left:20px;max-height:190px;overflow:auto;font-size:12px}.notifications li{margin:6px 0}.empty{padding:26px;color:#a4b2ca;text-align:center}
 [hidden]{display:none!important}@media(max-width:600px){body{padding:14px}.toolbar{align-items:stretch}h1{font-size:23px}}
-.admin-layout{display:grid;gap:16px}.admin-summary{max-width:720px}.admin-settings{display:grid;gap:14px}.admin-settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}.admin-settings-grid section{min-width:0}.admin-settings-grid h3{font-size:1rem;margin:0 0 8px}.admin-settings .toolbar{padding:10px;background:#141c2b;border-radius:8px}.admin-settings input[type=text]{max-width:170px}.tabs [aria-pressed=true]{background:#b0fa75;color:#142410}#admin-action-status{min-height:1.4em}
+.admin-layout{display:grid;gap:16px}.admin-summary{max-width:720px}.admin-settings{display:grid;gap:14px}.admin-settings .toolbar{padding:10px;background:#141c2b;border-radius:8px}.admin-settings input[type=text]{max-width:170px}.tabs [aria-pressed=true]{background:#b0fa75;color:#142410}#admin-action-status{min-height:1.4em}
 .ldcloud-panel{width:min(100%,760px);margin-top:16px;padding:8px 10px}.ldcloud-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ldcloud-controls h2{font-size:14px}.ldcloud-controls .toolbar{gap:8px}.ldcloud-controls label,.ldcloud-controls button,.ldcloud-controls a{font-size:13px}.ldcloud-controls button,.ldcloud-controls input{padding:5px 8px}.ldcloud-controls input{width:105px}.ldcloud-panel #admin-device-status{font-size:11px;margin:5px 0 0}.ldcloud-panel #admin-device-screen{position:relative;width:min(100%,720px,calc(52vh * 125 / 72));aspect-ratio:125/72;margin-top:8px;overflow:hidden;border-radius:8px;background:#000}.ldcloud-panel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 .mutation{color:#ffd269;font-size:12px;font-weight:600;margin:4px 0}.admin-layout .card>button{margin:4px 4px 0 0}</style></head>
 <body><main>
@@ -204,22 +204,23 @@ function renderAdminSettings(){
  if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
  if(!settingsForm||!settingsDirty&&signature!==settingsBase){
   settingsBase=signature;settingsDraft={AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
-  const groups={};
-  const grid=el("div",null,"admin-settings-grid");
-  for(const [id,label]of [["eggs","Collecte"],["movement","Déplacement"],["sell","Vente"],["fuse","Fusion"],["open","Ouverture"],["place","Placement"],["mutations","AutoMutations"],["upgrades","Upgrades"]]){
-   const section=el("section");section.append(el("h3",label));grid.append(section);groups[id]=section;
+  const switches=[
+   ["AutoEggs","Auto Eggs"],["AutoTreadmill","Auto Treadmill"],["AutoPapillon","Auto Butterflies"],
+   ["AutoSkyfall","Auto Skyfall"],["AutoStormGlass","Auto Stormglass"],["AutoSlickRick","Auto Slick Rick"],
+   ["AutoStormRush","Auto Storm Rush"],["AutoCosmicEclipse","Auto Cosmic Eclipse"],
+   ["AutoSell","Auto Sell Eggs"],["AutoSellAnimals","Auto Sell Animals"],["AutoFuse","Auto Fuse"],
+   ["AutoOpen","Auto Open Eggs"],["AutoPlace","Auto Place Eggs"],["AutoMutations","Auto Mutations"],
+   ["AutoPlotUpgrade","Auto Upgrade Plot"],["AutoTreadmillUpgrade","Auto Upgrade Treadmill"]
+  ];
+  for(const [key,name]of switches){
+   const label=el("label",name,"toolbar"),toggle=el("input");
+   toggle.type="checkbox";
+   toggle.checked=settingsDraft[key]===true;
+   toggle.dataset.setting=key;
+   toggle.onchange=()=>{settingsDraft[key]=toggle.checked;settingsDirty=true;};
+   label.append(toggle);
+   settingsForm.append(label);
   }
-  settingsForm.append(grid);
-  for(const [key,label]of [["AutoPlotUpgrade","Amélioration automatique du plot"],["AutoTreadmillUpgrade","Amélioration automatique du tapis"],["AutoEggs","AutoEggs"],["AutoTreadmill","Tapis"],["AutoPapillon","Papillons"],["AutoSkyfall","Skyfall"],["AutoStormGlass","StormGlass"],["AutoSlickRick","Slick Rick"],["AutoStormRush","Storm Rush"],["AutoCosmicEclipse","Cosmic Eclipse"],["AutoSell","Vente automatique des œufs"],["AutoSellAnimals","Vente automatique des animaux · backpack uniquement"],["AutoFuse","Fusion automatique"],["AutoOpen","Ouverture automatique"],["AutoPlace","Placement automatique"]]){
-   const line=el("div",null,"toolbar"),toggle=el("input");toggle.type="checkbox";toggle.checked=settingsDraft[key]===true;toggle.dataset.setting=key;
-   toggle.onchange=()=>{settingsDraft[key]=toggle.checked;settingsDirty=true;};const labelNode=el("label",label);labelNode.append(toggle);line.append(labelNode);
-   const group={AutoPlotUpgrade:"upgrades",AutoTreadmillUpgrade:"upgrades",AutoEggs:"eggs",AutoTreadmill:"movement",AutoPapillon:"movement",AutoSkyfall:"movement",AutoStormGlass:"movement",AutoSlickRick:"movement",AutoStormRush:"movement",AutoCosmicEclipse:"movement",AutoSell:"sell",AutoSellAnimals:"sell",AutoFuse:"fuse",AutoOpen:"open",AutoPlace:"place"}[key];groups[group].append(line);
-  }
-  groups.open.append(el("p","Ouvre les œufs arrivés à maturité qui ont au moins sept mutations de consommables.","muted"));
-  groups.upgrades.append(el("p","Achats avec l’argent du jeu, un niveau à la fois. Le prochain achat attend la confirmation du précédent. Priorité aux vols.","muted"));
-  groups.eggs.append(el("p","Tous les biomes. Les espèces manquantes dans l’index sont incluses. Le seuil de revenu est recalculé à partir de l’animal équipé qui rapporte le moins.","muted"));
-  settingsDraft.AutoMutations??=false;
-  const global=el("input");global.type="checkbox";global.checked=settingsDraft.AutoMutations;global.dataset.setting="AutoMutations";global.onchange=()=>{settingsDraft.AutoMutations=global.checked;settingsDirty=true;};const globalLabel=el("label","Activer AutoMutations");globalLabel.append(global);groups.mutations.append(globalLabel,el("p","Les consommables disponibles sont appliqués aux œufs placés, du revenu le plus élevé au plus faible.","muted"));
   const save=el("button","Enregistrer"),reset=el("button","Recharger les valeurs du jeu");
  save.dataset.saveSettings="";
   save.onclick=()=>{
