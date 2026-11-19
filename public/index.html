@@ -426,7 +426,6 @@ function groupServers(){
  visible.sort((a,b)=>Number(b.hasAdmin)-Number(a.hasAdmin)||(b.eggs[0]?.incomePerSecond??-1)-(a.eggs[0]?.incomePerSecond??-1)||a.key.localeCompare(b.key));
  return visible;
 }
-let stormEventsByServer=new Map();
 function createServerView(group){
  const view=createCard(),header=el("div",null,"server-heading"),title=el("strong"),connection=el("small");
  const go=el("button","GO");go.title="Forcer la téléportation de l’admin connecté, sans attendre la file";
@@ -442,12 +441,11 @@ function createServerView(group){
   socket.send(JSON.stringify({version:1,type:"observer.go-to-admin",placeId:group.placeId,jobId:group.jobId}));
   setText(status,"GO TO Admin demandé…");
  };
- const events=el("small");events.hidden=true;view.node.insertBefore(events,view.node.children[0]);
  const actions=el("div",null,"server-actions");actions.append(go,toAdmin);
  header.append(title,connection,actions);view.node.insertBefore(header,view.node.children[0]);
  const expand=el("details",null,"server-expand"),summary=el("summary"),list=el("div",null,"server-eggs");
  expand.append(summary,list);view.node.append(expand);
- return {view,title,connection,toAdmin,events,expand,summary,list,eggs:new Map()};
+ return {view,title,connection,toAdmin,expand,summary,list,eggs:new Map()};
 }
 function renderCards(){
  const groups=groupServers(),active=new Set();
@@ -462,10 +460,6 @@ function renderCards(){
   const names=(server.scriptNames||[]).join(", ");
   setText(server.title,(group.hasAdmin?"★ Serveur admin":"Serveur")+(names?" de "+names:" observé"));
   server.title.title=group.jobId;
-  const observed=stormEventsByServer.get(group.key),labels=[];
-  if(observed?.stormglass)labels.push("Stormglass détecté");
-  if(observed?.stormRush)labels.push(observed.stormRush==="Rush"?"Storm Rush actif":"Storm Rush en préparation");
-  server.events.hidden=labels.length===0;setText(server.events,labels.join(" · "));
   server.toAdmin.disabled=group.hasAdmin||!adminEntries.some(entry=>entry.connected&&entry.placeId===group.placeId);
   setText(server.connection,group.connected?"● Connecté":"Observations conservées");
   server.connection.style.color=group.connected?"#b0fa75":"#a4b2ca";
@@ -553,7 +547,7 @@ function connect(){
     rows=message.eggs;serverCount=message.serverCount;resetAt=message.nextResetAt;
     renderCards();
     setText(status,rows.length+" œuf(s) · "+serverCount+" serveur(s) observé(s) · En direct");
-   }else if(message.type==="players.state"){players=message.players;stormEventsByServer=new Map((message.stormEvents||[]).map(event=>[JSON.stringify([event.placeId,event.jobId]),event]));updateAllRosters();}
+   }else if(message.type==="players.state"){players=message.players;updateAllRosters();}
    else if(message.type==="logs.state"){
     logRows=new Map(message.entries.map(row=>[row.id,row]));renderLogs();
     setText(document.getElementById("logs-info"),"Résultats des vols de l’admin · "+message.limit+" dernières lignes · "+(message.storage==="mongodb"?"Sauvegarde MongoDB active.":message.storage==="mongodb-pending"?"MongoDB en attente.":"Mémoire du serveur."));
