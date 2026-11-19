@@ -58,6 +58,20 @@ function attachEggGateway(server, store, players, history, {
   }
   function broadcastAdmin() { const state = adminState(); for (const ws of wss.clients) if (ws.role === "viewer") sendAdminState(ws, state); }
   function logsState() { const state = logs.state(); return { ...state, entries: state.entries.filter(row => matchesUsername(row.playerName) && flightResult(row.text)) }; }
+  function sendObserverStormOptions() {
+    const admin = adminSocket()?.reporterIdentity;
+    const saved = (admin && settings.get(admin.userId)) || settings.findByUsername(username);
+    for (const ws of wss.clients) {
+      if (ws.role !== "reporter" || !ws.observerOnly || !ws.reporterIdentity || ws.superseded) continue;
+      const options = saved?.placeId === ws.reporterIdentity.placeId ? saved.options : null;
+      const stormglass = options?.AutoStormGlass === true;
+      const stormRush = options?.AutoStormRush === true;
+      const signature = JSON.stringify([stormglass, stormRush]);
+      if (ws.observerStormSignature === signature) continue;
+      ws.observerStormSignature = signature;
+      send(ws, { version: 1, type: "observer.storm-options", stormglass, stormRush });
+    }
+  }
   function deliverTargets() {
     const ws = adminSocket(); if (!ws) return;
     const identity = ws.reporterIdentity, saved = settings.get(identity.userId);
@@ -140,11 +154,11 @@ function attachEggGateway(server, store, players, history, {
       broadcastTimer = undefined;
       const eggs = store.state(), presence = presenceState();
       for (const ws of wss.clients) if (ws.role === "viewer") { send(ws, eggs); send(ws, presence); }
-      broadcastAdmin(); deliverTargets(); deliverTeleport(); distributeObservers();
+      broadcastAdmin(); sendObserverStormOptions(); deliverTargets(); deliverTeleport(); distributeObservers();
     }, 200);
     broadcastTimer.unref();
   }
-  const unsubscribeSettings = settings.onReady(broadcastAdmin);
+  const unsubscribeSettings = settings.onReady(() => { broadcastAdmin(); sendObserverStormOptions(); });
   const unsubscribeLogs = logs.onReady(() => { for (const ws of wss.clients) if (ws.role === "viewer") send(ws, logsState()); });
   const ljrpc = attachLJRPC(server);
   function upgrade(req, socket, head) {
