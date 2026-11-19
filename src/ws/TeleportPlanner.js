@@ -23,22 +23,24 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
   const known=list.every(player=>Number.isFinite(player.speedPower)&&player.speedPower>=0);
   competition.set(key,{playerCount:list.length,strongestSpeed:known?Math.max(...list.map(player=>player.speedPower)):Infinity});
  }
- const candidates=eggs.filter(egg=>allowedBiome(egg,options.AutoEggsMaxBiome??"All")&&egg.placeId===identity.placeId&&(egg.jobId!==identity.jobId||fishing)&&(!visited.has(egg.jobId)||fishing&&egg.jobId===identity.jobId)&&
-  competition.has(JSON.stringify([egg.placeId,egg.jobId]))&&
+ const eligible=eggs.filter(egg=>allowedBiome(egg,options.AutoEggsMaxBiome??"All")&&egg.placeId===identity.placeId&&
   !egg.carrierUserId&&egg.state!=="Carried"&&egg.state!=="Claimed"&&!egg.observationOnly&&
   Number.isFinite(egg.incomePerSecond)&&((options.AutoEggs&&egg.incomePerSecond>=options.AutoEggsMin&&egg.incomePerSecond<=options.AutoEggsMax)||
    (options.AutoEggs&&egg.rarity==="Divine")||
    (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
+ const local=eligible.filter(egg=>egg.jobId===identity.jobId);
+ if(local.length&&!fishing)return null;
+ const candidates=local.length?local:eligible.filter(egg=>!visited.has(egg.jobId)&&competition.has(JSON.stringify([egg.placeId,egg.jobId])));
  candidates.sort((a,b)=>{
   if(a.incomePerSecond!==b.incomePerSecond)return b.incomePerSecond-a.incomePerSecond;
-  const left=competition.get(JSON.stringify([a.placeId,a.jobId])).strongestSpeed;
-  const right=competition.get(JSON.stringify([b.placeId,b.jobId])).strongestSpeed;
+  const left=competition.get(JSON.stringify([a.placeId,a.jobId]))?.strongestSpeed??Infinity;
+  const right=competition.get(JSON.stringify([b.placeId,b.jobId]))?.strongestSpeed??Infinity;
   if(left!==right)return left<right?-1:1;
   return a.key.localeCompare(b.key);
  });
  const target=candidates[0];
  if(!target)return null;
- return {target,immediate:fishing||target.incomePerSecond>=(options.TeleportInstantMin??50e9)};
+ return {target,immediate:true};
 }
 module.exports={planTeleport};
 
