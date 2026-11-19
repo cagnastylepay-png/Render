@@ -79,6 +79,10 @@ function attachEggGateway(server, store, players, history, {
     send(ws, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: Date.now(), target: plan?.target || null, immediate: plan?.immediate || false });
   }
   const observerServers=createObserverServers();
+  function onAdminServer(identity) {
+    const admin = adminSocket()?.reporterIdentity;
+    return Boolean(identity && admin && identity.placeId === admin.placeId && identity.jobId === admin.jobId);
+  }
   let spreading=false;
   async function distributeObservers(){
     if(spreading||closed)return;
@@ -89,7 +93,7 @@ function attachEggGateway(server, store, players, history, {
       for(const [ws,group]of plans){
         if(ws.manualObserverHopUntil>Date.now())continue;
         let target=null;
-        if(group){
+        if(group&&!onAdminServer(ws.reporterIdentity)){
           const identity=ws.reporterIdentity;
           let destination=ws.spreadDestination;
           if(!destination||destination.until<=Date.now()||destination.fromJobId!==group.jobId){
@@ -108,6 +112,7 @@ function attachEggGateway(server, store, players, history, {
           }
         }else ws.spreadDestination=null;
         if(closed||ws.readyState!==WebSocket.OPEN||ws.superseded)continue;
+        if(onAdminServer(ws.reporterIdentity))target=null;
         const signature=JSON.stringify(target);
         if(ws.spreadSignature===signature)continue;
         ws.spreadSignature=signature;
