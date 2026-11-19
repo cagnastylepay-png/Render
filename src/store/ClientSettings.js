@@ -12,7 +12,7 @@ function validateSettings(input){
  const maximum=input.AutoEggsMaxBiome===undefined?"All":input.AutoEggsMaxBiome;
  if(!validMaxBiome(maximum))throw Error("Invalid maximum biome");
  result.AutoEggsMaxBiome=maximum;
- for(const key of ["AutoPlotUpgrade","AutoTreadmillUpgrade","AutoSkyfall","AutoStormGlass","BetaMovement","AutoCosmicEclipse","AutoSlickRick","AutoStormRush"]){if(input[key]!==undefined&&typeof input[key]!=="boolean")throw Error("Invalid "+key);result[key]=input[key]===true;}
+ for(const key of ["AutoPlotUpgrade","AutoTreadmillUpgrade","AutoSkyfall","AutoStormGlass","AutoCosmicEclipse","AutoSlickRick","AutoStormRush"]){if(input[key]!==undefined&&typeof input[key]!=="boolean")throw Error("Invalid "+key);result[key]=input[key]===true;}
  const help=input.AutoHelp??false,helpMin=input.AutoHelpMin??2e9,favorites=input.HelpFavorites??"";
  if(typeof help!=="boolean"||typeof helpMin!=="number"||!Number.isFinite(helpMin)||helpMin<0||helpMin>1e33||typeof favorites!=="string"||favorites.length>1100)throw Error("Invalid help settings");
  const names=favorites.split(/[,;\s]+/).filter(Boolean);
@@ -21,8 +21,6 @@ function validateSettings(input){
  result.AutoHelp=help;result.AutoHelpMin=helpMin;
  if(input.TeleportInstantMin!==undefined&&(typeof input.TeleportInstantMin!=="number"||!Number.isFinite(input.TeleportInstantMin)||input.TeleportInstantMin<0||input.TeleportInstantMin>1e33))throw Error("Invalid instant teleport income");
  result.TeleportInstantMin=input.TeleportInstantMin??50e9;
- if(input.QueueNearest!==undefined&&typeof input.QueueNearest!=="boolean")throw Error("Invalid queue sort");
- result.QueueNearest=input.QueueNearest===true;
  if(input.AutoMutations!==undefined&&typeof input.AutoMutations!=="boolean")throw Error("Invalid AutoMutations");
  result.AutoMutations=input.AutoMutations===true;
  const animalEnabled=input.AutoSellAnimals??false,animalMin=input.AutoSellAnimalsMin??0,animalMax=input.AutoSellAnimalsMax??2e9;
