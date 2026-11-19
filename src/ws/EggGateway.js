@@ -87,6 +87,7 @@ function attachEggGateway(server, store, players, history, {
       const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
       const plans=planObserverSpread(clients);
       for(const [ws,group]of plans){
+        if(ws.manualObserverHopUntil>Date.now())continue;
         let target=null;
         if(group){
           const identity=ws.reporterIdentity;
@@ -180,6 +181,27 @@ function attachEggGateway(server, store, players, history, {
           send(client, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: now,
             target: { ...egg, expiresAt: client.manualTeleportUntil }, immediate: true, force: true, manualSteal: true });
           send(ws, { version: 1, type: "egg.steal.ack", count: 1, name: egg.name });
+          return;
+        }
+        if (message.type === "observer.go-to-admin") {
+          if (ws.role !== "viewer") throw Error("Only dashboard viewers may direct an observer");
+          if (![message.placeId,message.jobId].every(value=>typeof value==="string"&&value.length>0&&value.length<=128)) throw Error("Serveur source invalide");
+          const ack=message=>send(ws,{version:1,type:"observer.go-to-admin.ack",message});
+          const destination=adminSocket()?.reporterIdentity;
+          if (!destination||destination.placeId!==message.placeId) { ack("Admin indisponible dans ce jeu.");return; }
+          if (destination.jobId===message.jobId) { ack("L’observer est déjà sur le serveur d’Admin.");return; }
+          const now=Date.now();
+          const observer=[...wss.clients].find(client=>client.readyState===WebSocket.OPEN&&client.role==="reporter"&&
+            client.clientKind==="observer"&&client.observerOnly&&!client.superseded&&
+            client.reporterIdentity?.placeId===message.placeId&&client.reporterIdentity.jobId===message.jobId);
+          if (!observer) { ack("Aucun observer connecté sur ce serveur.");return; }
+          if (observer.manualObserverHopUntil>now) { ack("Une demande est déjà en cours pour cet observer.");return; }
+          observer.manualObserverHopUntil=now+30000;
+          observer.spreadSignature=undefined;
+          send(observer,{version:1,type:"observer.go-to-admin",target:{
+            placeId:message.placeId,jobId:message.jobId,destinationJobId:destination.jobId,delaySeconds:0
+          }});
+          ack("Demande transmise à "+observer.reporterIdentity.name+".");
           return;
         }
         if (message.type === "teleport.manual") {
