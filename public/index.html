@@ -203,7 +203,7 @@ function renderAdminSettings(){
  const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.options]);
  if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
  if(!settingsForm||!settingsDirty&&signature!==settingsBase){
-  settingsBase=signature;settingsDraft={AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
+  settingsBase=signature;settingsDraft={GroupMode:true,AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
   const switches=[
    ["AutoEggs","Auto Eggs"],["AutoTreadmill","Auto Treadmill"],["AutoPapillon","Auto Butterflies"],
    ["AutoSkyfall","Auto Skyfall"],["AutoStormGlass","Auto Stormglass"],["AutoSlickRick","Auto Slick Rick"],
