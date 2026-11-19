@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const {validateSettings}=require('../store/ClientSettings');
 const {getMutationImage,getEggImage,getAnimalImage,registerGameImageIds}=require('../assets/EggImages');
-const actions=new Set(['images.collect','egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set','trajectory.start','trajectory.stop','movement.test.start','movement.test.stop','movement.test.update']);
+const actions=new Set(['egg.mutate','egg.open','egg.sell','egg.place','animal.sell','animal.fuse','equip.best','settings.update','automation.set','fishing.set']);
 function imageId(value){if(value==null)return null;if(typeof value!=='string'||!(/^[1-9]\d{0,19}$/).test(value))throw Error('Invalid Roblox image asset ID');return value;}
 function validateFishingCapture(value){
  if(value==null)return null;
@@ -44,16 +44,14 @@ function validateInventory(m){
  });
  if(m.mutationStatus!=null&&(typeof m.mutationStatus!=='string'||m.mutationStatus.length>500))throw Error('Invalid mutation status');
  if(m.automationStatus!=null&&(typeof m.automationStatus!=='string'||m.automationStatus.length>500))throw Error('Invalid automation status');
- const imageCatalog=m.imageCatalog??[];if(!Array.isArray(imageCatalog)||imageCatalog.length>5000)throw Error('Invalid image catalog');
- const images=imageCatalog.map(r=>{if(!r||typeof r.category!=='string'||!r.category||r.category.length>160||typeof r.name!=='string'||r.name.length>160)throw Error('Invalid image catalog entry');return {category:r.category,name:r.name,eggImageAssetId:imageId(r.eggImageAssetId),animalImageAssetId:imageId(r.animalImageAssetId)};});
  const fishingCapture=validateFishingCapture(m.fishingCapture);
  const eggs=list(m.eggs,'egg'),animals=list(m.animals,'animal');
  // Register only after validating the whole snapshot, so rejected messages cannot extend the image allowlist.
- for(const r of [...images,...eggs,...animals])registerGameImageIds(r);
+ for(const r of [...eggs,...animals])registerGameImageIds(r);
  for(const r of eggs)r.imageUrl=getEggImage(r);for(const r of animals)r.imageUrl=getAnimalImage(r);
  if(m.fishingEnabled!=null&&typeof m.fishingEnabled!=='boolean')throw Error('Invalid fishing status');
  if(m.automationEnabled!=null&&typeof m.automationEnabled!=='boolean')throw Error('Invalid automation mode');
- return {automationEnabled:m.automationEnabled??null,fishingCapture,fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,imageCatalog:images,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
+ return {automationEnabled:m.automationEnabled??null,fishingCapture,fishingEnabled:m.fishingEnabled??null,sessionId:m.sessionId,revision:m.revision,receivedAt:Date.now(),stats,eggs,animals,mutationConsumables:mutations,mutationStatus:m.mutationStatus||null,automationStatus:m.automationStatus||null};
 }
 function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.now}){
  let inventory=null,pending=null,lastResult=null;const seen=new Map();
@@ -73,21 +71,6 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
    let payload={};
    if(m.action==='automation.set'||m.action==='fishing.set'){
     if(typeof m.enabled!=='boolean')throw Error('Invalid automation switch');payload={enabled:m.enabled};
-   }else if(m.action==='movement.test.update'||m.action==='movement.test.start'){
-    if(m.action==='movement.test.update'||m.mode!==undefined||m.stepStuds!==undefined||m.intervalMs!==undefined){
-     const mode=m.mode??'teleport',positive=v=>typeof v==='number'&&Number.isFinite(v)&&v>0;
-     payload={mode};
-     if(mode==='walk'){
-      if(!positive(m.walkSpeed))throw Error('Vitesse Walk positive requise');payload.walkSpeed=m.walkSpeed;
-     }else if(mode==='tween'){
-      if(!positive(m.tweenSpeed))throw Error('Vitesse Tween positive requise');payload.tweenSpeed=m.tweenSpeed;
-     }else if(mode==='teleport'){
-      if(!positive(m.stepStuds)||!Number.isSafeInteger(m.intervalMs)||m.intervalMs<1)throw Error('Distance positive et intervalle entier positif requis');
-      payload.stepStuds=m.stepStuds;payload.intervalMs=m.intervalMs;
-     }else throw Error('Mode de déplacement inconnu');
-    }
-   }else if(m.action==='trajectory.start'||m.action==='trajectory.stop'||m.action==='movement.test.stop'){
-    // Movement diagnostics do not depend on inventory.
    }else if(m.action==='settings.update'){
     const saved=settings.get(admin.reporterIdentity.userId);
     if(!saved||m.settingsSessionId!==saved.sessionId)throw Error('Session des paramètres modifiée : recharge les valeurs');
@@ -97,7 +80,7 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
     payload={options:validateSettings(m.options),settingsRevision:saved.revision,settingsSessionId:saved.sessionId};
    }else{
     if(!inventory||inventory.connectionId!==admin.connectionId||now()-inventory.receivedAt>30000||m.inventoryRevision!==inventory.revision||m.inventorySessionId!==inventory.sessionId)throw Error('Inventaire périmé : attends sa mise à jour');
-    if(!['equip.best','images.collect'].includes(m.action)){
+    if(m.action!=='equip.best'){
      const kind=m.action.startsWith('egg.')?'eggs':'animals',item=inventory[kind].find(r=>r.uid===m.uid);
      if(!item)throw Error('Objet absent');if(item.locked)throw Error('Objet verrouillé ou occupé');
      if((['egg.open','egg.mutate'].includes(m.action))!==(item.location==='plot'))throw Error('Action incompatible avec cet emplacement');
@@ -115,19 +98,12 @@ function createAdminPanel({send,viewers,adminSocket,settings,onChange,now=Date.n
      }
     }
    }
-   const requestId=randomUUID();pending={requestId,clientRequestId:m.clientRequestId,connectionId:admin.connectionId,viewer,action:m.action,timer:setTimeout(()=>finish('unknown','Délai dépassé : résultat inconnu, aucune relance automatique.'),120000)};pending.timer.unref();
+   const requestId=randomUUID();pending={requestId,clientRequestId:m.clientRequestId,connectionId:admin.connectionId,action:m.action,timer:setTimeout(()=>finish('unknown','Délai dépassé : résultat inconnu, aucune relance automatique.'),120000)};pending.timer.unref();
    send(admin,{version:1,type:'admin.command',requestId,action:m.action,...payload});send(viewer,{version:1,type:'admin.command.ack',requestId});broadcast();
   },
   result(ws,m){if(!pending||pending.connectionId!==ws.connectionId||pending.requestId!==m.requestId)return false;
-   if(!['confirmed','rejected','unknown'].includes(m.status)||typeof m.message!=='string'||m.message.length>500)throw Error('Invalid admin result');const viewer=pending.viewer;
-   const trace=pending.action==='trajectory.stop'&&m.status==='confirmed';
-   const trajectory=trace?m.trajectory:null;
-   if(trace&&(!trajectory||trajectory.version!==1||!Array.isArray(trajectory.samples)||trajectory.samples.length>1500||
-       !Array.isArray(trajectory.events)||trajectory.events.length>300||JSON.stringify(trajectory).length>600000)){
-     finish('rejected','Capture invalide ou trop volumineuse.');return false;
-   }
+   if(!['confirmed','rejected','unknown'].includes(m.status)||typeof m.message!=='string'||m.message.length>500)throw Error('Invalid admin result');
    finish(m.status,m.message);
-   if(trajectory)send(viewer,{version:1,type:'admin.trajectory',trajectory});
    onChange();return true;},
   close(){if(pending)clearTimeout(pending.timer);}
  };
