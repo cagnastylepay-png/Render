@@ -11,7 +11,7 @@ button,input,select{font:inherit;border:1px solid #3b465b;border-radius:8px;back
 button{cursor:pointer}button:disabled{opacity:.45;cursor:default}.tabs{margin:22px 0}.tabs [aria-selected=true]{background:#b0fa75;color:#142410;border-color:#b0fa75;font-weight:700}
 label{display:inline-flex;gap:8px;align-items:center}small,.muted{color:#a4b2ca}
 #status{min-height:1.4em}.timer{font-variant-numeric:tabular-nums}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:12px}
-.cards{align-items:start}.server-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #303d53}.server-heading strong{font-size:12px;min-width:0;overflow-wrap:anywhere}.server-heading small{font-size:11px}.server-eggs{display:grid;gap:10px;margin-top:12px}.server-eggs .players{display:none}.server-eggs .card{padding:10px;background:#101826}.server-expand>summary{font-size:13px;color:#b0fa75;padding:10px 0}.server-empty .egg-art,.server-empty .metrics{display:none}
+.cards{align-items:start}.server-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #303d53}.server-actions{display:grid;gap:6px;justify-items:stretch;flex-shrink:0}.server-heading strong{font-size:12px;min-width:0;overflow-wrap:anywhere}.server-heading small{font-size:11px}.server-eggs{display:grid;gap:10px;margin-top:12px}.server-eggs .players{display:none}.server-eggs .card{padding:10px;background:#101826}.server-expand>summary{font-size:13px;color:#b0fa75;padding:10px 0}.server-empty .egg-art,.server-empty .metrics{display:none}
 .card{background:#141c2b;border:1px solid #303d53;border-top:3px solid #c2a3ff;border-radius:10px;padding:12px}
 .card[data-rarity=Divine]{border-top-color:#ffd269}.card[data-rarity=Eternal]{border-top-color:#ff89cf}.card[data-rarity=Cosmic]{border-top-color:#88aaff}
 .card.server-admin{background:#29251a;border-color:#9b7b32;border-top-color:#ffd269;box-shadow:0 0 0 1px #ffd26933}.server-admin>.server-heading{border-bottom-color:#67552d}.server-admin>.server-heading strong{color:#ffe29a}
@@ -434,10 +434,18 @@ function createServerView(group){
   socket.send(JSON.stringify({version:1,type:"teleport.manual",placeId:group.placeId,jobId:group.jobId}));
   setText(status,"GO : demande envoyée à l’admin connecté…");
  };
- header.append(title,connection,go);view.node.insertBefore(header,view.node.children[0]);
+ const toAdmin=el("button","GO TO Admin");
+ toAdmin.title="Envoyer un observer de ce serveur vers le serveur d’Admin";
+ toAdmin.onclick=()=>{
+  if(!socket||socket.readyState!==WebSocket.OPEN){setText(status,"Reconnecte-toi pour envoyer GO TO Admin.");return;}
+  socket.send(JSON.stringify({version:1,type:"observer.go-to-admin",placeId:group.placeId,jobId:group.jobId}));
+  setText(status,"GO TO Admin demandé…");
+ };
+ const actions=el("div",null,"server-actions");actions.append(go,toAdmin);
+ header.append(title,connection,actions);view.node.insertBefore(header,view.node.children[0]);
  const expand=el("details",null,"server-expand"),summary=el("summary"),list=el("div",null,"server-eggs");
  expand.append(summary,list);view.node.append(expand);
- return {view,title,connection,expand,summary,list,eggs:new Map()};
+ return {view,title,connection,toAdmin,expand,summary,list,eggs:new Map()};
 }
 function renderCards(){
  const groups=groupServers(),active=new Set();
@@ -452,6 +460,7 @@ function renderCards(){
   const names=(server.scriptNames||[]).join(", ");
   setText(server.title,(group.hasAdmin?"★ Serveur admin":"Serveur")+(names?" de "+names:" observé"));
   server.title.title=group.jobId;
+  server.toAdmin.disabled=group.hasAdmin||!adminEntries.some(entry=>entry.connected&&entry.placeId===group.placeId);
   setText(server.connection,group.connected?"● Connecté":"Observations conservées");
   server.connection.style.color=group.connected?"#b0fa75":"#a4b2ca";
   view.node.className="card"+(best?"":" server-empty")+(group.hasAdmin?" server-admin":"");
@@ -525,6 +534,7 @@ function connect(){
    const message=JSON.parse(event.data);
    if(message.serverTime)timeOffset=message.serverTime-Date.now();
    if(message.type==="egg.steal.ack"){setText(status,message.count?"STEAL transmis à Admin pour "+message.name+".":message.reason);}
+   if(message.type==="observer.go-to-admin.ack")setText(status,message.message);
    if(message.type==="teleport.manual.ack"){setText(status,message.count?"GO envoyé à l’admin connecté.":"Admin indisponible ou déjà sur ce serveur.");}
    else if(message.type==="admin.state"){adminUsername=message.username;adminEntries=[message.entry];adminStorage=message.storage;adminUsers=new Set(message.entry.userId?[message.entry.userId]:[]);deliveryReady=true;setText(document.getElementById("delivery-info"),"Admin : "+adminUsername+" · "+(message.entry.connected?"Connecté":"Déconnecté"));renderAdmin();renderCards();renderLogs();}
    else if(message.type==="admin.inventory.state"){
