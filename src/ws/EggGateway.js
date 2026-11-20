@@ -278,6 +278,10 @@ function attachEggGateway(server, store, players, history, {
             send(ws, { version: 1, type: "egg.steal.ack", count: 0, reason: !egg ? "Œuf indisponible ou expiré." : "Admin indisponible." });
             return;
           }
+          if (egg.jobId !== client.reporterIdentity.jobId && settings.get(client.reporterIdentity.userId)?.options?.GroupMode !== false) {
+            send(ws, { version: 1, type: "egg.steal.ack", count: 0, reason: "Group Mode actif. STEAL est limité au serveur d’Admin." });
+            return;
+          }
           client.manualTeleportUntil = Math.min(egg.expiresAt, now + 60000);
           send(client, { version: 1, type: "teleport.request", requestId: randomUUID(), serverTime: now,
             target: { ...egg, expiresAt: client.manualTeleportUntil }, immediate: true, force: true, manualSteal: true });
