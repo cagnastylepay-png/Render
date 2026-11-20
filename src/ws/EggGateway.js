@@ -89,15 +89,32 @@ function attachEggGateway(server, store, players, history, {
     send(groupReservation.observer, { version: 1, type: "observer.group", target: null });
     groupReservation = undefined;
   }
-  function activeGroupAdmin() {
-    const admin = adminSocket();
-    return admin && settings.get(admin.reporterIdentity.userId)?.options?.GroupMode === true ? admin : null;
+  let groupHome;
+  function chooseGroupHome(admin, saved, clients) {
+    const observers = clients.filter(client => client.observerOnly && !client.superseded && client.reporterIdentity);
+    const staysInGroup = client => client.reporterIdentity.placeId === groupHome?.placeId &&
+      client.reporterIdentity.jobId === groupHome?.jobId;
+    if (groupHome && (observers.some(staysInGroup) || (admin && staysInGroup(admin)))) return groupHome;
+    const identity = admin?.reporterIdentity;
+    if (identity) return { placeId: identity.placeId, jobId: identity.jobId };
+    const samePlace = observers.filter(client => client.reporterIdentity.placeId === saved.placeId);
+    const groups = new Map();
+    for (const client of samePlace) {
+      const { placeId, jobId } = client.reporterIdentity;
+      const group = groups.get(jobId) || { placeId, jobId, count: 0 };
+      group.count++;
+      groups.set(jobId, group);
+    }
+    return groups.get(saved.jobId) || [...groups.values()].sort((a,b) => b.count - a.count)[0];
   }
-  function fillAdminServer(admin, clients, now) {
-    const destination = admin.reporterIdentity, capacity = admin.groupCapacity;
+  function fillGroupServer(destination, clients, now) {
+    const capacity = clients.filter(client => !client.superseded &&
+      client.reporterIdentity?.placeId === destination.placeId &&
+      client.reporterIdentity.jobId === destination.jobId && client.groupCapacity)
+      .map(client => client.groupCapacity).sort((a,b) => b.at - a.at)[0];
     if (groupReservation) {
       const { jobId, userId, until } = groupReservation;
-      if (jobId !== destination.jobId) cancelGroupReservation();
+      if (jobId !== destination.jobId || groupReservation.placeId !== destination.placeId) cancelGroupReservation();
       else if (capacity?.userIds.has(userId)) groupReservation = undefined;
       else if (now < until) return;
       else cancelGroupReservation();
@@ -113,7 +130,7 @@ function attachEggGateway(server, store, players, history, {
     const source = observer.reporterIdentity;
     observer.groupLastAttempt = now;
     observer.groupRetryAt = now + 125000;
-    groupReservation = { observer, userId: source.userId, jobId: destination.jobId, until: now + 125000 };
+    groupReservation = { observer, userId: source.userId, placeId: destination.placeId, jobId: destination.jobId, until: now + 125000 };
     send(observer, { version: 1, type: "observer.group", target: {
       placeId: source.placeId, jobId: source.jobId, destinationJobId: destination.jobId, delaySeconds: 0
     } });
@@ -124,16 +141,20 @@ function attachEggGateway(server, store, players, history, {
     spreading=true;
     try{
       const clients=[...wss.clients].filter(ws=>ws.readyState===WebSocket.OPEN);
-      const admin = activeGroupAdmin();
-      if (admin) {
+      const admin = adminSocket();
+      const saved = (admin && settings.get(admin.reporterIdentity.userId)) || settings.findByUsername(username);
+      if (saved?.options?.GroupMode === true) {
         for (const client of clients) {
           if (!client.observerOnly || client.spreadSignature === "null") continue;
           client.spreadSignature = "null";
           send(client, { version: 1, type: "observer.spread", target: null });
         }
-        fillAdminServer(admin, clients, Date.now());
+        groupHome = chooseGroupHome(admin, saved, clients);
+        if (groupHome) fillGroupServer(groupHome, clients, Date.now());
+        else cancelGroupReservation();
         return;
       }
+      groupHome = undefined;
       cancelGroupReservation();
       const plans=planObserverSpread(clients);
       for(const [ws,group]of plans){
@@ -240,6 +261,8 @@ function attachEggGateway(server, store, players, history, {
           const ack=message=>send(ws,{version:1,type:"observer.go-to-admin.ack",message});
           const destination=adminSocket()?.reporterIdentity;
           if (!destination||destination.placeId!==message.placeId) { ack("Admin indisponible dans ce jeu.");return; }
+          if (groupHome?.placeId === message.placeId && groupHome.jobId === message.jobId &&
+            settings.get(destination.userId)?.options?.GroupMode === true) { ack("Group Mode actif : cet observer reste avec le groupe.");return; }
           if (destination.jobId===message.jobId) { ack("L’observer est déjà sur le serveur d’Admin.");return; }
           const now=Date.now();
           const observer=[...wss.clients].find(client=>client.readyState===WebSocket.OPEN&&client.role==="reporter"&&
@@ -327,7 +350,7 @@ function attachEggGateway(server, store, players, history, {
           send(ws, { version: 1, type: "players.ack", revision: message.revision, accepted });
           if (accepted) {
             ws.reporterIdentity = { name: reporter.name, displayName: reporter.displayName, userId: reporter.userId, placeId: message.placeId, jobId: message.jobId };
-            if (isAdmin(ws)) {
+            if (isAdmin(ws) || ws.observerOnly) {
               const maxPlayers = message.maxPlayers;
               ws.groupCapacity = Number.isSafeInteger(maxPlayers) && maxPlayers > 0 && maxPlayers <= 500
                 ? { maxPlayers, userIds: new Set(message.players.map(row => row.userId)), at: Date.now() } : null;
