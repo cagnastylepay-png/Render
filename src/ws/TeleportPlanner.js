@@ -30,7 +30,7 @@ function planTeleport(identity,settings,eggs,now=Date.now(),players=[]){
    (options.AutoIndex&&Object.hasOwn(settings.missingCategories||{},egg.category)&&settings.missingCategories[egg.category]===true))&&egg.expiresAt>now);
  const local=eligible.filter(egg=>egg.jobId===identity.jobId);
  if(local.length&&!fishing)return null;
- const candidates=local.length?local:eligible.filter(egg=>!visited.has(egg.jobId)&&competition.has(JSON.stringify([egg.placeId,egg.jobId])));
+ const candidates=local.length||options.GroupMode!==false?local:eligible.filter(egg=>!visited.has(egg.jobId)&&competition.has(JSON.stringify([egg.placeId,egg.jobId])));
  candidates.sort((a,b)=>{
   if(a.incomePerSecond!==b.incomePerSecond)return b.incomePerSecond-a.incomePerSecond;
   const left=competition.get(JSON.stringify([a.placeId,a.jobId]))?.strongestSpeed??Infinity;
