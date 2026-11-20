@@ -27,7 +27,12 @@ function createObserverServers({fetchImpl=fetch,now=Date.now,random=Math.random}
   loading.set(placeId,request);
   try{return await request;}finally{loading.delete(placeId);}
  }
- return {async choose(identity,occupied){
+ return {
+ invalidate(placeId) { caches.delete(placeId); },
+ async hasFreeSlot({placeId,jobId}) {
+  return /^\d+$/.test(placeId) && (await servers(placeId)).includes(jobId);
+ },
+ async choose(identity,occupied){
   const {placeId,jobId,userId}=identity;
   if(!/^\d+$/.test(placeId))return null;
   const rows=await servers(placeId),time=now();
