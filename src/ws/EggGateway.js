@@ -92,11 +92,19 @@ function attachEggGateway(server, store, players, history, {
   let groupHome;
   function chooseGroupHome(admin, saved, clients) {
     const observers = clients.filter(client => client.observerOnly && !client.superseded && client.reporterIdentity);
-    const staysInGroup = client => client.reporterIdentity.placeId === groupHome?.placeId &&
-      client.reporterIdentity.jobId === groupHome?.jobId;
-    if (groupHome && (observers.some(staysInGroup) || (admin && staysInGroup(admin)))) return groupHome;
     const identity = admin?.reporterIdentity;
     if (identity) return { placeId: identity.placeId, jobId: identity.jobId };
+
+    const now = Date.now();
+    const observedAdmin = players.state().players.filter(player => matchesUsername(player.name) &&
+      player.placeId === saved.placeId && now - Date.parse(player.receivedAt) <= 25000 &&
+      clients.some(client => !client.superseded && client.reporterIdentity?.placeId === player.placeId &&
+        client.reporterIdentity.jobId === player.jobId))
+      .sort((a,b) => Date.parse(b.receivedAt) - Date.parse(a.receivedAt))[0];
+    if (observedAdmin) return { placeId: observedAdmin.placeId, jobId: observedAdmin.jobId };
+
+    if (groupHome && observers.some(client => client.reporterIdentity.placeId === groupHome.placeId &&
+      client.reporterIdentity.jobId === groupHome.jobId)) return groupHome;
     const samePlace = observers.filter(client => client.reporterIdentity.placeId === saved.placeId);
     const groups = new Map();
     for (const client of samePlace) {
