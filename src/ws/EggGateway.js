@@ -136,7 +136,10 @@ function attachEggGateway(server, store, players, history, {
     }
     if (!capacity || now - capacity.at > 25000) {
       const available = await observerServers.hasFreeSlot(destination).catch(() => false);
-      if (!available || closed || groupHome !== destination) return;
+      if (closed || groupHome !== destination) return;
+      // A short public listing can omit this server. Roblox still enforces capacity on the join.
+      if (!available && !clients.some(client => client.readyState === WebSocket.OPEN && !client.superseded &&
+        client.reporterIdentity?.placeId === destination.placeId && client.reporterIdentity.jobId === destination.jobId)) return;
       const admin = adminSocket();
       const saved = (admin && settings.get(admin.reporterIdentity.userId)) || settings.findByUsername(username);
       if (saved?.options?.GroupMode === false) return;
