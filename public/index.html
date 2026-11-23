@@ -97,7 +97,7 @@ function rosterFor(egg){
 let adminLastResult=null;
 let adminInventory={connected:false,inventory:null,pending:null,result:null},adminSection="eggs",adminEggLocation="plot",adminAnimalLocation="plot",adminWaiting=false;
 let settingsDraft=null,settingsBase=null,settingsDirty=false,settingsForm=null,notificationsPanel=null,adminTickNodes=[];
-const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral",Musical:"Musical",Alien:"Abducted",DarkMatter:"Dark Matter",Blacklisted:"Blacklisted",Copper:"Copper",Thunderous:"Thunderous",GreatBloom:"Spirit Bloom"};
+const mutationNames={Boss:"Fractured",Scrambled:"Scrambled",Enchanted:"Enchanted",Nitro:"Nitro",Spectral:"Spectral",Musical:"Musical",Alien:"Abducted",DarkMatter:"Dark Matter",Blacklisted:"Blacklisted",Copper:"Copper",Thunderous:"Thunderous",GreatBloom:"Spirit Bloom",Maple:"Maple"};
 function mutationLabel(m){return m.name+" · x"+m.count+" · "+(m.successPercent==null?"Chance inconnue":m.successPercent+" %")+" · "+(m.multiplier==null?"Multiplicateur inconnu":"×"+m.multiplier);}
 function openMutationModal(uid){
  const modal=document.getElementById("mutation-modal");modal.replaceChildren();modal.hidden=false;
@@ -317,7 +317,7 @@ function renderAdmin(){
  }
  if(!inventory){container.append(el("p","Lance Admin.lua sur "+adminUsername+" pour afficher le plot et le backpack.","empty"));return;}
  if(adminSection==="mutations"){
-  const grid=el("div",null,"cards");for(const m of inventory.mutationConsumables||[]){const card=el("article",null,"card");if(m.imageUrl){const image=el("img");image.src=m.imageUrl;image.alt=m.name;image.loading="lazy";image.style.cssText="display:block;width:112px;height:112px;object-fit:contain;margin:16px auto";card.append(image);}card.append(el("h2",m.name),el("p","Disponibles : "+m.count),el("p","Réussite : "+(m.successPercent==null?"Inconnue":m.successPercent+" %")),el("p","Multiplicateur : "+(m.multiplier==null?"Inconnu":"×"+m.multiplier)));grid.append(card);}
+  const grid=el("div",null,"cards");for(const m of inventory.mutationConsumables||[]){const card=el("article",null,"card"),key="Mutation"+m.id+"Enabled";if(m.imageUrl){const image=el("img");image.src=m.imageUrl;image.alt=m.name;image.loading="lazy";image.style.cssText="display:block;width:112px;height:112px;object-fit:contain;margin:16px auto";card.append(image);}const label=el("label","Autoriser l'application automatique"),toggle=el("input");toggle.type="checkbox";toggle.checked=row?.options?.[key]===true;toggle.disabled=!adminCanConfigure();toggle.onchange=()=>adminCommand("settings.update",{options:{...row.options,[key]:toggle.checked},baseOptions:row.options});label.append(toggle);card.append(el("h2",m.name),el("p","Disponibles : "+m.count),el("p","Réussite : "+(m.successPercent==null?"Inconnue":m.successPercent+" %")),el("p","Multiplicateur : "+(m.multiplier==null?"Inconnu":"×"+m.multiplier)),label);grid.append(card);}
   if(!grid.children.length)grid.append(el("p","Relance Admin.lua pour transmettre les consommables.","empty"));container.append(grid,el("p","Stock du backpack et du consommable équipé. Les bonus se cumulent : 1 + somme des (multiplicateurs − 1).","muted"));if(inventory.mutationStatus)container.append(el("p",inventory.mutationStatus,"muted"));return;
  }
  if(adminSection==="animals")container.append(adminButton("Équiper les meilleurs","equip.best"));
