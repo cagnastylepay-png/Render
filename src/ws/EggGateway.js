@@ -352,13 +352,20 @@ function attachEggGateway(server, store, players, history, {
         if(message.type==='admin.inventory.snapshot'||message.type==='admin.command.result'){
           if(!isAdmin(ws))throw Error('Only configured Admin.lua may report admin data');
           if(message.type==='admin.command.result'){panel.result(ws,message);return;}
-          const accepted=panel.accept(ws,message);send(ws,{version:1,type:'admin.inventory.ack',revision:message.revision,sessionId:message.sessionId,accepted});return;
+          const accepted=panel.accept(ws,message);
+          send(ws,{version:1,type:'admin.inventory.ack',revision:message.revision,sessionId:message.sessionId,accepted});
+          const saved=settings.get(ws.reporterIdentity.userId);
+          if(saved?.sessionId!==message.sessionId&&ws.settingsRequestedSessionId!==message.sessionId){
+            ws.settingsRequestedSessionId=message.sessionId;
+            send(ws,{version:1,type:'settings.request',sessionId:message.sessionId});
+          }
+          return;
         }
         if (message.type === "settings.snapshot") {
           if (!ws.reporterIdentity) throw Error("Player identity required before settings");
           const accepted = isAdmin(ws) ? settings.accept(ws.reporterIdentity, message) : false;
           send(ws, { version: 1, type: "settings.ack", sessionId: message.sessionId, revision: message.revision, accepted });
-          if (accepted) { ws.settingsSessionId = message.sessionId; broadcastAdmin(); broadcast(); } return;
+          if (accepted) { ws.settingsSessionId = message.sessionId; ws.settingsRequestedSessionId=undefined; broadcastAdmin(); broadcast(); } return;
         }
         if(message.type==="events.snapshot"){
           if(!isAdmin(ws)||message.version!==1)return;

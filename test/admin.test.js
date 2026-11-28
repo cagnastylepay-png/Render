@@ -38,6 +38,9 @@ test('a restarted Admin cannot receive stale settings until its new session is s
  const arrived=await peer('reporter','admin');arrived.send(presence('42','MagixSafe','new'));
  await wait(()=>viewer.last('admin.state')?.entry.jobId==='new'&&viewer.last('admin.state').entry.settingsReady===false);
  assert.equal(viewer.last('admin.state').entry.settingsSessionId,'old-settings');
+ arrived.send({version:1,type:'admin.inventory.snapshot',sessionId:'new-settings',revision:1,stats:{},eggs:[],animals:[]});
+ await wait(()=>arrived.last('settings.request'));
+ assert.equal(arrived.last('settings.request').sessionId,'new-settings');
  arrived.send({...settings(),sessionId:'new-settings'});
  await wait(()=>viewer.last('admin.state')?.entry.settingsSessionId==='new-settings'&&viewer.last('admin.state').entry.settingsReady===true);
 });

@@ -285,7 +285,7 @@ function renderAdmin(){
  autoControls.append(el("span",enabled===true?"AUTO : ON":enabled===false?"AUTO : OFF":"AUTO : état en attente"));
  for(const [label,target] of [["Démarrer AUTO",true],["Arrêter AUTO",false]]){
   const button=el("button",label);
-  button.disabled=!adminCanConfigure();
+  button.disabled=!adminCanAct();
   button.onclick=()=>adminCommand("automation.set",{enabled:target});
   autoControls.append(button);
  }
