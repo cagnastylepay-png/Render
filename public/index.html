@@ -203,10 +203,10 @@ function renderAdminSettings(){
  const row=adminEntries[0],signature=JSON.stringify([row?.settingsSessionId,row?.options]);
  if(!row?.options)return el("p","En attente des paramètres transmis par Admin.lua.","empty");
  if(!settingsForm||!settingsDirty&&signature!==settingsBase){
-  settingsBase=signature;settingsDraft={GroupMode:true,AutoTurkeyRampage:true,AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
+  settingsBase=signature;settingsDraft={GroupMode:true,AutoTurkeyRampage:true,AutoTundra:true,AutoCosmicEclipse:false,AutoPlotUpgrade:false,AutoTreadmillUpgrade:false,AutoHelp:false,AutoHelpMin:2e9,HelpFavorites:"",AutoSellAnimals:false,AutoSellAnimalsMin:0,AutoSellAnimalsMax:2e9,...row.options};settingsDirty=false;settingsForm=el("div",null,"admin-settings");
   const switches=[
    ["AutoEggs","Auto Eggs"],["AutoTreadmill","Auto Treadmill"],["AutoPapillon","Auto Butterflies"],
-   ["AutoSkyfall","Auto Skyfall"],["AutoStormGlass","Auto Stormglass"],["AutoSlickRick","Auto Slick Rick"],["AutoTurkeyRampage","Auto Turkey Rampage"],
+   ["AutoSkyfall","Auto Skyfall"],["AutoStormGlass","Auto Stormglass"],["AutoSlickRick","Auto Slick Rick"],["AutoTundra","Auto Toundra"],["AutoTurkeyRampage","Auto Turkey Rampage"],
    ["GroupMode","Group Mode"],["AutoStormRush","Auto Storm Rush"],["AutoCosmicEclipse","Auto Cosmic Eclipse"],
    ["AutoSell","Auto Sell Eggs"],["AutoSellAnimals","Auto Sell Animals"],["AutoFuse","Auto Fuse"],
    ["AutoOpen","Auto Open Eggs"],["AutoPlace","Auto Place Eggs"],["AutoMutations","Auto Mutations"],
@@ -215,7 +215,7 @@ function renderAdminSettings(){
   for(const [key,name]of switches){
    const label=el("label",name,"toolbar"),toggle=el("input");
    toggle.type="checkbox";
-   toggle.checked=key==="AutoTurkeyRampage"?settingsDraft[key]!==false:settingsDraft[key]===true;
+   toggle.checked=(key==="AutoTurkeyRampage"||key==="AutoTundra")?settingsDraft[key]!==false:settingsDraft[key]===true;
    toggle.dataset.setting=key;
    toggle.onchange=()=>{settingsDraft[key]=toggle.checked;settingsDirty=true;};
    label.append(toggle);

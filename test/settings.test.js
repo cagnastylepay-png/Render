@@ -6,8 +6,15 @@ async function peer(url,role){const ws=new WebSocket(url),messages=[];ws.on("mes
 
 const {createClientSettings}=require("../src/store/ClientSettings");
 const {validateSettings}=require("../src/store/ClientSettings");
+
 const options={AutoEggs:true,AutoTreadmill:true,AutoSell:false,AutoFuse:true,AutoOpen:true,AutoPlace:true,AutoPapillon:false,AutoIndex:true};
 for(const key of ["AutoEggs","AutoSell","AutoFuse","AutoOpen","AutoPlace"]){options[key+"Min"]=2e9;options[key+"Max"]=1e33;}
+
+test("Tundra automation defaults on and preserves an explicit off value",()=>{
+ assert.equal(validateSettings(options).AutoTundra,true);
+ assert.equal(validateSettings({...options,AutoTundra:false}).AutoTundra,false);
+ assert.throws(()=>validateSettings({...options,AutoTundra:"yes"}),/Invalid AutoTundra/);
+});
 
 test('AutoMutations defaults off and accepts independent minimums and bounded integer attempt limits',()=>{
  assert.equal(validateSettings(options).AutoMutations,false);
