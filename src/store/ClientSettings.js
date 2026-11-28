@@ -63,7 +63,9 @@ function createClientSettings({uri=process.env.MONGODB_URI,database=process.env.
    if(message.automationEnabled!==undefined&&typeof message.automationEnabled!=="boolean")throw Error("Invalid automation mode");
    if(message.automationReason!==undefined&&(typeof message.automationReason!=="string"||message.automationReason.length>240))throw Error("Invalid automation reason");
    if(message.visitedJobIds!==undefined&&(!Array.isArray(message.visitedJobIds)||message.visitedJobIds.length>500||message.visitedJobIds.some(id=>typeof id!=="string"||!id.length||id.length>128)))throw Error("Invalid visited servers");
-   const missing=message.missingCategories??{};
+   // Roblox encodes an empty Luau table as [], even for map-shaped data.
+   const rawMissing=message.missingCategories;
+   const missing=Array.isArray(rawMissing)&&rawMissing.length===0?{}:rawMissing??{};
    if(!missing||typeof missing!=="object"||Array.isArray(missing)||Object.keys(missing).length>5000||Object.entries(missing).some(([key,value])=>!key.length||key.length>160||value!==true))throw Error("Invalid missing index");
    const options=validateSettings(message.options),old=rows.get(identity.userId);
    if(old?.sessionId===message.sessionId&&old.revision>=message.revision)return false;

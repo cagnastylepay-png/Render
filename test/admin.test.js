@@ -41,8 +41,28 @@ test('a restarted Admin cannot receive stale settings until its new session is s
  arrived.send({version:1,type:'admin.inventory.snapshot',sessionId:'new-settings',revision:1,stats:{},eggs:[],animals:[]});
  await wait(()=>arrived.last('settings.request'));
  assert.equal(arrived.last('settings.request').sessionId,'new-settings');
- arrived.send({...settings(),sessionId:'new-settings'});
+ arrived.send({...settings(),sessionId:'new-settings',missingCategories:[]});
  await wait(()=>viewer.last('admin.state')?.entry.settingsSessionId==='new-settings'&&viewer.last('admin.state').entry.settingsReady===true);
+});
+
+test('Admin settings become ready after reconnecting with the same acknowledged revision',async t=>{
+ const {peer}=await fixture(t),viewer=await peer('viewer'),first=await peer('reporter','admin');
+ first.send(presence('42','MagixSafe'));await wait(()=>first.last('players.ack'));
+ first.send(settings());await wait(()=>viewer.last('admin.state')?.entry.settingsReady===true);
+ first.ws.close();await wait(()=>viewer.last('admin.state')?.entry.connected===false);
+ const next=await peer('reporter','admin');
+ next.send(presence('42','MagixSafe','home',2));await wait(()=>next.last('players.ack'));
+ next.send({version:1,type:'admin.inventory.snapshot',sessionId:'admin-session',revision:2,stats:{},eggs:[],animals:[]});
+ await wait(()=>next.last('settings.request'));
+ next.send(settings());
+ await wait(()=>viewer.last('admin.state')?.entry.settingsReady===true);
+ viewer.send({version:1,type:'admin.command',action:'settings.update',clientRequestId:'save-mutation',
+  settingsSessionId:'admin-session',settingsRevision:1,options:{...options,MutationBossEnabled:true}});
+ const command=await wait(()=>next.last('admin.command'));
+ assert.equal(command.settingsSessionId,'admin-session');
+ assert.equal(command.options.MutationBossEnabled,true);
+ next.send({...settings(2),options:command.options});
+ await wait(()=>viewer.last('admin.state')?.entry.options.MutationBossEnabled===true);
 });
 
 test('admin requires its raw username AND Admin client; observers and Hub never gain privileges',async t=>{

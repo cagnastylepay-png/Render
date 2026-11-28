@@ -354,8 +354,7 @@ function attachEggGateway(server, store, players, history, {
           if(message.type==='admin.command.result'){panel.result(ws,message);return;}
           const accepted=panel.accept(ws,message);
           send(ws,{version:1,type:'admin.inventory.ack',revision:message.revision,sessionId:message.sessionId,accepted});
-          const saved=settings.get(ws.reporterIdentity.userId);
-          if(saved?.sessionId!==message.sessionId&&ws.settingsRequestedSessionId!==message.sessionId){
+          if(ws.settingsSessionId!==message.sessionId&&ws.settingsRequestedSessionId!==message.sessionId){
             ws.settingsRequestedSessionId=message.sessionId;
             send(ws,{version:1,type:'settings.request',sessionId:message.sessionId});
           }
@@ -365,7 +364,15 @@ function attachEggGateway(server, store, players, history, {
           if (!ws.reporterIdentity) throw Error("Player identity required before settings");
           const accepted = isAdmin(ws) ? settings.accept(ws.reporterIdentity, message) : false;
           send(ws, { version: 1, type: "settings.ack", sessionId: message.sessionId, revision: message.revision, accepted });
-          if (accepted) { ws.settingsSessionId = message.sessionId; ws.settingsRequestedSessionId=undefined; broadcastAdmin(); broadcast(); } return;
+          // An acknowledged revision can be replayed after a socket reconnect.
+          const saved = isAdmin(ws) ? settings.get(ws.reporterIdentity.userId) : null;
+          if(saved?.sessionId===message.sessionId&&saved.revision===message.revision){
+            const reconnected=ws.settingsSessionId!==message.sessionId;
+            ws.settingsSessionId=message.sessionId;
+            ws.settingsRequestedSessionId=undefined;
+            if(accepted||reconnected){broadcastAdmin();broadcast();}
+          }
+          return;
         }
         if(message.type==="events.snapshot"){
           if(!isAdmin(ws)||message.version!==1)return;
