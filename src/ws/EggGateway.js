@@ -122,6 +122,9 @@ function attachEggGateway(server, store, players, history, {
       client.reporterIdentity?.placeId === destination.placeId &&
       client.reporterIdentity.jobId === destination.jobId && client.groupCapacity)
       .map(client => client.groupCapacity).sort((a,b) => b.at - a.at)[0];
+    if (groupReservation && (groupReservation.observer.readyState !== WebSocket.OPEN || groupReservation.observer.superseded)) {
+      cancelGroupReservation();
+    }
     if (groupReservation) {
       const { jobId, userId, until } = groupReservation;
       if (jobId !== destination.jobId || groupReservation.placeId !== destination.placeId) cancelGroupReservation();
@@ -303,6 +306,9 @@ function attachEggGateway(server, store, players, history, {
             client.clientKind==="observer"&&client.observerOnly&&!client.superseded&&
             client.reporterIdentity?.placeId===message.placeId&&client.reporterIdentity.jobId===message.jobId);
           if (!observer) { ack("Aucun observer connecté sur ce serveur.");return; }
+          if (groupReservation && groupReservation.userId === observer.reporterIdentity.userId && groupReservation.observer !== observer) {
+            cancelGroupReservation();
+          }
           if (groupReservation?.jobId === destination.jobId) { ack("Un observer est déjà attendu sur le serveur d’Admin.");return; }
           if (observer.manualObserverHopUntil>now) { ack("Une demande est déjà en cours pour cet observer.");return; }
           observer.manualObserverHopUntil=now+30000;
