@@ -14,7 +14,7 @@ async function fixture(t,adminUsername='MagixSafe',logs={uri:null}){
  }
  return {server,peer};
 }
-function presence(id,name,job='home',revision=1,displayName=name){return {version:1,type:'players.snapshot',moduleId:'PlayerReporter',sessionId:'s'+id,revision,placeId:'123',jobId:job,reporterUserId:id,players:[{userId:id,name,displayName,speedPower:1}]};}
+function presence(id,name,job='home',revision=1,displayName=name,placeId='123'){return {version:1,type:'players.snapshot',moduleId:'PlayerReporter',sessionId:'s'+id,revision,placeId,jobId:job,reporterUserId:id,players:[{userId:id,name,displayName,speedPower:1}]};}
 function eggs(revision=1,list=[{uid:'e',category:'Cat',name:'Cat',rarity:'Divine',incomePerSecond:3e9}]){return {version:1,type:'eggs.snapshot',moduleId:'EggReporter',sessionId:'source',revision,placeId:'123',jobId:'remote',cycleId:'1',observedAt:new Date().toISOString(),cycleEndsAt:Date.now()/1000+120,eggs:list};}
 const options={AutoEggs:true,AutoIndex:false,AutoTreadmill:false,AutoSell:false,AutoFuse:false,AutoOpen:false,AutoPlace:false,AutoPapillon:false};
 for(const key of ['AutoEggs','AutoSell','AutoFuse','AutoOpen','AutoPlace']){options[key+'Min']=2e9;options[key+'Max']=1e33;}
@@ -72,6 +72,31 @@ test('admin settings persist offline; auto targets cancel and GO targets only Ad
  assert.equal(admin.last('teleport.request').force,true);assert.equal(observer.messages.some(m=>['teleport.request','observer.relocate'].includes(m.type)),false);
  admin.ws.close();await wait(()=>viewer.last('admin.state').entry.connected===false);assert.equal(viewer.last('admin.state').entry.options.AutoEggsMin,2e9);
  const next=await peer('viewer');assert.equal(next.last('admin.state').entry.connected,false);assert.equal(next.last('admin.state').entry.userId,'42');
+});
+
+test('GO TO Admin sends an Observer to Admin across different place IDs',async t=>{
+ const {peer}=await fixture(t),viewer=await peer('viewer'),admin=await peer('reporter','admin'),observer=await peer('reporter','observer',true);
+ admin.send(presence('42','MagixSafe','admin-job',1,'MagixSafe','456'));
+ observer.send(presence('7','caylus298878','caylus-job',1,'caylus298878','123'));
+ await wait(()=>admin.last('players.ack'));await wait(()=>observer.last('players.ack'));
+ admin.send({...settings(),options:{...options,GroupMode:false}});await wait(()=>admin.last('settings.ack')?.accepted);
+ viewer.send({version:1,type:'observer.go-to-admin',placeId:'123',jobId:'caylus-job'});
+ const request=await wait(()=>observer.last('observer.go-to-admin'));
+ assert.equal(request.target.placeId,'123');assert.equal(request.target.jobId,'caylus-job');
+ assert.equal(request.target.destinationPlaceId,'456');assert.equal(request.target.destinationJobId,'admin-job');
+ const ack=await wait(()=>viewer.last('observer.go-to-admin.ack'));assert.match(ack.message,/caylus298878/);
+});
+
+test('Group Mode automatically joins an Observer to Admin across different place IDs',async t=>{
+ const {peer}=await fixture(t),admin=await peer('reporter','admin'),observer=await peer('reporter','observer',true);
+ admin.send(presence('42','MagixSafe','admin-job',1,'MagixSafe','456'));
+ await wait(()=>admin.last('players.ack'));
+ admin.send({...settings(),options:{...options,GroupMode:true}});await wait(()=>admin.last('settings.ack')?.accepted);
+ observer.send(presence('7','caylus298878','caylus-job',1,'caylus298878','123'));
+ await wait(()=>observer.last('players.ack'));
+ const request=await wait(()=>observer.last('observer.go-to-admin'));
+ assert.equal(request.target.placeId,'123');assert.equal(request.target.jobId,'caylus-job');
+ assert.equal(request.target.destinationPlaceId,'456');assert.equal(request.target.destinationJobId,'admin-job');
 });
 
 test('ADMIN_USERNAME override selects one configured account and filters archived diagnostics on replay',async t=>{

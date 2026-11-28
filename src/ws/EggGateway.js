@@ -150,7 +150,7 @@ function attachEggGateway(server, store, players, history, {
     } else if (capacity.userIds.size >= capacity.maxPlayers) return;
     if (clients.some(client => client.manualObserverHopUntil > now)) return;
     const candidates = clients.filter(client => client.readyState === WebSocket.OPEN && client.role === "reporter" && client.observerOnly && !client.superseded &&
-      client.reporterIdentity?.placeId === destination.placeId && client.reporterIdentity.jobId !== destination.jobId &&
+      client.reporterIdentity && (client.reporterIdentity.placeId !== destination.placeId || client.reporterIdentity.jobId !== destination.jobId) &&
       !capacity.userIds.has(client.reporterIdentity.userId) && (client.groupRetryAt || 0) <= now);
     candidates.sort((a,b) => (a.groupLastAttempt || 0) - (b.groupLastAttempt || 0));
     const observer = candidates[0];
@@ -161,7 +161,8 @@ function attachEggGateway(server, store, players, history, {
     const type = observer.groupCapacity ? "observer.group" : "observer.go-to-admin";
     groupReservation = { observer, type, userId: source.userId, placeId: destination.placeId, jobId: destination.jobId, until: now + 125000 };
     send(observer, { version: 1, type, target: {
-      placeId: source.placeId, jobId: source.jobId, destinationJobId: destination.jobId, delaySeconds: 0
+      placeId: source.placeId, jobId: source.jobId,
+      destinationPlaceId: destination.placeId, destinationJobId: destination.jobId, delaySeconds: 0
     } });
   }
   let spreading=false;
@@ -293,7 +294,7 @@ function attachEggGateway(server, store, players, history, {
           if (![message.placeId,message.jobId].every(value=>typeof value==="string"&&value.length>0&&value.length<=128)) throw Error("Serveur source invalide");
           const ack=message=>send(ws,{version:1,type:"observer.go-to-admin.ack",message});
           const destination=resolveAdminDestination(adminSocket(), [...wss.clients].filter(client=>client.readyState===WebSocket.OPEN), message.placeId);
-          if (!destination||destination.placeId!==message.placeId) { ack("Admin indisponible dans ce jeu.");return; }
+          if (!destination) { ack("Admin indisponible.");return; }
           if (groupHome?.placeId === message.placeId && groupHome.jobId === message.jobId &&
             settings.findByUsername(username)?.options?.GroupMode !== false) { ack("Group Mode actif : cet observer reste avec le groupe.");return; }
           if (destination.jobId===message.jobId) { ack("L’observer est déjà sur le serveur d’Admin.");return; }
@@ -307,7 +308,8 @@ function attachEggGateway(server, store, players, history, {
           observer.manualObserverHopUntil=now+30000;
           observer.spreadSignature=undefined;
           send(observer,{version:1,type:"observer.go-to-admin",target:{
-            placeId:message.placeId,jobId:message.jobId,destinationJobId:destination.jobId,delaySeconds:0
+            placeId:message.placeId,jobId:message.jobId,
+            destinationPlaceId:destination.placeId,destinationJobId:destination.jobId,delaySeconds:0
           }});
           ack("Demande transmise à "+observer.reporterIdentity.name+".");
           return;

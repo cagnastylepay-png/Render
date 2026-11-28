@@ -460,7 +460,7 @@ function renderCards(){
   const names=(server.scriptNames||[]).join(", ");
   setText(server.title,(group.hasAdmin?"★ Serveur admin":"Serveur")+(names?" de "+names:" observé"));
   server.title.title=group.jobId;
-  server.toAdmin.disabled=group.hasAdmin||!groups.some(destination=>destination.hasAdmin&&destination.connected&&destination.placeId===group.placeId)||!group.players.some(player=>player.reporterConnected);
+  server.toAdmin.disabled=group.hasAdmin||!groups.some(destination=>destination.hasAdmin&&destination.connected)||!group.players.some(player=>player.reporterConnected);
   setText(server.connection,group.connected?"● Connecté":"Observations conservées");
   server.connection.style.color=group.connected?"#b0fa75":"#a4b2ca";
   view.node.className="card"+(best?"":" server-empty")+(group.hasAdmin?" server-admin":"");
