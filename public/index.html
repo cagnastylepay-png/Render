@@ -112,7 +112,7 @@ const selectedAnimals=new Set();
 function adminCanAct(){return Boolean(adminEntries[0]?.connected&&adminInventory.connected&&!adminInventory.pending&&!adminWaiting&&adminInventory.inventory&&Date.now()-adminInventory.inventory.receivedAt<30000);}
 function adminCanConfigure(){return Boolean(adminEntries[0]?.connected&&adminEntries[0]?.settingsReady!==false&&!adminInventory.pending&&!adminWaiting);}
 function adminCommand(action,payload={}){
- const configuration=action==="automation.set"||action==="settings.update";
+ const configuration=action==="settings.update";
  if(!socket||socket.readyState!==WebSocket.OPEN||!(configuration?adminCanConfigure():adminCanAct()))return;
  const inventory=adminInventory.inventory,row=adminEntries[0];
  adminWaiting=true;
