@@ -31,6 +31,17 @@ test('arrival replaces the old Admin socket immediately and it cannot reappear a
  const replay=await peer('viewer');assert.equal(replay.last('admin.state').entry.connected,false);
 });
 
+test('a restarted Admin cannot receive stale settings until its new session is synchronized',async t=>{
+ const {peer}=await fixture(t),viewer=await peer('viewer'),old=await peer('reporter','admin');
+ old.send(presence('42','MagixSafe','old'));await wait(()=>old.last('players.ack'));
+ old.send({...settings(),sessionId:'old-settings'});await wait(()=>viewer.last('admin.state')?.entry.settingsReady===true);
+ const arrived=await peer('reporter','admin');arrived.send(presence('42','MagixSafe','new'));
+ await wait(()=>viewer.last('admin.state')?.entry.jobId==='new'&&viewer.last('admin.state').entry.settingsReady===false);
+ assert.equal(viewer.last('admin.state').entry.settingsSessionId,'old-settings');
+ arrived.send({...settings(),sessionId:'new-settings'});
+ await wait(()=>viewer.last('admin.state')?.entry.settingsSessionId==='new-settings'&&viewer.last('admin.state').entry.settingsReady===true);
+});
+
 test('admin requires its raw username AND Admin client; observers and Hub never gain privileges',async t=>{
  const {peer}=await fixture(t),viewer=await peer('viewer');
  assert.equal(viewer.last('admin.state').username,'MagixSafe');assert.equal(viewer.last('admin.state').entry.connected,false);

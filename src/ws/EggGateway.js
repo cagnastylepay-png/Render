@@ -45,6 +45,7 @@ function attachEggGateway(server, store, players, history, {
       username, userId: identity?.userId || saved?.userId || null, playerName: identity?.name || username,
       connected: Boolean(socket), clientKind: "admin", jobId: identity?.jobId || saved?.jobId || null,
       placeId: identity?.placeId || saved?.placeId || null, at: saved?.at || null,
+      settingsReady:Boolean(socket&&saved?.sessionId===socket.settingsSessionId),
       automationActive: Boolean(socket && saved?.sessionId === socket.settingsSessionId && saved?.automationActive),
       automationEnabled:Boolean(socket&&saved?.sessionId===socket.settingsSessionId&&(saved?.automationEnabled??saved?.automationActive)),
       options: saved?.options || null
